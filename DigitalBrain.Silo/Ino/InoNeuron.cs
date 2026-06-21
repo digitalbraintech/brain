@@ -10,16 +10,11 @@ namespace DigitalBrain.Silo.Ino;
 [GrainType("ino.personal.v1")]
 public class InoNeuron : Neuron, IInoNeuron
 {
-    private string _focus = string.Empty;
-
     public InoNeuron(ILogger<InoNeuron> logger) : base(logger) { }
 
     public override async Task OnActivateAsync(CancellationToken ct)
     {
         await base.OnActivateAsync(ct);
-        // Bootstrap focus from recent journal (purely journal driven).
-        var recent = OutgoingJournal.TakeLast(5).OfType<InoResponse>().LastOrDefault();
-        if (recent != null) _focus = recent.Prompt;
     }
 
     public async Task HandleAsync(InoRequest req)
@@ -48,7 +43,6 @@ public class InoNeuron : Neuron, IInoNeuron
         }
 
         await FireAsync(new InoResponse(req.Prompt, enriched, taskIds.ToArray()));
-        _focus = req.Prompt;
 
         // Compress recent activity to long-term memory summary (journal driven).
         await CreateMemorySummaryAsync();
@@ -86,7 +80,8 @@ public class InoNeuron : Neuron, IInoNeuron
         }
         catch { }
 
-        return $"focus:{_focus}\nprompt:{prompt}\nrecent-out:{string.Join(";", recentOut)}\nrecent-in:{string.Join(";", recentIn)}\ntasks:{taskCtx}\nmem:{memCtx}\ncross:{cross}";
+        var focus = OutgoingJournal.TakeLast(3).OfType<InoResponse>().LastOrDefault()?.Prompt ?? "";
+        return $"focus:{focus}\nprompt:{prompt}\nrecent-out:{string.Join(";", recentOut)}\nrecent-in:{string.Join(";", recentIn)}\ntasks:{taskCtx}\nmem:{memCtx}\ncross:{cross}";
     }
 
     private async Task<string> ReasonWithLlmAsync(string prompt, string context)
