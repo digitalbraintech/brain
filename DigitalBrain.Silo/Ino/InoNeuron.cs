@@ -24,25 +24,7 @@ public class InoNeuron : Neuron, IInoNeuron
 
         var taskIds = await OrchestrateActionsIfNeededAsync(req.Prompt, reply);
 
-        // Enrich response with any fresh task results for better context to caller.
-        var enriched = reply;
-        if (taskIds.Count > 0)
-        {
-            var infos = new List<string>();
-            foreach (var tid in taskIds.Where(t => !t.StartsWith("branch")))
-            {
-                try
-                {
-                    var kt = GrainFactory.GetGrain<IKernelTask>(tid);
-                    var inf = await kt.GetInfoAsync();
-                    if (inf.Result != null) infos.Add($"{tid}={inf.Result}");
-                }
-                catch { }
-            }
-            if (infos.Count > 0) enriched += " | " + string.Join("; ", infos);
-        }
-
-        await FireAsync(new InoResponse(req.Prompt, enriched, taskIds.ToArray()));
+        await FireAsync(new InoResponse(req.Prompt, reply, taskIds.ToArray()));
 
         // Compress recent activity to long-term memory summary (journal driven).
         await CreateMemorySummaryAsync();
@@ -51,7 +33,6 @@ public class InoNeuron : Neuron, IInoNeuron
     public async Task<string> AskAsync(string prompt)
     {
         await FireAsync(new InoRequest(prompt));
-        await Task.Delay(120);
         var tl = await GetOutgoingTimelineAsync();
         var last = tl.OfType<InoResponse>().LastOrDefault();
         return last?.Response ?? "processed";
@@ -107,20 +88,12 @@ public class InoNeuron : Neuron, IInoNeuron
             var tid = "task-" + Guid.NewGuid().ToString("N")[..8];
             var kt = GrainFactory.GetGrain<IKernelTask>(tid);
             await kt.FireAsync(new RunKernelTask(tid, taskDesc));
-            // Capture result (demo poll; real would react to completion synapse).
-            await Task.Delay(80);
-            var info = await kt.GetInfoAsync();
-            if (info.Result != null)
-            {
-                await FireAsync(new KernelTaskProgress(tid, "result:" + info.Result));
-            }
             created.Add(tid);
         }
         if (reply.Contains("BRANCH:", StringComparison.OrdinalIgnoreCase) || prompt.Contains("what if", StringComparison.OrdinalIgnoreCase))
         {
             var cp = await CreateCheckpointAsync();
             var bid = await BranchAsync(cp);
-            await FireAsync(new KernelTaskProgress("branch", "created:" + bid.Value));
             created.Add("branch:" + bid.Value);
         }
         return created;

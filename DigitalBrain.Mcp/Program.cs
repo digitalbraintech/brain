@@ -53,9 +53,6 @@ public class DigitalBrainTools(IGrainFactory grains)
             var llm = grains.GetGrain<ILlmNeuron>("llm-main");
             await llm.FireAsync(new LlmPrompt(prompt, preferredModel));
 
-            // Give it time to process (LLM inference)
-            await Task.Delay(2500);
-
             var timeline = await llm.GetTimelineAsync();
             var response = timeline.OfType<LlmResponse>().LastOrDefault();
 
@@ -160,7 +157,6 @@ public class DigitalBrainTools(IGrainFactory grains)
         {
             var market = grains.GetGrain<IMarketplaceNeuron>("market-main");
             await market.FireAsync(new ListPublished());
-            await Task.Delay(500);
             var timeline = await market.GetTimelineAsync();
             var list = timeline.LastOrDefault(s => s is PublishedList) as PublishedList;
             if (list == null || list.Packs.Count == 0) return "No packs published yet.";

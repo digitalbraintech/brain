@@ -147,7 +147,6 @@ else
                         var d = "marketplace pack analyzer that prints 3 ideas to improve the compiler or REPL";
                         var c = grains.GetGrain<ICompiler>("compiler-main");
                         await c.FireAsync(new CreateNeuronRequest(d));
-                        await Task.Delay(800);
                         var tl = await c.GetTimelineAsync();
                         var g = tl.LastOrDefault(s => s is NeuronCodeGenerated) as NeuronCodeGenerated;
                         if (g != null)
@@ -171,7 +170,6 @@ else
                     {
                         var llm = grains.GetGrain<ILlmNeuron>("llm-main");
                         await llm.FireAsync(new LlmPrompt(string.Join(' ', parts[1..])));
-                        await Task.Delay(800);
                         var tl = await llm.GetTimelineAsync();
                         var resp = tl.OfType<LlmResponse>().LastOrDefault();
                         Console.WriteLine(resp != null ? resp.Response : "done");
@@ -215,7 +213,6 @@ else
                         var tid = "quick-" + Guid.NewGuid().ToString("N")[..6];
                         var kt = grains.GetGrain<IKernelTask>(tid);
                         await kt.FireAsync(new RunKernelTask(tid, desc));
-                        await Task.Delay(100);
                         var info = await kt.GetInfoAsync();
                         Console.WriteLine($"KernelTask {info.TaskId}:{info.Status} result={info.Result}");
                     }
@@ -405,7 +402,6 @@ public class BrainMcpTools(IGrainFactory grains)
     {
         var llm = grains.GetGrain<ILlmNeuron>("llm-main");
         await llm.FireAsync(new LlmPrompt(prompt));
-        await Task.Delay(800);
         var tl = await llm.GetTimelineAsync();
         var r = tl.OfType<LlmResponse>().LastOrDefault();
         return r?.Response ?? "LLM processed the prompt. Use get_timeline on llm-main for full result.";
@@ -416,7 +412,6 @@ public class BrainMcpTools(IGrainFactory grains)
     {
         var compiler = grains.GetGrain<ICompiler>("compiler-main");
         await compiler.FireAsync(new CreateNeuronRequest(description));
-        await Task.Delay(800);
         var tl = await compiler.GetTimelineAsync();
         var gen = tl.LastOrDefault(s => s is NeuronCodeGenerated) as NeuronCodeGenerated;
         var code = gen?.GeneratedCodeSnippet;
@@ -445,7 +440,6 @@ public class BrainMcpTools(IGrainFactory grains)
     {
         var m = grains.GetGrain<IMarketplaceNeuron>("market-main");
         await m.FireAsync(new ListPublished());
-        await Task.Delay(100);
         var tl = await m.GetTimelineAsync();
         if (tl.LastOrDefault(s => s is PublishedList) is PublishedList pl && pl.Packs.Count > 0)
             return string.Join("\n", pl.Packs.Select(p => p.Name + "@" + p.Version));
@@ -473,7 +467,6 @@ public class BrainMcpTools(IGrainFactory grains)
     {
         var m = grains.GetGrain<IMarketplaceNeuron>("market-main");
         await m.FireAsync(new ListPublished());
-        await Task.Delay(100);
         var tl = await m.GetTimelineAsync();
         var pl = tl.LastOrDefault(s => s is PublishedList) as PublishedList;
         var pack = pl?.Packs.FirstOrDefault(p => p.Name.Contains(name, StringComparison.OrdinalIgnoreCase));

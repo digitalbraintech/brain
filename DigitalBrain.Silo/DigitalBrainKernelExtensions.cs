@@ -18,7 +18,7 @@ public static class DigitalBrainKernelExtensions
             siloBuilder.AddMemoryGrainStorageAsDefault();
 
             // Dual journals: incoming (received Deliver) + outgoing (Fire). Prototype in-memory for fast single-process boot.
-            // Auto population via incoming grain call filter + explicit in Neuron Fire/Deliver.
+            // Population explicit in Neuron.FireAsync / DeliverAsync for synapse causality.
             siloBuilder.ConfigureServices(services =>
             {
                 services.AddKeyedScoped<Orleans.Journaling.IDurableList<DigitalBrain.Protocol.Synapse>>("in-journal",
@@ -27,9 +27,6 @@ public static class DigitalBrainKernelExtensions
                     (_, _) => new InMemoryJournalForPrototype<DigitalBrain.Protocol.Synapse>());
                 services.AddSingleton<Orleans.Journaling.IJournaledStateManager, PrototypeJournaledStateManager>();
             });
-
-            // Call filter ensures every incoming synapse (DeliverAsync or grain invocation) auto-logs to receiver's in-journal.
-            siloBuilder.AddIncomingGrainCallFilter<IncomingJournalFilter>();
 
             // Built-in neurons discovered automatically.
         });
@@ -43,16 +40,5 @@ public static class DigitalBrainKernelExtensions
     {
         builder.UseOrleansClient();
         return builder;
-    }
-}
-
-
-
-// Incoming call filter for dual-journal auto population.
-internal sealed class IncomingJournalFilter : IIncomingGrainCallFilter
-{
-    public async Task Invoke(IIncomingGrainCallContext context)
-    {
-        await context.Invoke();
     }
 }
