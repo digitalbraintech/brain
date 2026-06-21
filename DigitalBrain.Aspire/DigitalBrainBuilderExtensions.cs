@@ -1,16 +1,21 @@
 using Aspire.Hosting.ApplicationModel;
+using Aspire.Hosting.Orleans;
 using System;
 
 namespace Aspire.Hosting;
 
-/// <summary>
-/// Fluent extensions for adding a self-aware DigitalBrain (core kernel + marketplace + LLM + TUI).
-/// Follows CommunityToolkit.Aspire.Hosting patterns (minimal, copyable MVP).
-/// Heavy wiring stays in consuming AppHost so SDK project remains compile-independent.
-/// </summary>
+public sealed class DigitalBrainContext
+{
+    public required IResourceBuilder<DigitalBrainResource> Resource { get; init; }
+    public required IResourceBuilder<IResource> Orleans { get; init; }
+    public required IResourceBuilder<IResource> Llm { get; init; }
+}
+
+// Fluent extensions for adding a self-aware DigitalBrain (core kernel + marketplace + LLM + TUI).
+// Follows CommunityToolkit.Aspire.Hosting patterns (minimal, copyable MVP).
 public static class DigitalBrainBuilderExtensions
 {
-    public static IResourceBuilder<DigitalBrainResource> AddDigitalBrain(
+    public static DigitalBrainContext AddDigitalBrain(
         this IDistributedApplicationBuilder builder,
         [ResourceName] string name = "digitalbrain",
         Action<DigitalBrainOptions>? configure = null)
@@ -19,47 +24,34 @@ public static class DigitalBrainBuilderExtensions
         configure?.Invoke(options);
 
         var resource = new DigitalBrainResource(name);
-        return builder.AddResource(resource);
-        // The resource anchors the fluent API and options.
-        // Common infra (redis, orleans, ollama) + silo with replicas + cli are added by consumer
-        // (or enhanced in future versions of the SDK to return a context object with the resources).
+        var db = builder.AddResource(resource);
+
+        // Core infra encapsulated here based on options
+        var redis = builder.AddRedis($"{name}-redis");
+
+        var orleansBuilder = builder.AddOrleans($"{name}-orleans")
+            .WithClustering(redis)
+            .WithGrainStorage("Default", redis);
+
+        var ollama = builder.AddOllama($"{name}-ollama")
+            .WithGPUSupport()
+            .WithDataVolume();
+
+        var llmModel = options.LlmModel ?? "qwen2.5-coder:1.5b";
+        var llmBuilder = ollama.AddModel($"{name}-llm", llmModel);
+
+        // Marketplace config can be applied by caller on the kernel project via env
+
+        return new DigitalBrainContext
+        {
+            Resource = db,
+            Orleans = (IResourceBuilder<IResource>)(object)orleansBuilder,
+            Llm = (IResourceBuilder<IResource>)(object)llmBuilder
+        };
     }
 
-    public static IResourceBuilder<DigitalBrainResource> WithLLM(
-        this IResourceBuilder<DigitalBrainResource> builder,
-        string modelTag = "qwen2.5-coder:1.5b")
-    {
-        // Intent captured via options at Add time for MVP. Real resources can read annotations later.
-        return builder;
-    }
-
-    public static IResourceBuilder<DigitalBrainResource> WithTUI(
-        this IResourceBuilder<DigitalBrainResource> builder,
-        bool explicitStart = true)
-    {
-        return builder;
-    }
-
-    public static IResourceBuilder<DigitalBrainResource> WithMarketplace(
-        this IResourceBuilder<DigitalBrainResource> builder,
-        Action<MarketplaceConfig> configure)
-    {
-        return builder;
-    }
-
-    public static IResourceBuilder<DigitalBrainResource> AddExperience<TExperience>(
-        this IResourceBuilder<DigitalBrainResource> builder,
-        Action<ExperienceConfig> configure) where TExperience : class
-    {
-        return builder;
-    }
-
-    public static IResourceBuilder<DigitalBrainResource> WithKernelReplicas(
-        this IResourceBuilder<DigitalBrainResource> builder,
-        int count)
-    {
-        return builder;
-    }
+    // With* fluent methods can be expanded later for annotations or further config.
+    // Core setup is done in AddDigitalBrain based on options.
 }
 
 public sealed class DigitalBrainOptions

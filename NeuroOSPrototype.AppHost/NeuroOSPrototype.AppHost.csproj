@@ -12,7 +12,6 @@
     <PackageReference Include="Aspire.Hosting.Orleans" Version="*" />
     <PackageReference Include="Aspire.Hosting.Redis" Version="*" />
     <PackageReference Include="CommunityToolkit.Aspire.Hosting.Ollama" Version="*" />
-    <ProjectReference Include="..\DigitalBrain.Aspire\DigitalBrain.Aspire.csproj" />
     <ProjectReference Include="..\DigitalBrain.Silo\DigitalBrain.Silo.csproj" />
     <ProjectReference Include="..\DigitalBrain.Cli\DigitalBrain.Cli.csproj" />
   </ItemGroup>

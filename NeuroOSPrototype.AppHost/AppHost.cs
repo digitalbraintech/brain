@@ -1,10 +1,8 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
-// DigitalBrain Aspire resource project exists (DigitalBrain.Aspire) providing the foundation
-// for the fluent AddDigitalBrain / WithLLM / WithTUI / WithMarketplace / AddExperience / replicas API (MVP).
-// Current AppHost uses direct wiring for compatibility; the SDK will be enhanced to fully encapsulate.
+// DigitalBrain setup using options and resource concepts from DigitalBrain.Aspire SDK (the AddDigitalBrain in SDK now encapsulates the common wiring logic for redis + orleans + ollama based on options).
+// For this AppHost we use explicit for compatibility, but 3 replicas of kernel as requested.
 
-// Core infrastructure + 3 replicas of the kernel (OS)
 var redis = builder.AddRedis("redis");
 var orleans = builder.AddOrleans("neuro")
     .WithClustering(redis)

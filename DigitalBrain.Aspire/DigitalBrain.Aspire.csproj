@@ -9,6 +9,9 @@
 
   <ItemGroup>
     <PackageReference Include="Aspire.Hosting" Version="*" />
+    <PackageReference Include="Aspire.Hosting.Orleans" Version="*" />
+    <PackageReference Include="Aspire.Hosting.Redis" Version="*" />
+    <PackageReference Include="CommunityToolkit.Aspire.Hosting.Ollama" Version="*" />
   </ItemGroup>
 
 </Project>
