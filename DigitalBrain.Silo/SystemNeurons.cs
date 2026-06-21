@@ -1,5 +1,9 @@
 using DigitalBrain.Protocol;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Orleans.Journaling;
+
+#pragma warning disable ORLEANSEXP005 // Alpha/experimental journalling APIs
 
 namespace DigitalBrain.Silo;
 
@@ -7,9 +11,8 @@ namespace DigitalBrain.Silo;
 [GrainType("neuro.aspire.v1")]
 public class AspireOrchestratorNeuron : Neuron, IAspireNeuron
 {
-    public AspireOrchestratorNeuron(ILogger<AspireOrchestratorNeuron> logger,
-        [PersistentState("journal", "Default")] IPersistentState<List<Synapse>> journal)
-        : base(logger, journal)
+    public AspireOrchestratorNeuron(ILogger<AspireOrchestratorNeuron> logger)
+        : base(logger)
     {
     }
 
@@ -32,9 +35,8 @@ public class MarketplaceNeuron : Neuron, IMarketplaceNeuron
 {
     private readonly List<string> _published = new();
 
-    public MarketplaceNeuron(ILogger<MarketplaceNeuron> logger,
-        [PersistentState("journal", "Default")] IPersistentState<List<Synapse>> journal)
-        : base(logger, journal)
+    public MarketplaceNeuron(ILogger<MarketplaceNeuron> logger)
+        : base(logger)
     {
     }
 
@@ -67,9 +69,8 @@ public class MarketplaceNeuron : Neuron, IMarketplaceNeuron
 [GrainType("neuro.compiler.v1")]
 public class CompilerNeuron : Neuron, ICompiler
 {
-    public CompilerNeuron(ILogger<CompilerNeuron> logger,
-        [PersistentState("journal", "Default")] IPersistentState<List<Synapse>> journal)
-        : base(logger, journal)
+    public CompilerNeuron(ILogger<CompilerNeuron> logger)
+        : base(logger)
     {
     }
 
@@ -91,9 +92,8 @@ public class MetaOptimizerNeuron : Neuron, IMetaOptimizerNeuron
 {
     private int _telemetryCount = 0;
 
-    public MetaOptimizerNeuron(ILogger<MetaOptimizerNeuron> logger,
-        [PersistentState("journal", "Default")] IPersistentState<List<Synapse>> journal)
-        : base(logger, journal)
+    public MetaOptimizerNeuron(ILogger<MetaOptimizerNeuron> logger)
+        : base(logger)
     {
     }
 
@@ -123,8 +123,8 @@ public class GeneratedNeuron : Neuron, IGeneratedNeuron
 {
     private string _id = string.Empty;
 
-    public GeneratedNeuron(ILogger<GeneratedNeuron> logger, [PersistentState("journal", "Default")] IPersistentState<List<Synapse>> journal)
-        : base(logger, journal)
+    public GeneratedNeuron(ILogger<GeneratedNeuron> logger)
+        : base(logger)
     {
     }
 

@@ -1,41 +1,40 @@
 using DigitalBrain.Protocol;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Orleans.Journaling;
+using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
+
+#pragma warning disable ORLEANSEXP005 // Alpha/experimental journalling APIs
 
 namespace DigitalBrain.Silo;
 
 [GrainType("neuro.base.v2")]
-public abstract class Neuron : Grain, INeuron
+public abstract class Neuron : DurableGrain, INeuron
 {
     protected readonly ILogger Logger;
-    protected readonly IPersistentState<List<Synapse>> Journal;
 
     protected NeuronId Self => new(this.GetPrimaryKeyString() ?? this.GetGrainId().ToString());
 
-    protected Neuron(ILogger logger, [PersistentState("journal", "Default")] IPersistentState<List<Synapse>> journal)
+    protected Neuron(ILogger logger)
     {
         Logger = logger;
-        Journal = journal;
     }
+
+    protected IDurableList<Synapse> Journal => this.ServiceProvider.GetRequiredKeyedService<IDurableList<Synapse>>("journal");
 
     public override async Task OnActivateAsync(CancellationToken ct)
     {
         await base.OnActivateAsync(ct);
-        await Journal.ReadStateAsync();
         await FireAsync(new NeuronActivated(Self));
-    }
-
-    public override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken ct)
-    {
-        await Journal.WriteStateAsync();
-        await base.OnDeactivateAsync(reason, ct);
     }
 
     public async ValueTask FireAsync<T>(T payload) where T : Synapse
     {
         var stamped = payload.Stamp(Self);
-        Journal.State.Add(stamped);
-        await Journal.WriteStateAsync();
+        Journal.Add(stamped);
+        await WriteStateAsync();
 
         if (stamped.IsBroadcast)
         {
@@ -56,11 +55,11 @@ public abstract class Neuron : Grain, INeuron
     }
 
     public Task<IReadOnlyList<Synapse>> GetTimelineAsync() =>
-        Task.FromResult<IReadOnlyList<Synapse>>(Journal.State);
+        Task.FromResult<IReadOnlyList<Synapse>>(Journal.ToList());
 
     protected async Task ReplayAsync(Func<Synapse, Task> handler, DateTimeOffset? since = null)
     {
-        foreach (var s in Journal.State.Where(x => since == null || x.Timestamp >= since))
+        foreach (var s in Journal.Where(x => since == null || x.Timestamp >= since))
             await handler(s);
     }
 
@@ -95,4 +94,19 @@ public abstract class Neuron : Grain, INeuron
     }
 
     protected virtual Task DispatchSynapse(Synapse synapse) => Task.CompletedTask;
+}
+
+public sealed class InMemoryDurableList<T> : List<T>, Orleans.Journaling.IDurableList<T>
+{
+}
+
+public sealed class TestJournaledStateManager : Orleans.Journaling.IJournaledStateManager
+{
+    // Minimal stub for alpha DurableGrain + IJournaledStateManager in tests/prototype (in-memory simulation).
+    // Real deployments should use a storage provider (e.g. Azure) that supplies a full impl.
+    public System.Threading.Tasks.ValueTask InitializeAsync(System.Threading.CancellationToken ct = default) => System.Threading.Tasks.ValueTask.CompletedTask;
+    public void RegisterState(string stateId, Orleans.Journaling.IJournaledState state) { }
+    public bool TryGetState(string stateId, out Orleans.Journaling.IJournaledState? state) { state = null; return false; }
+    public System.Threading.Tasks.ValueTask WriteStateAsync(System.Threading.CancellationToken ct = default) => System.Threading.Tasks.ValueTask.CompletedTask;
+    public System.Threading.Tasks.ValueTask DeleteStateAsync(System.Threading.CancellationToken ct = default) => System.Threading.Tasks.ValueTask.CompletedTask;
 }

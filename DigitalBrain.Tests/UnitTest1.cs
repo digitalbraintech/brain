@@ -51,7 +51,12 @@ public class NeuronTests : IAsyncLifetime
         {
             siloBuilder
                 .AddMemoryGrainStorageAsDefault()
-                .AddMemoryStreams("Default");
+                .AddMemoryStreams("Default")
+                .ConfigureServices(services =>
+                {
+                    services.AddKeyedScoped<Orleans.Journaling.IDurableList<DigitalBrain.Protocol.Synapse>>("journal", (_, _) => new DigitalBrain.Silo.InMemoryDurableList<DigitalBrain.Protocol.Synapse>());
+                    services.AddSingleton<Orleans.Journaling.IJournaledStateManager, DigitalBrain.Silo.TestJournaledStateManager>();
+                });
         }
     }
 }

@@ -1,5 +1,7 @@
 using DigitalBrain.Protocol;
 using DigitalBrain.Silo;
+using Microsoft.Extensions.DependencyInjection;
+using Orleans.Journaling;
 using Orleans.TestingHost;
 using Reqnroll;
 using Xunit;
@@ -179,7 +181,12 @@ public class NeuronSteps : IAsyncDisposable
         {
             siloBuilder
                 .AddMemoryGrainStorageAsDefault()
-                .AddMemoryStreams("Default");
+                .AddMemoryStreams("Default")
+                .ConfigureServices(services =>
+                {
+                    services.AddKeyedScoped<Orleans.Journaling.IDurableList<DigitalBrain.Protocol.Synapse>>("journal", (_, _) => new DigitalBrain.Silo.InMemoryDurableList<DigitalBrain.Protocol.Synapse>());
+                    services.AddSingleton<Orleans.Journaling.IJournaledStateManager, DigitalBrain.Silo.TestJournaledStateManager>();
+                });
         }
     }
 }

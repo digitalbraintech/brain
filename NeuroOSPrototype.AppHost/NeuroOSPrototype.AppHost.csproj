@@ -9,8 +9,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Aspire.Hosting.Orleans" Version="13.4.6" />
-    <PackageReference Include="Aspire.Hosting.Redis" Version="13.4.6" />
+    <PackageReference Include="Aspire.Hosting.Orleans" Version="*" />
+    <PackageReference Include="Aspire.Hosting.Redis" Version="*" />
     <ProjectReference Include="..\DigitalBrain.Silo\DigitalBrain.Silo.csproj" />
     <ProjectReference Include="..\DigitalBrain.Cli\DigitalBrain.Cli.csproj" />
   </ItemGroup>

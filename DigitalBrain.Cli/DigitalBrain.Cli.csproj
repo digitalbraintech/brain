@@ -5,7 +5,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Aspire.StackExchange.Redis" Version="13.4.6" />
+    <PackageReference Include="Aspire.StackExchange.Redis" Version="*" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="*" />
     <PackageReference Include="Microsoft.Orleans.Client" Version="*" />
     <PackageReference Include="Microsoft.Orleans.Clustering.Redis" Version="*" />

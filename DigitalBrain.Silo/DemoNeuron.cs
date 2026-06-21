@@ -1,5 +1,9 @@
 using DigitalBrain.Protocol;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Orleans.Journaling;
+
+#pragma warning disable ORLEANSEXP005 // Alpha/experimental journalling APIs
 
 namespace DigitalBrain.Silo;
 
@@ -12,8 +16,8 @@ public class DemoNeuron : Neuron, IDemoNeuron, IHandle<DemoMessageSynapse>
 {
     private string _last = string.Empty;
 
-    public DemoNeuron(ILogger<DemoNeuron> logger, [PersistentState("journal", "Default")] IPersistentState<List<Synapse>> journal)
-        : base(logger, journal)
+    public DemoNeuron(ILogger<DemoNeuron> logger)
+        : base(logger)
     {
     }
 
