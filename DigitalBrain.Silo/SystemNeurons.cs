@@ -662,6 +662,7 @@ public class KernelTaskNeuron : Neuron, IKernelTask
     private string _taskId = "";
     private string _desc = "";
     private string _status = "created";
+    private string? _result;
 
     public KernelTaskNeuron(ILogger<KernelTaskNeuron> logger) : base(logger) { }
 
@@ -669,15 +670,14 @@ public class KernelTaskNeuron : Neuron, IKernelTask
     {
         await base.OnActivateAsync(ct);
         _taskId = this.GetPrimaryKeyString() ?? "task";
-        // Recover: inspect own journals for last known status.
+        // Recover from dual journals.
         var last = OutgoingJournal.Concat(IncomingJournal).LastOrDefault(s => s is KernelTaskStarted or KernelTaskCompleted or KernelTaskCancelled or KernelTaskProgress);
         if (last is KernelTaskStarted) _status = "running";
-        else if (last is KernelTaskCompleted) _status = "completed";
+        else if (last is KernelTaskCompleted c) { _status = "completed"; _result = c.Result; }
         else if (last is KernelTaskCancelled) _status = "cancelled";
         else if (last is KernelTaskProgress p) _status = "running:" + p.Detail;
         if (_status == "running")
         {
-            // Self-recover: continue (demo: immediately mark progress; real would re-execute work spec)
             await FireAsync(new KernelTaskProgress(_taskId, "resumed-after-restart"));
         }
     }
@@ -689,17 +689,18 @@ public class KernelTaskNeuron : Neuron, IKernelTask
         _status = "running";
         await FireAsync(new KernelTaskCreated(cmd.TaskId, cmd.Description));
         await FireAsync(new KernelTaskStarted(cmd.TaskId));
-        // Simulate work completing quickly for prototype; real tasks do long work and progress.
         await Task.Delay(50);
         _status = "completed";
-        await FireAsync(new KernelTaskCompleted(cmd.TaskId, "done:" + cmd.Description));
+        _result = "done:" + cmd.Description;
+        await FireAsync(new KernelTaskCompleted(cmd.TaskId, _result));
     }
 
     public async Task HandleAsync(CancelKernelTask cmd)
     {
         _status = "cancelled";
+        _result = null;
         await FireAsync(new KernelTaskCancelled(cmd.TaskId));
     }
 
-    public Task<string> GetStatusAsync() => Task.FromResult($"{_taskId}:{_status}");
+    public Task<KernelTaskInfo> GetInfoAsync() => Task.FromResult(new KernelTaskInfo(_taskId, _status, _result));
 }

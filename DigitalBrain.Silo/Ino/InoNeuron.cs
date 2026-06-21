@@ -30,7 +30,25 @@ public class InoNeuron : Neuron, IInoNeuron
 
         var taskIds = await OrchestrateActionsIfNeededAsync(req.Prompt, reply);
 
-        await FireAsync(new InoResponse(req.Prompt, reply, taskIds.ToArray()));
+        // Enrich response with any fresh task results for better context to caller.
+        var enriched = reply;
+        if (taskIds.Count > 0)
+        {
+            var infos = new List<string>();
+            foreach (var tid in taskIds.Where(t => !t.StartsWith("branch")))
+            {
+                try
+                {
+                    var kt = GrainFactory.GetGrain<IKernelTask>(tid);
+                    var inf = await kt.GetInfoAsync();
+                    if (inf.Result != null) infos.Add($"{tid}={inf.Result}");
+                }
+                catch { }
+            }
+            if (infos.Count > 0) enriched += " | " + string.Join("; ", infos);
+        }
+
+        await FireAsync(new InoResponse(req.Prompt, enriched, taskIds.ToArray()));
         _focus = req.Prompt;
     }
 
@@ -45,10 +63,11 @@ public class InoNeuron : Neuron, IInoNeuron
 
     private string BuildContext(string prompt)
     {
-        // Multi-scale: recent outgoing + incoming for short term, plus focus.
+        // Multi-scale: own dual journals (recent out/in) + task results as long-term memory.
         var recentOut = OutgoingJournal.TakeLast(8).Select(s => s.Type + ":" + (s as dynamic)?.ToString() ?? s.Type).ToList();
         var recentIn = IncomingJournal.TakeLast(5).Select(s => "in:" + s.Type).ToList();
-        return $"focus:{_focus}\nprompt:{prompt}\nrecent-out:{string.Join(";", recentOut)}\nrecent-in:{string.Join(";", recentIn)}";
+        var taskCtx = string.Join(";", _activeTasks.Select(tid => "task:" + tid));
+        return $"focus:{_focus}\nprompt:{prompt}\nrecent-out:{string.Join(";", recentOut)}\nrecent-in:{string.Join(";", recentIn)}\ntasks:{taskCtx}";
     }
 
     private async Task<string> ReasonWithLlmAsync(string prompt, string context)
@@ -74,6 +93,13 @@ public class InoNeuron : Neuron, IInoNeuron
             var tid = "task-" + Guid.NewGuid().ToString("N")[..8];
             var kt = GrainFactory.GetGrain<IKernelTask>(tid);
             await kt.FireAsync(new RunKernelTask(tid, taskDesc));
+            // Capture result for context (poll briefly in prototype)
+            await Task.Delay(80);
+            var info = await kt.GetInfoAsync();
+            if (info.Result != null)
+            {
+                await FireAsync(new KernelTaskProgress(tid, "result:" + info.Result));
+            }
             created.Add(tid);
             _activeTasks.Add(tid);
         }

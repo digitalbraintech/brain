@@ -83,7 +83,7 @@ public interface ISoftware10Team : ISoftwareEngineeringTeam { }
 // Kernel task grain contract.
 public interface IKernelTask : INeuron, IHandle<RunKernelTask>, IHandle<CancelKernelTask>
 {
-    Task<string> GetStatusAsync();
+    Task<KernelTaskInfo> GetInfoAsync();
 }
 
 public interface IInoNeuron : INeuron, IHandle<InoRequest>
@@ -191,6 +191,14 @@ public record RunKernelTask(string TaskId, string Description) : Synapse(nameof(
 
 [GenerateSerializer]
 public record CancelKernelTask(string TaskId) : Synapse(nameof(CancelKernelTask), DateTimeOffset.UtcNow);
+
+// Rich task state for INO / kernel consumers (value result + status).
+[GenerateSerializer]
+public record KernelTaskInfo(
+    [property: Id(0)] string TaskId,
+    [property: Id(1)] string Status,
+    [property: Id(2)] string? Result = null
+);
 
 // INO - the personal ultra-context assistant living in the kernel.
 [GenerateSerializer]

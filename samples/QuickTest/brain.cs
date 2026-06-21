@@ -213,8 +213,8 @@ else
                         var kt = grains.GetGrain<IKernelTask>(tid);
                         await kt.FireAsync(new RunKernelTask(tid, desc));
                         await Task.Delay(100);
-                        var st = await kt.GetStatusAsync();
-                        Console.WriteLine("KernelTask " + st);
+                        var info = await kt.GetInfoAsync();
+                        Console.WriteLine($"KernelTask {info.TaskId}:{info.Status} result={info.Result}");
                     }
                     break;
 
@@ -477,5 +477,20 @@ public class BrainMcpTools(IGrainFactory grains)
         if (pack == null) return "Pack not found. Use list_marketplace.";
         var res = await CodeRunner.ExecuteCode(pack.Code, input ?? "");
         return "Result: " + res;
+    }
+
+    [McpServerTool(Name = "ask_ino"), Description("Talk to INO (the personal assistant). Uses dual journals + kernel tasks for context and action.")]
+    public async Task<string> AskIno([Description("Natural language request to INO e.g. 'plan my tasks and run a backup'")] string prompt)
+    {
+        var ino = grains.GetGrain<IInoNeuron>("ino-main");
+        return await ino.AskAsync(prompt);
+    }
+
+    [McpServerTool(Name = "kernel_task_info"), Description("Get status and result of a kernel task by id (self-recoverable unit).")]
+    public async Task<string> KernelTaskInfo([Description("The task id returned from previous ino or task commands")] string taskId)
+    {
+        var kt = grains.GetGrain<IKernelTask>(taskId);
+        var info = await kt.GetInfoAsync();
+        return $"{info.TaskId} status={info.Status} result={info.Result}";
     }
 }
