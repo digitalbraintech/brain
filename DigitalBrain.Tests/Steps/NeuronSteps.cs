@@ -175,6 +175,22 @@ public class NeuronSteps : IAsyncDisposable
         Assert.NotNull(_timeline);
     }
 
+    [Then(@"the timeline contains these synapse types in causal order: (.*)")]
+    public void ThenTheTimelineContainsTheseInCausalOrder(string typesCsv)
+    {
+        var expected = typesCsv.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim()).ToList();
+        _timeline = _currentGrain != null ? _currentGrain.GetTimelineAsync().GetAwaiter().GetResult() : _timeline;
+        var actual = (_timeline ?? Enumerable.Empty<Synapse>()).Select(s => s.Type).ToList();
+        int pos = 0;
+        foreach (var exp in expected)
+        {
+            pos = actual.IndexOf(exp, pos);
+            if (pos < 0)
+                throw new Xunit.Sdk.XunitException($"Causal order not satisfied for '{exp}' in [{string.Join(", ", actual)}]");
+            pos++;
+        }
+    }
+
     private class SimpleSiloConfig : ISiloConfigurator
     {
         public void Configure(ISiloBuilder siloBuilder)

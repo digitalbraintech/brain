@@ -38,3 +38,10 @@ Scenario: Full grok create-neuron flow: create -> publish to marketplace -> down
   Then the timeline contains a PublishedList
   When I download/install the pack "Generated-grokemailanalyzerchart" version "0.1-dev"
   Then the timeline contains a NeuroPackInstalled
+
+Scenario: Simulate a causal scene with ordered synapse sequence and replay (Durable journal)
+  Given a demo neuron "scene-demo"
+  When I fire a DemoMessageSynapse with text "step-1"
+  And I fire a DemoMessageSynapse with text "step-2"
+  Then the timeline contains these synapse types in causal order: DemoMessageSynapse, DemoMessageSynapse
+  And replaying shows the message
