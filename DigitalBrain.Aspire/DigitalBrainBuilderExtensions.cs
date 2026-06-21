@@ -1,18 +1,20 @@
+using Aspire.Hosting;
 using Aspire.Hosting.ApplicationModel;
 using Aspire.Hosting.Orleans;
-using System;
+using CommunityToolkit.Aspire.Hosting.Ollama;
 
-namespace Aspire.Hosting;
+namespace Aspire.Hosting.DigitalBrain;
 
 public sealed class DigitalBrainContext
 {
     public required IResourceBuilder<DigitalBrainResource> Resource { get; init; }
-    public required IResourceBuilder<IResource> Orleans { get; init; }
-    public required IResourceBuilder<IResource> Llm { get; init; }
+    public required OrleansService Orleans { get; init; }
+    public required object Llm { get; init; }
+    public required OrleansServiceClient OrleansClient { get; init; }
+    public required int KernelReplicas { get; init; }
+    public required bool UseLocalMarketplace { get; init; }
 }
 
-// Fluent extensions for adding a self-aware DigitalBrain (core kernel + marketplace + LLM + TUI).
-// Follows CommunityToolkit.Aspire.Hosting patterns (minimal, copyable MVP).
 public static class DigitalBrainBuilderExtensions
 {
     public static DigitalBrainContext AddDigitalBrain(
@@ -26,51 +28,32 @@ public static class DigitalBrainBuilderExtensions
         var resource = new DigitalBrainResource(name);
         var db = builder.AddResource(resource);
 
-        // Core infra encapsulated here based on options
-        var redis = builder.AddRedis($"{name}-redis");
+        var llmModel = options.LlmModel ?? "qwen2.5-coder:1.5b";
 
-        var orleansBuilder = builder.AddOrleans($"{name}-orleans")
+        var redis = builder.AddRedis("redis");
+        var orleans = builder.AddOrleans("kernel")
             .WithClustering(redis)
             .WithGrainStorage("Default", redis);
-
-        var ollama = builder.AddOllama($"{name}-ollama")
+        var ollama = builder.AddOllama("ollama")
             .WithGPUSupport()
             .WithDataVolume();
-
-        var llmModel = options.LlmModel ?? "qwen2.5-coder:1.5b";
-        var llmBuilder = ollama.AddModel($"{name}-llm", llmModel);
-
-        // Marketplace config can be applied by caller on the kernel project via env
+        var qwen = ollama.AddModel("qwen", llmModel);
 
         return new DigitalBrainContext
         {
             Resource = db,
-            Orleans = (IResourceBuilder<IResource>)(object)orleansBuilder,
-            Llm = (IResourceBuilder<IResource>)(object)llmBuilder
+            Orleans = orleans,
+            Llm = qwen,
+            OrleansClient = orleans.AsClient(),
+            KernelReplicas = options.KernelReplicas,
+            UseLocalMarketplace = options.UseLocalMarketplace
         };
     }
-
-    // With* fluent methods can be expanded later for annotations or further config.
-    // Core setup is done in AddDigitalBrain based on options.
 }
 
 public sealed class DigitalBrainOptions
 {
     public string? LlmModel { get; set; }
-    public int KernelReplicas { get; set; } = 1;
-    public bool ExplicitTuiStart { get; set; } = true;
-    public string? GlobalMarketplaceUrl { get; set; }
+    public int KernelReplicas { get; set; } = 3;
     public bool UseLocalMarketplace { get; set; } = true;
-}
-
-public sealed class MarketplaceConfig
-{
-    public string? Url { get; set; }
-    public bool UseLocal { get; set; } = true;
-}
-
-public sealed class ExperienceConfig
-{
-    public string? PackName { get; set; }
-    public string? Version { get; set; }
 }

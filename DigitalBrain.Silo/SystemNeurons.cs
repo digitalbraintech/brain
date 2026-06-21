@@ -5,6 +5,7 @@ using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 using OllamaSharp;
 using Orleans.Journaling;
+using System.Reflection;
 
 #pragma warning disable ORLEANSEXP005 // Alpha/experimental journalling APIs
 
@@ -133,7 +134,7 @@ public class CompilerNeuron : Neuron, ICompiler
     }
 
     static string FallbackSnippet(string pack, string desc) =>
-        $"[GrainType(\"neuro.generated.{pack.ToLower()}\")]\npublic class {pack}Neuron : Neuron, INeuron {{\n    // {desc}\n}}";
+        $"[GrainType(\"digitalbrain.generated.{pack.ToLower()}\")]\npublic class {pack}Neuron : Neuron, INeuron {{\n    // {desc}\n}}";
 }
 
 [GrainType("digitalbrain.optimizer.v1")]
@@ -158,7 +159,7 @@ public class MetaOptimizerNeuron : Neuron, IMetaOptimizerNeuron
             if (llm != null)
             {
                 llm.SelectedModel = "qwen2.5-coder:1.5b";
-                var p = $"Telemetry count reached {_telemetryCount}. Propose ONE short, actionable wiring or scaling improvement for the NeuroOS neuron system (Orleans grains + Aspire + compiler for code gen from English).";
+                var p = $"Telemetry count reached {_telemetryCount}. Propose ONE short, actionable wiring or scaling improvement for the DigitalBrain neuron system (Orleans grains + Aspire + compiler for code gen from English).";
                 var acc = "";
                 await foreach (var chunk in llm.GenerateAsync(p))
                     if (chunk?.Response is string t) acc += t;
@@ -288,7 +289,7 @@ public class Software20TeamNeuron : Neuron, ISoftware20Team
     }
 
     static string ModernTemplate(string n, string d) =>
-        $"// Software20 (new) - neuro/LLM assisted\n[GrainType(\"app.{n.ToLower()}\")]\npublic class {n}App : Neuron {{\n  // Self-improving simple app for: {d}\n  public {n}App() {{ /* modern defaults */ }}\n}}";
+        $"// Software20 (new) - DigitalBrain/LLM assisted\n[GrainType(\"app.{n.ToLower()}\")]\npublic class {n}App : Neuron {{\n  // Self-improving simple app for: {d}\n  public {n}App() {{ /* modern defaults */ }}\n}}";
 }
 
 // SystemStatus + self-awareness (MVP)
@@ -307,13 +308,16 @@ public class SystemStatusNeuron : Neuron, ISystemStatus
         await TryConnectMcpAsync(ct);
         await FireAsync(new SystemLaunched("digitalbrain", DateTimeOffset.UtcNow));
         await FireAsync(new SystemStatusChanged("kernel", "launched"));
+
+        _pollCts = new CancellationTokenSource();
+        _ = Task.Run(() => PollLoop(_pollCts.Token));
     }
 
     private async Task TryConnectMcpAsync(CancellationToken ct)
     {
+        if (_mcp != null) return;
         try
         {
-            // Improved dir resolution: walk up from base to find AppHost or slnx (like AspireAgent example)
             var workDir = ResolveAppHostDir() ?? Environment.GetEnvironmentVariable("DIGITALBRAIN_APPHOST_DIR") ?? AppContext.BaseDirectory;
 
             _mcp = await McpClient.CreateAsync(
@@ -326,15 +330,11 @@ public class SystemStatusNeuron : Neuron, ISystemStatus
                 }), cancellationToken: ct);
 
             var tools = await _mcp.ListToolsAsync(cancellationToken: ct);
-            Logger.LogInformation("SystemStatus connected to Aspire MCP ({Count} tools)", tools.Count);
+            var toolNames = string.Join(",", tools.Select(t => t.Name));
+            Logger.LogInformation("SystemStatus connected to Aspire MCP ({Count} tools: {Names}) from {Dir}", tools.Count, toolNames, workDir);
             await FireAsync(new SystemStatusChanged("aspire-mcp", "connected", $"tools={tools.Count}"));
 
-            // Initial health query
-            var resources = await CallMcpAsync("list_resources", ct);
-            if (resources.Contains("Failed") || resources.Contains("Unhealthy"))
-            {
-                await FireAsync(new SystemStatusChanged("aspire", "unhealthy", resources));
-            }
+            await PollHealthAsync(ct);
         }
         catch (Exception ex)
         {
@@ -343,17 +343,68 @@ public class SystemStatusNeuron : Neuron, ISystemStatus
         }
     }
 
+    private CancellationTokenSource? _pollCts;
+
+    private async Task PollLoop(CancellationToken ct)
+    {
+        while (!ct.IsCancellationRequested)
+        {
+            try
+            {
+                if (_mcp == null)
+                {
+                    await TryConnectMcpAsync(ct);
+                }
+                if (_mcp != null)
+                {
+                    await PollHealthAsync(ct);
+                }
+            }
+            catch { }
+            try { await Task.Delay(25000, ct); } catch { }
+        }
+    }
+
+    private async Task PollHealthAsync(CancellationToken ct)
+    {
+        if (_mcp == null) return;
+        var resources = await CallMcpAsync("list_resources", ct);
+        if (resources.Contains("Failed", StringComparison.OrdinalIgnoreCase) || resources.Contains("Unhealthy", StringComparison.OrdinalIgnoreCase) || resources.Contains("Exited", StringComparison.OrdinalIgnoreCase))
+        {
+            await FireAsync(new SystemStatusChanged("aspire", "unhealthy", resources));
+        }
+    }
+
     private string? ResolveAppHostDir()
     {
+        var candidates = new List<string>();
+        candidates.Add(Directory.GetCurrentDirectory());
+        candidates.Add(AppContext.BaseDirectory);
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
-        while (dir != null)
+        for (int i = 0; i < 5 && dir != null; i++)
         {
-            if (File.Exists(Path.Combine(dir.FullName, "NeuroOS.slnx")) ||
-                Directory.Exists(Path.Combine(dir.FullName, "NeuroOSPrototype.AppHost")))
-            {
-                return dir.FullName;
-            }
+            candidates.Add(dir.FullName);
             dir = dir.Parent;
+        }
+        var cur = new DirectoryInfo(Directory.GetCurrentDirectory());
+        for (int i = 0; i < 3 && cur != null; i++)
+        {
+            candidates.Add(cur.FullName);
+            cur = cur.Parent;
+        }
+        foreach (var c in candidates.Distinct())
+        {
+            try
+            {
+                if (File.Exists(Path.Combine(c, "aspire.config.json")) ||
+                    Directory.GetFiles(c, "*.slnx").Any() ||
+                    Directory.GetDirectories(c, "*AppHost").Any() ||
+                    Directory.GetFiles(c, "*AppHost.csproj").Any())
+                {
+                    return c;
+                }
+            }
+            catch { }
         }
         return null;
     }
@@ -403,38 +454,65 @@ public class SystemStatusNeuron : Neuron, ISystemStatus
         // If proposal suggests restart, attempt via MCP (in real would execute after approval)
         if (analysis.Contains("restart", StringComparison.OrdinalIgnoreCase) && _mcp != null)
         {
-            try { await CallMcpAsync("execute_resource_command", new { resourceName = bad.Component, commandName = "resource-restart" }, ct); } catch { }
+            try { await CallMcpAsync("execute_resource_command", new { resourceName = bad.Component, commandName = "restart" }, ct); } catch { }
         }
 
         // Simulation: isolated replay from current journal as checkpoint
         await RunIsolatedSimulationAsync(bad, proposal, ct);
     }
 
+    private Dictionary<string, object?> NormalizeArgs(object? args)
+    {
+        if (args == null) return new Dictionary<string, object?>();
+        if (args is Dictionary<string, object?> d) return d;
+        var result = new Dictionary<string, object?>();
+        foreach (var p in args.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance))
+        {
+            result[p.Name] = p.GetValue(args);
+        }
+        return result;
+    }
+
     private async Task<string> CallMcpAsync(string tool, object? args = null, CancellationToken ct = default)
     {
         if (_mcp == null) return "mcp-unavailable";
-        var res = await _mcp.CallToolAsync(tool, args as Dictionary<string, object?> ?? new(), cancellationToken: ct);
+        var dict = NormalizeArgs(args);
+        var res = await _mcp.CallToolAsync(tool, dict, cancellationToken: ct);
         return res.Content.OfType<TextContentBlock>().FirstOrDefault()?.Text ?? "no-data";
     }
 
     private async Task RunIsolatedSimulationAsync(SystemStatusChanged bad, string proposedFix, CancellationToken ct)
     {
-        // Enhanced isolated simulation from journal "checkpoint"
-        // Replay recent journal entries in a simulated in-memory state, apply proposed fix (e.g. assume restart succeeds), check for improved outcome.
         var journal = this.ServiceProvider.GetRequiredKeyedService<IDurableList<Synapse>>("journal");
-        var recent = journal.TakeLast(10).ToList(); // checkpoint snapshot
+        var recent = journal.TakeLast(15).ToList();
+        var result = ComputeSimulationResult(recent, bad, proposedFix);
+        await FireAsync(result);
+    }
 
-        bool simSuccess = recent.Any(s => s.Type.Contains("Started") || s.Type.Contains("healthy"));
-
-        // Simulate applying fix: assume status improves
-        if (proposedFix.Contains("restart") || proposedFix.Contains("Apply"))
+    private static SimulationResult ComputeSimulationResult(IReadOnlyList<Synapse> checkpoint, SystemStatusChanged bad, string proposedFix)
+    {
+        var simState = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var s in checkpoint)
         {
-            simSuccess = true;
+            if (s is SystemStatusChanged sc && !string.IsNullOrWhiteSpace(sc.Component))
+                simState[sc.Component] = sc.Status;
         }
 
-        await FireAsync(new SimulationResult(
+        string before = simState.TryGetValue(bad.Component, out var b) ? b : "unknown";
+
+        string after = before;
+        if (proposedFix.Contains("restart", StringComparison.OrdinalIgnoreCase) ||
+            proposedFix.Contains("Apply", StringComparison.OrdinalIgnoreCase) ||
+            proposedFix.Contains("healthy", StringComparison.OrdinalIgnoreCase))
+        {
+            after = "healthy";
+        }
+
+        bool differentAndHealthy = !string.Equals(before, after, StringComparison.OrdinalIgnoreCase) && after.Contains("healthy", StringComparison.OrdinalIgnoreCase);
+
+        return new SimulationResult(
             $"bad-state-{bad.Component}",
-            simSuccess,
-            $"Isolated sim from {recent.Count} journal entries + fix '{proposedFix}': {(simSuccess ? "healthy outcome" : "still degraded")}. Checkpoint replay succeeded."));
+            differentAndHealthy,
+            $"checkpoint replay: {checkpoint.Count} entries. before={before} after={after}. fix='{proposedFix}'. result={(differentAndHealthy ? "different+healthy" : "no improvement")}.");
     }
 }

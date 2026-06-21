@@ -1,28 +1,23 @@
+using Aspire.Hosting.ApplicationModel;
+using Aspire.Hosting.DigitalBrain;
+
 var builder = DistributedApplication.CreateBuilder(args);
 
-// DigitalBrain setup - SDK (DigitalBrain.Aspire) provides AddDigitalBrain for encapsulation of wiring (see SDK).
-// Explicit here for Aspire AppHost compilation compatibility. 3 replicas of the kernel (OS).
-
-var redis = builder.AddRedis("redis");
-var orleans = builder.AddOrleans("kernel")
-    .WithClustering(redis)
-    .WithGrainStorage("Default", redis);
-
-var ollama = builder.AddOllama("ollama")
-    .WithGPUSupport()
-    .WithDataVolume();
-var qwen = ollama.AddModel("qwen", "qwen2.5-coder:1.5b");
+var ctx = builder.AddDigitalBrain("digitalbrain", options =>
+{
+    options.LlmModel = "qwen2.5-coder:1.5b";
+    options.UseLocalMarketplace = true;
+});
 
 var silo = builder.AddProject<Projects.DigitalBrain_Silo>("silo")
-    .WithReference(orleans)
-    .WithReference(qwen)
-    .WithReplicas(3);
+    .WithReference(ctx.Orleans)
+    .WithReference((IResourceBuilder<IResourceWithConnectionString>)ctx.Llm)
+    .WithReplicas(ctx.KernelReplicas);
 
 var tui = builder.AddProject<Projects.DigitalBrain_Cli>("grok-cli")
-    .WithReference(orleans.AsClient());
+    .WithReference(ctx.OrleansClient);
 
-// Marketplace config for the system
-silo.WithEnvironment("DIGITALBRAIN_USE_LOCAL_MARKETPLACE", "true");
+silo.WithEnvironment("DIGITALBRAIN_USE_LOCAL_MARKETPLACE", ctx.UseLocalMarketplace ? "true" : "false");
 
 builder.Build().Run();
 

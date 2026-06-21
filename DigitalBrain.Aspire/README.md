@@ -22,7 +22,7 @@ var tui = builder.AddProject<Projects.YourTui>("tui")
     .WithReference(setup.Orleans.AsClient());
 ```
 
-See NeuroOSPrototype.AppHost/AppHost.cs for live example.
+See AppHost.cs (in the AppHost project) for usage of AddDigitalBrain + returned context.
 
 The resource + context enable encapsulation + future fluent With* for self-aware setup.
 

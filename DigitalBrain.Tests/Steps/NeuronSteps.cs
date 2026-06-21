@@ -218,6 +218,7 @@ public class NeuronSteps : IAsyncDisposable
         var sim = _timeline.LastOrDefault(s => s.Type == nameof(SimulationResult)) as SimulationResult;
         Assert.NotNull(sim);
         Assert.True(sim.Success);
+        Assert.Contains("different", sim.Details ?? "", StringComparison.OrdinalIgnoreCase);
     }
 
     [Then(@"the timeline contains a WiringOptimizationProposed")]

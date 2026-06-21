@@ -17,21 +17,21 @@ namespace DigitalBrain.Tests.Features
     
     [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Reqnroll", "3.0.0.0")]
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
-    public partial class NeuroOSNeuronCoreFeature : object, global::Xunit.IClassFixture<NeuroOSNeuronCoreFeature.FixtureData>, global::Xunit.IAsyncLifetime
+    public partial class DigitalBrainNeuronCoreFeature : object, global::Xunit.IClassFixture<DigitalBrainNeuronCoreFeature.FixtureData>, global::Xunit.IAsyncLifetime
     {
         
         private global::Reqnroll.ITestRunner testRunner;
         
         private static string[] featureTags = ((string[])(null));
         
-        private static global::Reqnroll.FeatureInfo featureInfo = new global::Reqnroll.FeatureInfo(new global::System.Globalization.CultureInfo("en-US"), "Features", "NeuroOS Neuron Core", null, global::Reqnroll.ProgrammingLanguage.CSharp, featureTags, InitializeCucumberMessages());
+        private static global::Reqnroll.FeatureInfo featureInfo = new global::Reqnroll.FeatureInfo(new global::System.Globalization.CultureInfo("en-US"), "Features", "DigitalBrain Neuron Core", null, global::Reqnroll.ProgrammingLanguage.CSharp, featureTags, InitializeCucumberMessages());
         
         private global::Xunit.Abstractions.ITestOutputHelper _testOutputHelper;
         
 #line 1 "NeuronCore.feature"
 #line hidden
         
-        public NeuroOSNeuronCoreFeature(NeuroOSNeuronCoreFeature.FixtureData fixtureData, global::Xunit.Abstractions.ITestOutputHelper testOutputHelper)
+        public DigitalBrainNeuronCoreFeature(DigitalBrainNeuronCoreFeature.FixtureData fixtureData, global::Xunit.Abstractions.ITestOutputHelper testOutputHelper)
         {
             this._testOutputHelper = testOutputHelper;
         }
@@ -105,7 +105,7 @@ namespace DigitalBrain.Tests.Features
         
         private static global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages InitializeCucumberMessages()
         {
-            return new global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages("Features/NeuronCore.feature.ndjson", 10);
+            return new global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages("Features/NeuronCore.feature.ndjson", 11);
         }
         
         async global::System.Threading.Tasks.Task global::Xunit.IAsyncLifetime.InitializeAsync()
@@ -134,7 +134,7 @@ namespace DigitalBrain.Tests.Features
         }
         
         [global::Xunit.SkippableFactAttribute(DisplayName="Sending a synapse journals it and is replayable")]
-        [global::Xunit.TraitAttribute("FeatureTitle", "NeuroOS Neuron Core")]
+        [global::Xunit.TraitAttribute("FeatureTitle", "DigitalBrain Neuron Core")]
         [global::Xunit.TraitAttribute("Description", "Sending a synapse journals it and is replayable")]
         public async global::System.Threading.Tasks.Task SendingASynapseJournalsItAndIsReplayable()
         {
@@ -171,7 +171,7 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
         }
         
         [global::Xunit.SkippableFactAttribute(DisplayName="Aspire neuron handles start and emits completion")]
-        [global::Xunit.TraitAttribute("FeatureTitle", "NeuroOS Neuron Core")]
+        [global::Xunit.TraitAttribute("FeatureTitle", "DigitalBrain Neuron Core")]
         [global::Xunit.TraitAttribute("Description", "Aspire neuron handles start and emits completion")]
         public async global::System.Threading.Tasks.Task AspireNeuronHandlesStartAndEmitsCompletion()
         {
@@ -205,7 +205,7 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
         }
         
         [global::Xunit.SkippableFactAttribute(DisplayName="Marketplace publishes and lists packs")]
-        [global::Xunit.TraitAttribute("FeatureTitle", "NeuroOS Neuron Core")]
+        [global::Xunit.TraitAttribute("FeatureTitle", "DigitalBrain Neuron Core")]
         [global::Xunit.TraitAttribute("Description", "Marketplace publishes and lists packs")]
         public async global::System.Threading.Tasks.Task MarketplacePublishesAndListsPacks()
         {
@@ -242,7 +242,7 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
         }
         
         [global::Xunit.SkippableFactAttribute(DisplayName="Compiler meta-neuron generates code from English description")]
-        [global::Xunit.TraitAttribute("FeatureTitle", "NeuroOS Neuron Core")]
+        [global::Xunit.TraitAttribute("FeatureTitle", "DigitalBrain Neuron Core")]
         [global::Xunit.TraitAttribute("Description", "Compiler meta-neuron generates code from English description")]
         public async global::System.Threading.Tasks.Task CompilerMeta_NeuronGeneratesCodeFromEnglishDescription()
         {
@@ -276,7 +276,7 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
         }
         
         [global::Xunit.SkippableFactAttribute(DisplayName="Meta optimizer tracks telemetry and proposes wiring improvements")]
-        [global::Xunit.TraitAttribute("FeatureTitle", "NeuroOS Neuron Core")]
+        [global::Xunit.TraitAttribute("FeatureTitle", "DigitalBrain Neuron Core")]
         [global::Xunit.TraitAttribute("Description", "Meta optimizer tracks telemetry and proposes wiring improvements")]
         public async global::System.Threading.Tasks.Task MetaOptimizerTracksTelemetryAndProposesWiringImprovements()
         {
@@ -314,7 +314,7 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
         
         [global::Xunit.SkippableFactAttribute(DisplayName="Full grok create-neuron flow: create -> publish to marketplace -> download/instal" +
             "l -> use")]
-        [global::Xunit.TraitAttribute("FeatureTitle", "NeuroOS Neuron Core")]
+        [global::Xunit.TraitAttribute("FeatureTitle", "DigitalBrain Neuron Core")]
         [global::Xunit.TraitAttribute("Description", "Full grok create-neuron flow: create -> publish to marketplace -> download/instal" +
             "l -> use")]
         public async global::System.Threading.Tasks.Task FullGrokCreate_NeuronFlowCreate_PublishToMarketplace_DownloadInstall_Use()
@@ -369,7 +369,7 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
         
         [global::Xunit.SkippableFactAttribute(DisplayName="Simulate a causal scene with ordered synapse sequence and replay (Durable journal" +
             ")")]
-        [global::Xunit.TraitAttribute("FeatureTitle", "NeuroOS Neuron Core")]
+        [global::Xunit.TraitAttribute("FeatureTitle", "DigitalBrain Neuron Core")]
         [global::Xunit.TraitAttribute("Description", "Simulate a causal scene with ordered synapse sequence and replay (Durable journal" +
             ")")]
         public async global::System.Threading.Tasks.Task SimulateACausalSceneWithOrderedSynapseSequenceAndReplayDurableJournal()
@@ -412,7 +412,7 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
         }
         
         [global::Xunit.SkippableFactAttribute(DisplayName="Harness simulates other-brain publish-install-use flow via Marketplace contract")]
-        [global::Xunit.TraitAttribute("FeatureTitle", "NeuroOS Neuron Core")]
+        [global::Xunit.TraitAttribute("FeatureTitle", "DigitalBrain Neuron Core")]
         [global::Xunit.TraitAttribute("Description", "Harness simulates other-brain publish-install-use flow via Marketplace contract")]
         public async global::System.Threading.Tasks.Task HarnessSimulatesOther_BrainPublish_Install_UseFlowViaMarketplaceContract()
         {
@@ -459,6 +459,43 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
             await this.ScenarioCleanupAsync();
         }
         
+        [global::Xunit.SkippableFactAttribute(DisplayName="System self-awareness with status, fix proposal and simulation")]
+        [global::Xunit.TraitAttribute("FeatureTitle", "DigitalBrain Neuron Core")]
+        [global::Xunit.TraitAttribute("Description", "System self-awareness with status, fix proposal and simulation")]
+        public async global::System.Threading.Tasks.Task SystemSelf_AwarenessWithStatusFixProposalAndSimulation()
+        {
+            string[] tagsOfScenario = ((string[])(null));
+            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
+            string pickleIndex = "8";
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("System self-awareness with status, fix proposal and simulation", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            string[] tagsOfRule = ((string[])(null));
+            global::Reqnroll.RuleInfo ruleInfo = null;
+#line 58
+this.ScenarioInitialize(scenarioInfo, ruleInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                await testRunner.SkipScenarioAsync();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 59
+  await testRunner.GivenAsync("a system status neuron \"status-self\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
+#line hidden
+#line 60
+  await testRunner.WhenAsync("I fire a bad status for component \"kernel\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+#line 61
+  await testRunner.ThenAsync("the timeline contains a FixProposal", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+#line 62
+  await testRunner.AndAsync("the timeline contains a SimulationResult with success true", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
+        
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Reqnroll", "3.0.0.0")]
         [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
         public class FixtureData : object, global::Xunit.IAsyncLifetime
@@ -466,12 +503,12 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
             
             async global::System.Threading.Tasks.Task global::Xunit.IAsyncLifetime.InitializeAsync()
             {
-                await NeuroOSNeuronCoreFeature.FeatureSetupAsync();
+                await DigitalBrainNeuronCoreFeature.FeatureSetupAsync();
             }
             
             async global::System.Threading.Tasks.Task global::Xunit.IAsyncLifetime.DisposeAsync()
             {
-                await NeuroOSNeuronCoreFeature.FeatureTearDownAsync();
+                await DigitalBrainNeuronCoreFeature.FeatureTearDownAsync();
             }
         }
     }

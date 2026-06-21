@@ -1,4 +1,4 @@
-// GrokCLI TUI - interactive Text User Interface for NeuroOS (MCP/CLI proxy to neurons)
+// GrokCLI TUI - interactive Text User Interface for DigitalBrain (MCP/CLI proxy to neurons)
 using DigitalBrain.Protocol;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -18,11 +18,11 @@ try
 {
     await app.StartAsync();
     grains = app.Services.GetRequiredService<IGrainFactory>();
-    AnsiConsole.MarkupLine("[green]NeuroOS GrokCLI v2 TUI - connected to brain[/]");
+    AnsiConsole.MarkupLine("[green]DigitalBrain GrokCLI v2 TUI - connected to brain[/]");
 }
 catch
 {
-    AnsiConsole.MarkupLine("[yellow]NeuroOS GrokCLI v2 TUI - standalone demo mode (no brain cluster)[/]");
+    AnsiConsole.MarkupLine("[yellow]DigitalBrain GrokCLI v2 TUI - standalone demo mode (no brain cluster)[/]");
 }
 
 if (!AnsiConsole.Profile.Capabilities.Interactive)

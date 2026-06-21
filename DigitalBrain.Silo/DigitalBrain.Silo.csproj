@@ -13,7 +13,7 @@
     <PackageReference Include="Aspire.StackExchange.Redis" Version="*" />
     <PackageReference Include="CommunityToolkit.Aspire.OllamaSharp" Version="*" />
     <PackageReference Include="ModelContextProtocol" Version="*" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.9" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="*" />
     <PackageReference Include="Microsoft.Orleans.Clustering.Redis" Version="*" />
     <PackageReference Include="Microsoft.Orleans.Core" Version="10.2.1-preview.1" />
     <PackageReference Include="Microsoft.Orleans.Journaling" Version="10.2.1-preview.1.alpha.1" />

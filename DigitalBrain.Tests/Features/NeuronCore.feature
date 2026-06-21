@@ -1,4 +1,4 @@
-Feature: NeuroOS Neuron Core
+Feature: DigitalBrain Neuron Core
 
 Scenario: Sending a synapse journals it and is replayable
   Given a demo neuron "test-english"

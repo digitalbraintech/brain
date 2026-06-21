@@ -10,7 +10,7 @@ using System.Reflection;
 
 namespace DigitalBrain.Silo;
 
-[GrainType("neuro.base.v2")]
+[GrainType("digitalbrain.base.v2")]
 public abstract class Neuron : DurableGrain, INeuron
 {
     protected readonly ILogger Logger;
