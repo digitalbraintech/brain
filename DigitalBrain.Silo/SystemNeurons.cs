@@ -246,20 +246,9 @@ public class MetaOptimizerNeuron : Neuron, IMetaOptimizerNeuron
 [GrainType("digitalbrain.generated")]
 public class GeneratedNeuron : Neuron, IGeneratedNeuron, IHandle<NeuronTelemetry>
 {
-    private string _id = string.Empty;
-    private string _installedCode = string.Empty;
-    private string _installedPack = string.Empty;
-    private string _installedDescription = string.Empty;
-
     public GeneratedNeuron(ILogger<GeneratedNeuron> logger)
         : base(logger)
     {
-    }
-
-    public override async Task OnActivateAsync(CancellationToken ct)
-    {
-        await base.OnActivateAsync(ct);
-        _id = this.GetPrimaryKeyString() ?? "unknown-generated";
     }
 
     public Task HandleAsync(NeuronTelemetry telemetry)
@@ -269,16 +258,14 @@ public class GeneratedNeuron : Neuron, IGeneratedNeuron, IHandle<NeuronTelemetry
 
     protected override async Task DispatchSynapse(Synapse synapse)
     {
-        Logger.LogInformation("GeneratedNeuron {Id} dispatched {Type}", _id, synapse.Type);
+        var id = this.GetPrimaryKeyString() ?? "unknown-generated";
+        Logger.LogInformation("GeneratedNeuron {Id} dispatched {Type}", id, synapse.Type);
         await FireAsync(new NeuronTelemetry(Self, "generated-dispatched"));
 
         if (synapse is NeuroPackInstalled installed)
         {
-            var pack = installed.Pack;
-            _installedPack = $"{pack.Name}@{pack.Version}";
-            _installedCode = pack.Code;
-            _installedDescription = pack.Description;
-            Logger.LogInformation("GeneratedNeuron received and ACTIVATED pack {Pack}. It will now embody this experience.", _installedPack);
+            var p = installed.Pack;
+            Logger.LogInformation("GeneratedNeuron received and ACTIVATED pack {Name}@{Ver}. It will now embody this experience.", p.Name, p.Version);
         }
         else if (synapse is DemoMessageSynapse msg)
         {
@@ -286,12 +273,13 @@ public class GeneratedNeuron : Neuron, IGeneratedNeuron, IHandle<NeuronTelemetry
         }
         else if (synapse is ExperienceUsed used)
         {
-            if (!string.IsNullOrWhiteSpace(_installedCode) || !string.IsNullOrWhiteSpace(_installedDescription))
+            var inst = LastInstalledPack();
+            if (inst != null)
             {
-                // This is the self-development activation: the installed pack now controls behavior.
-                var behaviorPrompt = $"You are now the installed experience '{_installedPack}'.\n" +
-                                     $"Description: {_installedDescription}\n" +
-                                     $"Implementation guidance/code:\n{_installedCode}\n\n" +
+                var (packKey, code, desc) = inst.Value;
+                var behaviorPrompt = $"You are now the installed experience '{packKey}'.\n" +
+                                     $"Description: {desc}\n" +
+                                     $"Implementation guidance/code:\n{code}\n\n" +
                                      $"Handle the following usage: {used.Action} on input related to '{used.Pack}'.\n" +
                                      "Respond in character as this specific installed neuron/experience would. Be concise and useful.";
 
@@ -304,11 +292,11 @@ public class GeneratedNeuron : Neuron, IGeneratedNeuron, IHandle<NeuronTelemetry
                         if (chunk?.Response is string t) acc += t;
 
                     await FireAsync(new LlmResponse(behaviorPrompt, acc.Trim(), "embodied-pack"));
-                    Logger.LogInformation("GeneratedNeuron embodied installed pack '{Pack}' for action '{Action}'", _installedPack, used.Action);
+                    Logger.LogInformation("GeneratedNeuron embodied installed pack '{Pack}' for action '{Action}'", packKey, used.Action);
                 }
                 else
                 {
-                    await FireAsync(new LlmResponse(used.Pack, $"[Embodied: {_installedPack}] Simulated response to {used.Action} using installed experience.", "sim"));
+                    await FireAsync(new LlmResponse(used.Pack, $"[Embodied: {packKey}] Simulated response to {used.Action} using installed experience.", "sim"));
                 }
             }
             else
@@ -316,6 +304,14 @@ public class GeneratedNeuron : Neuron, IGeneratedNeuron, IHandle<NeuronTelemetry
                 Logger.LogInformation("Generated experience {Pack} used: {Action} (no installed pack yet).", used.Pack, used.Action);
             }
         }
+    }
+
+    private (string Key, string Code, string Description)? LastInstalledPack()
+    {
+        var last = OutgoingJournal.Concat(IncomingJournal).OfType<NeuroPackInstalled>().LastOrDefault();
+        if (last == null) return null;
+        var p = last.Pack;
+        return ($"{p.Name}@{p.Version}", p.Code, p.Description);
     }
 }
 
