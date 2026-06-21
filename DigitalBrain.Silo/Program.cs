@@ -46,16 +46,3 @@ if (grainFactory != null)
 }
 
 host.Run();
-
-// ---- Prototype-only journal support (delete/replace for production) ----
-#pragma warning disable ORLEANSEXP005
-internal sealed class InMemoryJournalForPrototype<T> : List<T>, Orleans.Journaling.IDurableList<T>;
-internal sealed class PrototypeJournaledStateManager : Orleans.Journaling.IJournaledStateManager
-{
-    public ValueTask InitializeAsync(CancellationToken ct = default) => ValueTask.CompletedTask;
-    public void RegisterState(string stateId, Orleans.Journaling.IJournaledState state) { }
-    public bool TryGetState(string stateId, out Orleans.Journaling.IJournaledState? state) { state = null; return false; }
-    public ValueTask WriteStateAsync(CancellationToken ct = default) => ValueTask.CompletedTask;
-    public ValueTask DeleteStateAsync(CancellationToken ct = default) => ValueTask.CompletedTask;
-}
-#pragma warning restore ORLEANSEXP005

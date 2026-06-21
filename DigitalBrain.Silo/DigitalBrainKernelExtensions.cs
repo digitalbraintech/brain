@@ -46,27 +46,13 @@ public static class DigitalBrainKernelExtensions
     }
 }
 
-// The in-memory journal helpers (kept minimal for the fast path)
-internal sealed class InMemoryJournalForPrototype<T> : List<T>, Orleans.Journaling.IDurableList<T>;
-internal sealed class PrototypeJournaledStateManager : Orleans.Journaling.IJournaledStateManager
-{
-    public ValueTask InitializeAsync(CancellationToken ct = default) => ValueTask.CompletedTask;
-    public void RegisterState(string stateId, Orleans.Journaling.IJournaledState state) { }
-    public bool TryGetState(string stateId, out Orleans.Journaling.IJournaledState? state) { state = null; return false; }
-    public ValueTask WriteStateAsync(CancellationToken ct = default) => ValueTask.CompletedTask;
-    public ValueTask DeleteStateAsync(CancellationToken ct = default) => ValueTask.CompletedTask;
-}
+
 
 // Incoming call filter for dual-journal auto population.
-// Every grain invocation path (including DeliverAsync for received synapses) is intercepted here.
-// Actual in-journal write is performed inside Neuron.DeliverAsync (receiver side) so that journals stay
-// local to the activation and use the per-grain keyed service. The filter guarantees the intercept point.
 internal sealed class IncomingJournalFilter : IIncomingGrainCallFilter
 {
     public async Task Invoke(IIncomingGrainCallContext context)
     {
-        // For synapse receives, DeliverAsync will handle journaling the incoming entry.
-        // Future: could snapshot args here for cross-cutting.
         await context.Invoke();
     }
 }
