@@ -293,7 +293,23 @@ internal static class CodeRunner
         string programFileContent = code;
         if (!code.Contains("void Main(") && !code.Contains("static void Main") && code.Contains("class "))
         {
-            programFileContent = "using System;\n" + code + "\n\nstatic class Program { static void Main(string[] a) { /* run the class or define Run/Main in your code */ } }";
+            programFileContent = code + @"
+static class __Runner {
+    public static void Main(string[] a) {
+        var inp = a.Length > 0 ? string.Join("" "", a) : """";
+        var asm = System.Reflection.Assembly.GetExecutingAssembly();
+        foreach (var t in asm.GetTypes()) {
+            var m = t.GetMethod(""Run"") ?? t.GetMethod(""Main"");
+            if (m != null) {
+                var tgt = m.IsStatic ? null : System.Activator.CreateInstance(t);
+                var ps = m.GetParameters();
+                m.Invoke(tgt, ps.Length > 0 ? new object[] { inp } : null);
+                return;
+            }
+        }
+        System.Console.WriteLine(""Generated code loaded (no Run/Main found)."");
+    }
+}";
         }
         File.WriteAllText(Path.Combine(baseDir, "Program.cs"), programFileContent);
 
