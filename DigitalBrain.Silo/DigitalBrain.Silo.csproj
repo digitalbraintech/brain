@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>dotnet-DigitalBrain.Silo-ea55b00e-5a06-4791-b7d3-a9f3aabb83f9</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.StackExchange.Redis" Version="13.4.6" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.9" />
+    <PackageReference Include="Microsoft.Orleans.Core" Version="10.2.0" />
+    <PackageReference Include="Microsoft.Orleans.Persistence.Memory" Version="10.2.0" />
+    <PackageReference Include="Microsoft.Orleans.Server" Version="10.2.0" />
+    <PackageReference Include="Microsoft.Orleans.Streaming" Version="10.2.0" />
+    <ProjectReference Include="..\DigitalBrain.Protocol\DigitalBrain.Protocol.csproj" />
+  </ItemGroup>
+</Project>

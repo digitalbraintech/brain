@@ -1,0 +1,18 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.4.6">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net11.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UserSecretsId>0f1b5199-a3ce-48f2-b26e-23836204f448</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.Orleans" Version="13.4.6" />
+    <PackageReference Include="Aspire.Hosting.Redis" Version="13.4.6" />
+    <ProjectReference Include="..\DigitalBrain.Silo\DigitalBrain.Silo.csproj" />
+    <ProjectReference Include="..\DigitalBrain.Cli\DigitalBrain.Cli.csproj" />
+  </ItemGroup>
+
+</Project>

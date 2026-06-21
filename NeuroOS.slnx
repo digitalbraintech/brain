@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="DigitalBrain.Cli/DigitalBrain.Cli.csproj" />
+  <Project Path="DigitalBrain.Protocol/DigitalBrain.Protocol.csproj" />
+  <Project Path="DigitalBrain.Silo/DigitalBrain.Silo.csproj" />
+  <Project Path="DigitalBrain.Tests/DigitalBrain.Tests.csproj" />
+  <Project Path="NeuroOSPrototype.AppHost/NeuroOSPrototype.AppHost.csproj" />
+  <Project Path="NeuroOSPrototype.ServiceDefaults/NeuroOSPrototype.ServiceDefaults.csproj" />
+</Solution>
