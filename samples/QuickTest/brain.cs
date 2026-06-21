@@ -152,6 +152,12 @@ else
                             lastGeneratedDesc = parts[1];
                             Console.WriteLine("Generated software/automation:\n" + lastGeneratedCode);
                             CodeRunner.MaterializeAsProject(lastGeneratedDesc, lastGeneratedCode);
+
+                            // Auto-publish so it's immediately in the durable library and runnable by name
+                            var safe = lastGeneratedDesc.Replace(" ", "").Replace("\"", "").Replace("-", "");
+                            await grains.GetGrain<IMarketplaceNeuron>("market-main")
+                                .FireAsync(new PublishToMarketplace(safe, "0.1-dev", lastGeneratedCode, "local", false, 0.0, lastGeneratedDesc));
+                            Console.WriteLine("Auto-published as " + safe + " (run " + safe + " or list)");
                         }
                     }
                     break;
@@ -163,7 +169,7 @@ else
                     }
                     else
                     {
-                        Console.WriteLine("Generate something first (use 'generate simple email filter automation')");
+                        Console.WriteLine("Generate something first (use 'create-software simple email filter automation')");
                     }
                     break;
 
@@ -447,7 +453,10 @@ public class BrainMcpTools(IGrainFactory grains)
             try
             {
                 CodeRunner.MaterializeAsProject(description, code);
-                return "Generated + materialized as dotnet-runnable project. Code:\n" + code;
+                var safe = (description.Replace(" ", "").Replace("\"", "").Replace("-", "") + "Auto").Substring(0, Math.Min(20, description.Length + 4));
+                await grains.GetGrain<IMarketplaceNeuron>("market-main")
+                    .FireAsync(new PublishToMarketplace(safe, "0.1-dev", code, "mcp", false, 0.05, description));
+                return "Generated + materialized + published as " + safe + ". Code:\n" + code;
             }
             catch { }
             return "Generated:\n" + code;
@@ -469,6 +478,31 @@ public class BrainMcpTools(IGrainFactory grains)
         return "fired";
     }
 
-    // Publish, install, get_timeline, list etc. from earlier versions can be re-added as needed.
-    // The generate_software + existing publish/install flow lets agents create, share and embody new software capabilities.
+    [McpServerTool(Name = "list_marketplace"), Description("List packs available in the persistent marketplace library.")]
+    public async Task<string> ListMarketplace()
+    {
+        var m = grains.GetGrain<IMarketplaceNeuron>("market-main");
+        await m.FireAsync(new ListPublished());
+        await Task.Delay(300);
+        var tl = await m.GetTimelineAsync();
+        if (tl.LastOrDefault(s => s is PublishedList) is PublishedList pl && pl.Packs.Count > 0)
+            return string.Join("\n", pl.Packs.Select(p => p.Name + "@" + p.Version));
+        return "No packs published.";
+    }
+
+    [McpServerTool(Name = "publish_to_marketplace"), Description("Publish code as durable pack in marketplace (owner local, low commission).")]
+    public async Task<string> PublishPack(string name, string code, string description = "")
+    {
+        await grains.GetGrain<IMarketplaceNeuron>("market-main")
+            .FireAsync(new PublishToMarketplace(name, "0.1-dev", code, "mcp", false, 0.05, description));
+        return "Published " + name + " to marketplace library.";
+    }
+
+    [McpServerTool(Name = "install_from_marketplace"), Description("Install pack (activates as GeneratedNeuron using the pack code/desc).")]
+    public async Task<string> InstallPack(string name, string version = "0.1-dev")
+    {
+        await grains.GetGrain<IMarketplaceNeuron>("market-main")
+            .FireAsync(new InstallFromMarketplace(name, version, "mcp-user"));
+        return "Installed " + name + " (embodied for use-generated).";
+    }
 }
