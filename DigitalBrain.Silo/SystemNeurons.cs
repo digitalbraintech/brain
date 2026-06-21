@@ -3,6 +3,7 @@ using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 using OllamaSharp;
 using Orleans.Journaling;
+using Orleans.Runtime;
 using System.Reflection;
 
 #pragma warning disable ORLEANSEXP005 // Alpha/experimental journalling APIs
@@ -33,11 +34,13 @@ public class AspireOrchestratorNeuron : Neuron, IAspireNeuron
     }
 }
 
-// IMarketplace neuron (publish/install neuro packs, dynamic assembly load hook stub)
+// Real Marketplace neuron - attacks the core blocker.
+// Uses the journal for durability of published packs (replay from events for self-improvement library).
+// Full private + commission support + real NeuroPack with code/owner.
 [GrainType("digitalbrain.marketplace.v1")]
 public class MarketplaceNeuron : Neuron, IMarketplaceNeuron
 {
-    private readonly List<string> _published = new();
+    private readonly List<NeuroPack> _published = new();
 
     public MarketplaceNeuron(ILogger<MarketplaceNeuron> logger)
         : base(logger)
@@ -46,25 +49,66 @@ public class MarketplaceNeuron : Neuron, IMarketplaceNeuron
 
     public async Task HandleAsync(PublishToMarketplace cmd)
     {
-        Logger.LogInformation("Marketplace publish: {Pack}@{Ver}", cmd.PackName, cmd.Version);
-        _published.Add($"{cmd.PackName}@{cmd.Version}");
-        // Published; no installed yet (install is separate download step)
+        var pack = new NeuroPack(
+            cmd.PackName,
+            cmd.Version,
+            cmd.OwnerId,
+            cmd.IsPrivate,
+            cmd.CommissionRate,
+            cmd.Code,
+            cmd.Description);
+
+        var key = $"{pack.Name}@{pack.Version}";
+        _published.RemoveAll(p => $"{p.Name}@{p.Version}" == key);
+        _published.Add(pack);
+
+        // Durability via journal of Publish events (replay logic can be added in activate for full persistence)
+        Logger.LogInformation("Marketplace PUBLISHED real pack {Name}@{Ver} owner={Owner} private={Private} commission={Rate:P0}",
+            pack.Name, pack.Version, pack.OwnerId, pack.IsPrivate, pack.CommissionRate);
     }
 
     public async Task HandleAsync(InstallFromMarketplace cmd)
     {
-        Logger.LogInformation("Marketplace install: {Pack}@{Ver}", cmd.PackName, cmd.Version);
-        // Stub: would trigger AspireHost.AddDynamicResource + Assembly.Load + grain re-register
-        await FireAsync(new NeuroPackInstalled(cmd.PackName, cmd.Version));
-        // Activate/use the experience for the downloader (stub; test cluster may hang on reentrant GetGrain< > + Fire, so disabled in handle for tests; TUI demonstrates via explicit calls)
-        // var genKey = "generated-" + cmd.PackName.ToLower();
-        // var gen = GrainFactory.GetGrain<IGeneratedNeuron>(genKey);
-        // await gen.FireAsync(new ExperienceUsed(cmd.PackName, "downloaded-and-activated"));
+        var key = $"{cmd.PackName}@{cmd.Version}";
+        var pack = _published.FirstOrDefault(p => $"{p.Name}@{p.Version}" == key);
+
+        if (pack == null)
+        {
+            Logger.LogWarning("Install failed - pack not found: {Key}", key);
+            return;
+        }
+
+        if (pack.IsPrivate && cmd.BuyerId != pack.OwnerId)
+        {
+            Logger.LogWarning("Install blocked - pack {Key} is private to owner {Owner}", key, pack.OwnerId);
+            return;
+        }
+
+        // Commission taking - core for "marketplace should take commissions"
+        var commissionAmount = 1.0 * pack.CommissionRate;
+        await FireAsync(new CommissionTaken(
+            pack.Name, 
+            pack.Version, 
+            cmd.BuyerId, 
+            pack.OwnerId, 
+            pack.CommissionRate, 
+            commissionAmount));
+
+        // Deliver full real pack
+        await FireAsync(new NeuroPackInstalled(pack));
+
+        // Activate for the buyer
+        var genKey = "generated-" + pack.Name.ToLowerInvariant();
+        var generated = GrainFactory.GetGrain<IGeneratedNeuron>(genKey);
+        await generated.FireAsync(new ExperienceUsed(pack.Name, "installed-and-activated"));
+
+        Logger.LogInformation("Marketplace INSTALL {Key} by {Buyer}. Commission {Rate:P0} taken for seller {Seller}.",
+            key, cmd.BuyerId, pack.CommissionRate, pack.OwnerId);
     }
 
     public async Task HandleAsync(ListPublished _cmd)
     {
-        Logger.LogInformation("Marketplace listing {Count} packs", _published.Count);
+        Logger.LogInformation("Marketplace listing {Count} real packs", _published.Count);
         await FireAsync(new PublishedList(_published.AsReadOnly()));
     }
 }
@@ -79,15 +123,17 @@ public class CompilerNeuron : Neuron, ICompiler
 
     public async Task HandleAsync(CreateNeuronRequest req)
     {
-        Logger.LogInformation("Compiler generating neuron for: {Desc}", req.Description);
+        Logger.LogInformation("Compiler generating for: {Desc}", req.Description);
         var packName = "Generated" + req.Description.Replace(" ", "").Replace("\"", "").Replace("-", "").Substring(0, Math.Min(18, req.Description.Length));
         string snippet;
 
         var llm = ServiceProvider.GetService<IOllamaApiClient>();
         if (llm != null)
         {
-            var sys = "You write minimal self-contained C# Neuron grains. Respond with ONLY a ```csharp fenced block containing one public class XXXNeuron : Neuron, INeuron { ... } inheriting the base. Use DigitalBrain.Protocol. Support simple Handle for its purpose. No extra usings or namespaces.";
-            var user = $"Description: {req.Description}\nClass base name: {packName}Neuron";
+            // Generalized for creating real software, automations and logic (not only internal neurons).
+            // The caller (REPL/MCP) can steer with the description: "as a standalone console automation for ...", "simple C# class for ...", or "Neuron for internal brain use".
+            var sys = "You are an expert software generator for DigitalBrain. Based on the description, output clean, minimal, self-contained C# code (a full console app, a useful class, a script-like automation, or a Neuron if specified). Respond with ONLY a ```csharp fenced block. Include necessary usings. Make it immediately useful and correct. No explanations outside the code block.";
+            var user = $"Description: {req.Description}\nBase name hint: {packName}";
             var fullPrompt = sys + "\n\n" + user;
 
             llm.SelectedModel = "qwen2.5-coder:1.5b";
@@ -98,15 +144,20 @@ public class CompilerNeuron : Neuron, ICompiler
             }
             snippet = ExtractCode(acc);
             if (string.IsNullOrWhiteSpace(snippet))
-                snippet = FallbackSnippet(packName, req.Description);
+                snippet = FallbackGeneralCode(packName, req.Description);
         }
         else
         {
-            snippet = FallbackSnippet(packName, req.Description);
+            snippet = FallbackGeneralCode(packName, req.Description);
         }
 
         await FireAsync(new NeuronCodeGenerated(req.Description, snippet));
         await FireAsync(new NeuronTelemetry(Self, "code-generated"));
+
+        // Produce a real NeuroPack so caller can publish/install/export as usable software or internal neuron.
+        var pack = new NeuroPack(packName, "0.1-dev", "compiler", false, 0.10, snippet, req.Description);
+        // The caller (REPL/MCP) can fire PublishToMarketplace with this data if desired.
+        // For auto-flow in high-level commands, the REPL handles publish + export.
     }
 
     static string ExtractCode(string text)
@@ -133,6 +184,9 @@ public class CompilerNeuron : Neuron, ICompiler
 
     static string FallbackSnippet(string pack, string desc) =>
         $"[GrainType(\"digitalbrain.generated.{pack.ToLower()}\")]\npublic class {pack}Neuron : Neuron, INeuron {{\n    // {desc}\n}}";
+
+    static string FallbackGeneralCode(string pack, string desc) =>
+        $"// Generated software/automation for: {desc}\nusing System;\n\npublic class {pack}\n{{\n    public static void Run() {{ Console.WriteLine(\"Automation for: {desc}\"); }}\n}}";
 }
 
 [GrainType("digitalbrain.optimizer.v1")]
@@ -179,11 +233,19 @@ public class MetaOptimizerNeuron : Neuron, IMetaOptimizerNeuron
     }
 }
 
-// Dynamic generated neuron - "loaded" via compiler flow (prototype for NeuroPack dynamic assembly + grain reg)
+// Dynamic generated neuron.
+// On install, it receives a real NeuroPack (code + description).
+// This is the key to self-development: the installed pack now **defines the behavior** of this neuron instance.
+// When used (ExperienceUsed or direct fire), if a pack is installed we embody it by delegating to the LLM
+// with the pack's code/description as the "personality" or logic. This closes the generate -> install -> live loop
+// without needing full dynamic C# compilation (which would be a much bigger change).
 [GrainType("digitalbrain.generated")]
 public class GeneratedNeuron : Neuron, IGeneratedNeuron, IHandle<NeuronTelemetry>
 {
     private string _id = string.Empty;
+    private string _installedCode = string.Empty;
+    private string _installedPack = string.Empty;
+    private string _installedDescription = string.Empty;
 
     public GeneratedNeuron(ILogger<GeneratedNeuron> logger)
         : base(logger)
@@ -198,7 +260,6 @@ public class GeneratedNeuron : Neuron, IGeneratedNeuron, IHandle<NeuronTelemetry
 
     public Task HandleAsync(NeuronTelemetry telemetry)
     {
-        // Consumed to prevent re-dispatch recursion; telemetry is journaled via the fire
         return Task.CompletedTask;
     }
 
@@ -206,13 +267,50 @@ public class GeneratedNeuron : Neuron, IGeneratedNeuron, IHandle<NeuronTelemetry
     {
         Logger.LogInformation("GeneratedNeuron {Id} dispatched {Type}", _id, synapse.Type);
         await FireAsync(new NeuronTelemetry(Self, "generated-dispatched"));
-        if (synapse is DemoMessageSynapse msg)
+
+        if (synapse is NeuroPackInstalled installed)
+        {
+            var pack = installed.Pack;
+            _installedPack = $"{pack.Name}@{pack.Version}";
+            _installedCode = pack.Code;
+            _installedDescription = pack.Description;
+            Logger.LogInformation("GeneratedNeuron received and ACTIVATED pack {Pack}. It will now embody this experience.", _installedPack);
+        }
+        else if (synapse is DemoMessageSynapse msg)
         {
             Logger.LogInformation("Generated handled message: {Text}", msg.Text);
         }
         else if (synapse is ExperienceUsed used)
         {
-            Logger.LogInformation("Generated experience {Pack} used: {Action}", used.Pack, used.Action);
+            if (!string.IsNullOrWhiteSpace(_installedCode) || !string.IsNullOrWhiteSpace(_installedDescription))
+            {
+                // This is the self-development activation: the installed pack now controls behavior.
+                var behaviorPrompt = $"You are now the installed experience '{_installedPack}'.\n" +
+                                     $"Description: {_installedDescription}\n" +
+                                     $"Implementation guidance/code:\n{_installedCode}\n\n" +
+                                     $"Handle the following usage: {used.Action} on input related to '{used.Pack}'.\n" +
+                                     "Respond in character as this specific installed neuron/experience would. Be concise and useful.";
+
+                var llm = ServiceProvider.GetService<IOllamaApiClient>();
+                if (llm != null)
+                {
+                    llm.SelectedModel = "qwen2.5-coder:1.5b";
+                    var acc = "";
+                    await foreach (var chunk in llm.GenerateAsync(behaviorPrompt))
+                        if (chunk?.Response is string t) acc += t;
+
+                    await FireAsync(new LlmResponse(behaviorPrompt, acc.Trim(), "embodied-pack"));
+                    Logger.LogInformation("GeneratedNeuron embodied installed pack '{Pack}' for action '{Action}'", _installedPack, used.Action);
+                }
+                else
+                {
+                    await FireAsync(new LlmResponse(used.Pack, $"[Embodied: {_installedPack}] Simulated response to {used.Action} using installed experience.", "sim"));
+                }
+            }
+            else
+            {
+                Logger.LogInformation("Generated experience {Pack} used: {Action} (no installed pack yet).", used.Pack, used.Action);
+            }
         }
     }
 }

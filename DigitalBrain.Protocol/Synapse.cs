@@ -15,15 +15,6 @@ public record Synapse(
 }
 
 [GenerateSerializer]
-public record PublishToMarketplace(string PackName, string Version) : Synapse(nameof(PublishToMarketplace), DateTimeOffset.UtcNow);
-
-[GenerateSerializer]
-public record InstallFromMarketplace(string PackName, string Version) : Synapse(nameof(InstallFromMarketplace), DateTimeOffset.UtcNow);
-
-[GenerateSerializer]
-public record NeuroPackInstalled(string PackName, string Version) : Synapse(nameof(NeuroPackInstalled), DateTimeOffset.UtcNow);
-
-[GenerateSerializer]
 public record ListPublished() : Synapse(nameof(ListPublished), DateTimeOffset.UtcNow);
 
 [GenerateSerializer]
@@ -43,9 +34,6 @@ public record DemoMessageSynapse(string Text) : Synapse(nameof(DemoMessageSynaps
 
 [GenerateSerializer]
 public record ExperienceUsed(string Pack, string Action) : Synapse(nameof(ExperienceUsed), DateTimeOffset.UtcNow);
-
-[GenerateSerializer]
-public record PublishedList(IReadOnlyList<string> Packs) : Synapse(nameof(PublishedList), DateTimeOffset.UtcNow);
 
 // Core system neuron interfaces (everything is a Neuron)
 public interface IAspire : INeuron, IHandle<StartDistributedApp>, IHandle<RestartResource> { }
@@ -112,3 +100,54 @@ public interface IDemoNeuron : INeuron
 {
     Task<string> GetLastMessageAsync();
 }
+
+// === Real Marketplace Pack Model (core to fixing the blocker) ===
+// A NeuroPack is the distributable unit: metadata + code + ownership + monetization info.
+// This enables private marketplace + commissions.
+[GenerateSerializer]
+public record NeuroPack(
+    [property: Id(0)] string Name,
+    [property: Id(1)] string Version,
+    [property: Id(2)] string OwnerId = "anonymous",
+    [property: Id(3)] bool IsPrivate = false,
+    [property: Id(4)] double CommissionRate = 0.10, // 10% default commission taken by marketplace
+    [property: Id(5)] string Code = "",
+    [property: Id(6)] string Description = ""
+);
+
+// Richer publish/install commands that carry full pack data for real marketplace behavior.
+// Old simple constructors still work via defaults for minimal compat during transition.
+[GenerateSerializer]
+public record PublishToMarketplace(
+    string PackName, 
+    string Version, 
+    string Code = "", 
+    string OwnerId = "anonymous", 
+    bool IsPrivate = false, 
+    double CommissionRate = 0.10,
+    string Description = ""
+) : Synapse(nameof(PublishToMarketplace), DateTimeOffset.UtcNow);
+
+[GenerateSerializer]
+public record InstallFromMarketplace(
+    string PackName, 
+    string Version, 
+    string BuyerId = "anonymous"
+) : Synapse(nameof(InstallFromMarketplace), DateTimeOffset.UtcNow);
+
+[GenerateSerializer]
+public record NeuroPackInstalled(NeuroPack Pack) : Synapse(nameof(NeuroPackInstalled), DateTimeOffset.UtcNow);
+
+[GenerateSerializer]
+public record PublishedList(IReadOnlyList<NeuroPack> Packs) : Synapse(nameof(PublishedList), DateTimeOffset.UtcNow);
+
+// Commission event - fired on successful install to support marketplace economics
+[GenerateSerializer]
+public record CommissionTaken(
+    string PackName, 
+    string Version, 
+    string BuyerId, 
+    string SellerId, 
+    double CommissionRate, 
+    double CommissionAmount
+) : Synapse(nameof(CommissionTaken), DateTimeOffset.UtcNow);

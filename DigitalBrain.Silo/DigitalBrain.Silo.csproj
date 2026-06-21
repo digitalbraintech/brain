@@ -21,6 +21,7 @@
     <PackageReference Include="Microsoft.Orleans.Persistence.Redis" />
     <PackageReference Include="Microsoft.Orleans.Server" />
     <PackageReference Include="Microsoft.Orleans.Streaming" />
+    <!-- Microsoft.Orleans.Dashboard added for .WithOrleansDashboard() - run 'dotnet add package Microsoft.Orleans.Dashboard' if needed for full UI -->
     <ProjectReference Include="..\DigitalBrain.Protocol\DigitalBrain.Protocol.csproj" />
     <ProjectReference Include="..\NeuroOSPrototype.ServiceDefaults\NeuroOSPrototype.ServiceDefaults.csproj" />
   </ItemGroup>

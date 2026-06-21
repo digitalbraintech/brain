@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net11.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Core DigitalBrain -->
+    <ProjectReference Include="..\..\DigitalBrain.Silo\DigitalBrain.Silo.csproj" />
+    <ProjectReference Include="..\..\DigitalBrain.Protocol\DigitalBrain.Protocol.csproj" />
+
+    <!-- For MCP mode -->
+    <PackageReference Include="ModelContextProtocol" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+
+    <!-- For client + kernel -->
+    <PackageReference Include="Aspire.StackExchange.Redis" />
+    <PackageReference Include="Microsoft.Orleans.Client" />
+    <PackageReference Include="Microsoft.Orleans.Server" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+  </ItemGroup>
+
+  <!-- The brain.cs is the main program -->
+  <!-- brain.cs is included automatically as it is in the project directory -->
+
+</Project>

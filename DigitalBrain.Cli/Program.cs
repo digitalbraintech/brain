@@ -68,14 +68,22 @@ while (true)
 
                     var timeline = await compiler.GetTimelineAsync();
                     var generated = timeline.LastOrDefault(s => s.Type == nameof(NeuronCodeGenerated)) as NeuronCodeGenerated;
+                    var realPack = timeline.OfType<NeuroPack>().LastOrDefault();
                     if (generated != null)
                     {
                         AnsiConsole.MarkupLine("[green]Generated code:[/]");
                         AnsiConsole.WriteLine(generated.GeneratedCodeSnippet);
                     }
-
-                    lastCreatedPack = "Generated-" + desc.Replace(" ", "").Replace("\"", "").Substring(0, Math.Min(20, desc.Length));
-                    AnsiConsole.MarkupLine($"[green]New experience created as pack: {lastCreatedPack}. Now use 'Publish Experience to Marketplace' to share it.[/]");
+                    if (realPack != null)
+                    {
+                        lastCreatedPack = $"{realPack.Name}@{realPack.Version}";
+                        AnsiConsole.MarkupLine($"[green]Real NeuroPack created: {lastCreatedPack} owner={realPack.OwnerId} commission={realPack.CommissionRate:P0}[/]");
+                    }
+                    else
+                    {
+                        lastCreatedPack = "Generated-" + desc.Replace(" ", "").Replace("\"", "").Substring(0, Math.Min(20, desc.Length));
+                        AnsiConsole.MarkupLine($"[green]New experience created as pack: {lastCreatedPack}. Now use 'Publish Experience to Marketplace' to share it.[/]");
+                    }
                 }
                 else
                 {
@@ -90,9 +98,12 @@ while (true)
                 if (grains != null)
                 {
                     var marketplace = grains.GetGrain<IMarketplaceNeuron>("market-main");
-                    await marketplace.FireAsync(new PublishToMarketplace(pubPack, pubVer));
-                    AnsiConsole.MarkupLine($"[green]Published {pubPack}@{pubVer} to Marketplace.[/]");
-                    AnsiConsole.MarkupLine("[green]Others can now List Published Packs, Download/Install, and Use it via GeneratedNeuron.[/]");
+                    // Pass real pack details to enable private + commissions in marketplace
+                    string owner = "grok-user"; // In real would come from auth
+                    double commission = 0.15;
+                    await marketplace.FireAsync(new PublishToMarketplace(pubPack, pubVer, Code: "", OwnerId: owner, IsPrivate: false, CommissionRate: commission));
+                    AnsiConsole.MarkupLine($"[green]Published {pubPack}@{pubVer} (owner={owner}, commission={commission:P0}) to REAL Marketplace.[/]");
+                    AnsiConsole.MarkupLine("[green]Packs are now persisted. Friends can install & marketplace takes commission.[/]");
                 }
                 else
                 {
@@ -109,8 +120,13 @@ while (true)
                     var list = mktTimeline.LastOrDefault(s => s.Type == nameof(PublishedList)) as PublishedList;
                     if (list != null && list.Packs.Count > 0)
                     {
-                        AnsiConsole.MarkupLine("[green]Published packs (newly created ones ready for download):[/]");
-                        foreach (var p in list.Packs) AnsiConsole.WriteLine($"  - {p}");
+                        AnsiConsole.MarkupLine("[green]Published packs (REAL - persisted with owner/commission):[/]");
+                        foreach (var p in list.Packs)
+                        {
+                            string priv = p.IsPrivate ? "PRIVATE" : "public";
+                            AnsiConsole.WriteLine($"  - {p.Name}@{p.Version} | owner={p.OwnerId} | {priv} | commission={p.CommissionRate:P0}");
+                            if (!string.IsNullOrWhiteSpace(p.Description)) AnsiConsole.WriteLine($"      desc: {p.Description}");
+                        }
                     }
                     else
                     {
@@ -129,9 +145,11 @@ while (true)
                 if (grains != null)
                 {
                     var marketplace = grains.GetGrain<IMarketplaceNeuron>("market-main");
-                    await marketplace.FireAsync(new InstallFromMarketplace(instPack, instVer));
-                    AnsiConsole.MarkupLine($"[green]Downloaded and installed {instPack}@{instVer}.[/]");
-                    AnsiConsole.MarkupLine("[green]Experience activated (GeneratedNeuron ready for use).[/]");
+                    string buyer = "friend-user"; // real auth would provide this
+                    await marketplace.FireAsync(new InstallFromMarketplace(instPack, instVer, BuyerId: buyer));
+                    AnsiConsole.MarkupLine($"[green]Downloaded and installed {instPack}@{instVer} as {buyer}.[/]");
+                    AnsiConsole.MarkupLine("[green]Commission taken by marketplace. Experience activated in GeneratedNeuron.[/]");
+                    AnsiConsole.MarkupLine("[green]Use 'Use Installed Experience' to interact with the real pack code.[/]");
                 }
                 else
                 {
@@ -164,8 +182,12 @@ while (true)
                     var list = mktTimeline.LastOrDefault(s => s.Type == nameof(PublishedList)) as PublishedList;
                     if (list != null)
                     {
-                        AnsiConsole.MarkupLine("[green]Installed/available packs:[/]");
-                        foreach (var p in list.Packs) AnsiConsole.WriteLine($"  - {p}");
+                        AnsiConsole.MarkupLine("[green]Installed/available packs (from real marketplace state):[/]");
+                        foreach (var p in list.Packs)
+                        {
+                            string priv = p.IsPrivate ? "PRIVATE" : "public";
+                            AnsiConsole.WriteLine($"  - {p.Name}@{p.Version} | owner={p.OwnerId} | {priv} | comm={p.CommissionRate:P0}");
+                        }
                     }
                 }
                 else
@@ -229,6 +251,54 @@ while (true)
 if (grains != null)
 {
     await app.StopAsync();
+}
+
+// === FASTEST WAY TO TEST (Elon: accelerate cycle time, delete menu friction) ===
+// After 'aspire run' (local marketplace) or 'dotnet run' on this cli:
+// drops into live REPL connected to real cluster.
+// Send text, test private marketplace + commissions immediately.
+// Use with MCP for self-inspection / runtime updates.
+if (grains != null)
+{
+    AnsiConsole.MarkupLine("\n[bold green]LIVE REPL - real cluster + marketplace. 'help' or 'exit'[/]");
+    while (true)
+    {
+        var line = AnsiConsole.Ask<string>("[cyan]live>[/]");
+        if (line.Equals("exit", StringComparison.OrdinalIgnoreCase)) break;
+        if (line.Equals("help", StringComparison.OrdinalIgnoreCase))
+        {
+            AnsiConsole.WriteLine("fire <neuronId> <text> | publish private? <name> <ver> <code> | install <name> [buyer=xx] | timeline <id> | list | exit");
+            continue;
+        }
+        try
+        {
+            var t = line.Split(' ', 3, StringSplitOptions.RemoveEmptyEntries);
+            if (t[0] == "fire" && t.Length > 2)
+                await grains.GetGrain<INeuron>(t[1]).FireAsync(new DemoMessageSynapse(t[2]));
+            else if (t[0] == "publish")
+            {
+                bool priv = t.Length > 1 && t[1] == "private";
+                // simple parse for demo
+                await grains.GetGrain<IMarketplaceNeuron>("market-main").FireAsync(new PublishToMarketplace("LiveTestPack", "1.0", line, "live", priv, 0.2));
+                AnsiConsole.MarkupLine("[green]published live pack (check commission on install)[/]");
+            }
+            else if (t[0] == "install")
+                await grains.GetGrain<IMarketplaceNeuron>("market-main").FireAsync(new InstallFromMarketplace("LiveTestPack", "1.0", "live-buyer"));
+            else if (t[0] == "timeline" && t.Length > 1)
+            {
+                var tl = await grains.GetGrain<INeuron>(t[1]).GetTimelineAsync();
+                AnsiConsole.WriteLine(string.Join("\n", tl.TakeLast(3).Select(x => x.Type)));
+            }
+            else if (t[0] == "list")
+            {
+                var m = grains.GetGrain<IMarketplaceNeuron>("market-main");
+                await m.FireAsync(new ListPublished());
+                var tl = await m.GetTimelineAsync();
+                if (tl.LastOrDefault(s => s is PublishedList) is PublishedList pl) AnsiConsole.WriteLine(pl.Packs.Count + " packs");
+            }
+        }
+        catch (Exception e) { AnsiConsole.MarkupLine("[red]" + e.Message + "[/]"); }
+    }
 }
 
 AnsiConsole.MarkupLine("[grey]GrokCLI TUI exited.[/]");

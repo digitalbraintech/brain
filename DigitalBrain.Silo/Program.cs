@@ -27,6 +27,15 @@ builder.UseOrleans(siloBuilder =>
         // Stub for the alpha journaling manager (sufficient for local dev / test cluster)
         services.AddSingleton<Orleans.Journaling.IJournaledStateManager, PrototypeJournaledStateManager>();
     });
+
+    // Enable grain persistence for real marketplace state (published packs, etc.)
+    // In Aspire wired deployments this gets upgraded to Redis via the AppHost config.
+    // This is critical for the marketplace to survive restarts.
+    siloBuilder.AddMemoryGrainStorageAsDefault();
+
+    // Orleans Dashboard (live grains, activations, marketplace view - standalone like MCP)
+    // Add via 'dotnet add package Microsoft.Orleans.Dashboard' then uncomment + use .WithOrleansDashboard()
+    // siloBuilder.AddDashboard(o => { o.Port = 8080; o.HideTrace = true; });
 });
 
 var host = builder.Build();

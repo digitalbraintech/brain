@@ -1,19 +1,18 @@
 {
   "mcpServers": {
-    "aspire": {
-      "command": "aspire",
+    "digitalbrain": {
+      "command": "dotnet",
       "args": [
-        "agent",
-        "mcp"
-      ]
-    },
-    "microsoft-learn": {
-      "type": "http",
-      "url": "https://learn.microsoft.com/api/mcp"
-    },
-    "context7": {
-      "command": "cmd",
-      "args": ["/c", "npx", "-y", "@upstash/context7-mcp@latest"]
+        "run",
+        "--project",
+        "samples/QuickTest",
+        "--no-launch-profile",
+        "--",
+        "--mcp"
+      ],
+      "env": {
+        "DOTNET_ENVIRONMENT": "Development"
+      }
     }
   }
 }
