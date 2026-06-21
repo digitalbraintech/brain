@@ -10,8 +10,10 @@
   <ItemGroup>
     <PackageReference Include="Aspire.StackExchange.Redis" Version="13.4.6" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.9" />
+    <PackageReference Include="Microsoft.Orleans.Clustering.Redis" Version="*" />
     <PackageReference Include="Microsoft.Orleans.Core" Version="10.2.0" />
     <PackageReference Include="Microsoft.Orleans.Persistence.Memory" Version="10.2.0" />
+    <PackageReference Include="Microsoft.Orleans.Persistence.Redis" Version="*" />
     <PackageReference Include="Microsoft.Orleans.Server" Version="10.2.0" />
     <PackageReference Include="Microsoft.Orleans.Streaming" Version="10.2.0" />
     <ProjectReference Include="..\DigitalBrain.Protocol\DigitalBrain.Protocol.csproj" />

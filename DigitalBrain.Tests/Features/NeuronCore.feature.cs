@@ -105,7 +105,7 @@ namespace DigitalBrain.Tests.Features
         
         private static global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages InitializeCucumberMessages()
         {
-            return new global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages("Features/NeuronCore.feature.ndjson", 7);
+            return new global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages("Features/NeuronCore.feature.ndjson", 8);
         }
         
         async global::System.Threading.Tasks.Task global::Xunit.IAsyncLifetime.InitializeAsync()
@@ -226,7 +226,7 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
             {
                 await this.ScenarioStartAsync();
 #line 15
-  await testRunner.GivenAsync("a marketplace neuron \"market1\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
+  await testRunner.GivenAsync("a marketplace neuron \"market-main\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
 #line hidden
 #line 16
   await testRunner.WhenAsync("I publish pack \"EmailVisualizer\" version \"1.0\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
@@ -307,6 +307,61 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
 #line hidden
 #line 29
   await testRunner.ThenAsync("the timeline contains a WiringOptimizationProposed", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
+        
+        [global::Xunit.SkippableFactAttribute(DisplayName="Full grok create-neuron flow: create -> publish to marketplace -> download/instal" +
+            "l -> use")]
+        [global::Xunit.TraitAttribute("FeatureTitle", "NeuroOS Neuron Core")]
+        [global::Xunit.TraitAttribute("Description", "Full grok create-neuron flow: create -> publish to marketplace -> download/instal" +
+            "l -> use")]
+        public async global::System.Threading.Tasks.Task FullGrokCreate_NeuronFlowCreate_PublishToMarketplace_DownloadInstall_Use()
+        {
+            string[] tagsOfScenario = ((string[])(null));
+            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
+            string pickleIndex = "5";
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("Full grok create-neuron flow: create -> publish to marketplace -> download/instal" +
+                    "l -> use", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            string[] tagsOfRule = ((string[])(null));
+            global::Reqnroll.RuleInfo ruleInfo = null;
+#line 31
+this.ScenarioInitialize(scenarioInfo, ruleInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                await testRunner.SkipScenarioAsync();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 32
+  await testRunner.GivenAsync("a marketplace neuron \"market-main\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
+#line hidden
+#line 33
+  await testRunner.GivenAsync("a compiler neuron \"compiler-flow\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
+#line hidden
+#line 34
+  await testRunner.WhenAsync("I send create neuron request \"grok email analyzer chart\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+#line 35
+  await testRunner.ThenAsync("the timeline contains a NeuronCodeGenerated", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+#line 36
+  await testRunner.WhenAsync("I publish pack \"Generated-grokemailanalyzerchart\" version \"0.1-dev\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+#line 37
+  await testRunner.AndAsync("I request published list", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 38
+  await testRunner.ThenAsync("the timeline contains a PublishedList", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+#line 39
+  await testRunner.WhenAsync("I download/install the pack \"Generated-grokemailanalyzerchart\" version \"0.1-dev\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+#line 40
+  await testRunner.ThenAsync("the timeline contains a NeuroPackInstalled", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
 #line hidden
             }
             await this.ScenarioCleanupAsync();

@@ -27,5 +27,4 @@ public class DemoNeuron : Neuron, IDemoNeuron, IHandle<DemoMessageSynapse>
     public Task<string> GetLastMessageAsync() => Task.FromResult(_last);
 }
 
-[GenerateSerializer]
-public record DemoMessageSynapse(string Text) : Synapse(nameof(DemoMessageSynapse), DateTimeOffset.UtcNow);
+// DemoMessageSynapse moved to Protocol for CLI/shared use

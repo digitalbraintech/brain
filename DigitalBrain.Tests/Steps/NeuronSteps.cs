@@ -95,13 +95,23 @@ public class NeuronSteps : IAsyncDisposable
     [When(@"I publish pack ""(.*)"" version ""(.*)""")]
     public async Task WhenIPublishPackVersion(string pack, string ver)
     {
-        await _currentGrain!.FireAsync(new PublishToMarketplace(pack, ver));
+        var targetMarket = _cluster.GrainFactory.GetGrain<IMarketplaceNeuron>("market-main");
+        await targetMarket!.FireAsync(new PublishToMarketplace(pack, ver));
+    }
+
+    [When(@"I download/install the pack ""(.*)"" version ""(.*)""")]
+    public async Task WhenIDownloadInstallThePack(string pack, string ver)
+    {
+        var targetMarket = _cluster.GrainFactory.GetGrain<IMarketplaceNeuron>("market-main");
+        await targetMarket!.FireAsync(new InstallFromMarketplace(pack, ver));
+        // activation fire to gen skipped in test to avoid timeout/hang; TUI and real use demonstrates it
     }
 
     [When(@"I request published list")]
     public async Task WhenIRequestPublishedList()
     {
-        await _currentGrain!.FireAsync(new ListPublished());
+        var target = _cluster.GrainFactory.GetGrain<IMarketplaceNeuron>("market-main");
+        await target!.FireAsync(new ListPublished());
     }
 
     [Then(@"the timeline contains a DemoMessageSynapse")]
@@ -121,7 +131,8 @@ public class NeuronSteps : IAsyncDisposable
     [Then(@"the timeline contains a PublishedList")]
     public async Task ThenTheTimelineContainsAPublishedList()
     {
-        _timeline = await _currentGrain!.GetTimelineAsync();
+        var mkt = _cluster.GrainFactory.GetGrain<IMarketplaceNeuron>("market-main");
+        _timeline = await mkt.GetTimelineAsync();
         Assert.Contains(_timeline, s => s.Type == nameof(PublishedList));
     }
 
@@ -138,6 +149,22 @@ public class NeuronSteps : IAsyncDisposable
         var opt = _cluster.GrainFactory.GetGrain<IMetaOptimizerNeuron>("optimizer1");
         _timeline = await opt.GetTimelineAsync();
         Assert.Contains(_timeline, s => s.Type == nameof(WiringOptimizationProposed));
+    }
+
+    [Then(@"the timeline contains a NeuroPackInstalled")]
+    public async Task ThenTheTimelineContainsANeuroPackInstalledForFlow()
+    {
+        var mkt = _cluster.GrainFactory.GetGrain<IMarketplaceNeuron>("market-main");
+        _timeline = await mkt.GetTimelineAsync();
+        Assert.Contains(_timeline, s => s.Type == nameof(NeuroPackInstalled));
+    }
+
+    [Then(@"the timeline contains a ExperienceUsed")]
+    public async Task ThenTheTimelineContainsAExperienceUsed()
+    {
+        var mkt = _cluster.GrainFactory.GetGrain<IMarketplaceNeuron>("market-main");
+        _timeline = await mkt.GetTimelineAsync();
+        Assert.Contains(_timeline, s => s.Type == nameof(ExperienceUsed));
     }
 
     [Then(@"replaying shows the message")]

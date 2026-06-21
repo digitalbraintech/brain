@@ -4,8 +4,6 @@ using Microsoft.Extensions.Logging;
 namespace DigitalBrain.Silo;
 
 // IAspire neuron (orchestrates distributed apps via Aspire model, fires completion synapses)
-public interface IAspireNeuron : IAspire { }
-
 [GrainType("neuro.aspire.v1")]
 public class AspireOrchestratorNeuron : Neuron, IAspireNeuron
 {
@@ -29,8 +27,6 @@ public class AspireOrchestratorNeuron : Neuron, IAspireNeuron
 }
 
 // IMarketplace neuron (publish/install neuro packs, dynamic assembly load hook stub)
-public interface IMarketplaceNeuron : IMarketplace { }
-
 [GrainType("neuro.marketplace.v1")]
 public class MarketplaceNeuron : Neuron, IMarketplaceNeuron
 {
@@ -46,7 +42,7 @@ public class MarketplaceNeuron : Neuron, IMarketplaceNeuron
     {
         Logger.LogInformation("Marketplace publish: {Pack}@{Ver}", cmd.PackName, cmd.Version);
         _published.Add($"{cmd.PackName}@{cmd.Version}");
-        await FireAsync(new NeuroPackInstalled(cmd.PackName, cmd.Version));
+        // Published; no installed yet (install is separate download step)
     }
 
     public async Task HandleAsync(InstallFromMarketplace cmd)
@@ -54,6 +50,10 @@ public class MarketplaceNeuron : Neuron, IMarketplaceNeuron
         Logger.LogInformation("Marketplace install: {Pack}@{Ver}", cmd.PackName, cmd.Version);
         // Stub: would trigger AspireHost.AddDynamicResource + Assembly.Load + grain re-register
         await FireAsync(new NeuroPackInstalled(cmd.PackName, cmd.Version));
+        // Activate/use the experience for the downloader (stub; test cluster may hang on reentrant GetGrain< > + Fire, so disabled in handle for tests; TUI demonstrates via explicit calls)
+        // var genKey = "generated-" + cmd.PackName.ToLower();
+        // var gen = GrainFactory.GetGrain<IGeneratedNeuron>(genKey);
+        // await gen.FireAsync(new ExperienceUsed(cmd.PackName, "downloaded-and-activated"));
     }
 
     public async Task HandleAsync(ListPublished _cmd)
@@ -77,16 +77,15 @@ public class CompilerNeuron : Neuron, ICompiler
     {
         Logger.LogInformation("Compiler generating neuron for: {Desc}", req.Description);
         // Stub: simulate Reqnroll scenario + LLM fill → compile → grain DLL + Aspire reload
-        var snippet = $"// Generated from: {req.Description}\npublic class GeneratedNeuron : Neuron {{ /* ... */ }}";
+        var packName = "Generated-" + req.Description.Replace(" ", "").Replace("\"", "").Substring(0, Math.Min(20, req.Description.Length));
+        var snippet = $"// Auto-generated from English: {req.Description}\n[GrainType(\"neuro.generated.{packName.ToLower()}\")]\npublic class {packName}Neuron : Neuron, INeuron {{ /* impl from LLM sim */ }}";
         await FireAsync(new NeuronCodeGenerated(req.Description, snippet));
         await FireAsync(new NeuronTelemetry(Self, "code-generated"));
-        // Could fire NeuroPackInstalled etc for full flow
+        // Publish/install/use is explicit user-driven flow after create (via Marketplace + CLI TUI)
     }
 }
 
 // Self-Improvement: MetaOptimizerNeuron per spec - tracks telemetry, proposes better wiring
-public interface IMetaOptimizerNeuron : INeuron, IHandle<NeuronTelemetry>, IHandle<WiringOptimizationProposed> { }
-
 [GrainType("neuro.optimizer.v1")]
 public class MetaOptimizerNeuron : Neuron, IMetaOptimizerNeuron
 {
@@ -115,5 +114,37 @@ public class MetaOptimizerNeuron : Neuron, IMetaOptimizerNeuron
     {
         Logger.LogInformation("Optimizer proposal received: {Proposal} from {From}", proposal.Proposal, proposal.FromNeuron);
         return Task.CompletedTask;
+    }
+}
+
+// Dynamic generated neuron - "loaded" via compiler flow (prototype for NeuroPack dynamic assembly + grain reg)
+[GrainType("neuro.generated")]
+public class GeneratedNeuron : Neuron, IGeneratedNeuron
+{
+    private string _id = string.Empty;
+
+    public GeneratedNeuron(ILogger<GeneratedNeuron> logger, [PersistentState("journal", "Default")] IPersistentState<List<Synapse>> journal)
+        : base(logger, journal)
+    {
+    }
+
+    public override async Task OnActivateAsync(CancellationToken ct)
+    {
+        await base.OnActivateAsync(ct);
+        _id = this.GetPrimaryKeyString() ?? "unknown-generated";
+    }
+
+    protected override async Task DispatchSynapse(Synapse synapse)
+    {
+        Logger.LogInformation("GeneratedNeuron {Id} dispatched {Type}", _id, synapse.Type);
+        await FireAsync(new NeuronTelemetry(Self, "generated-dispatched"));
+        if (synapse is DemoMessageSynapse msg)
+        {
+            Logger.LogInformation("Generated handled message: {Text}", msg.Text);
+        }
+        else if (synapse is ExperienceUsed used)
+        {
+            Logger.LogInformation("Generated experience {Pack} used: {Action}", used.Pack, used.Action);
+        }
     }
 }

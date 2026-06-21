@@ -74,6 +74,12 @@ public record NeuronTelemetry(NeuronId Neuron, string Event, int Count = 1) : Sy
 public record WiringOptimizationProposed(string Proposal, string FromNeuron) : Synapse(nameof(WiringOptimizationProposed), DateTimeOffset.UtcNow);
 
 [GenerateSerializer]
+public record DemoMessageSynapse(string Text) : Synapse(nameof(DemoMessageSynapse), DateTimeOffset.UtcNow);
+
+[GenerateSerializer]
+public record ExperienceUsed(string Pack, string Action) : Synapse(nameof(ExperienceUsed), DateTimeOffset.UtcNow);
+
+[GenerateSerializer]
 public record PublishedList(IReadOnlyList<string> Packs) : Synapse(nameof(PublishedList), DateTimeOffset.UtcNow);
 
 // Core system neuron interfaces (everything is a Neuron)
@@ -82,3 +88,11 @@ public interface IAspire : INeuron, IHandle<StartDistributedApp>, IHandle<Restar
 public interface IMarketplace : INeuron, IHandle<PublishToMarketplace>, IHandle<InstallFromMarketplace>, IHandle<ListPublished> { }
 
 public interface ICompiler : INeuron, IHandle<CreateNeuronRequest> { }
+
+public interface IAspireNeuron : IAspire { }
+
+public interface IMarketplaceNeuron : IMarketplace { }
+
+public interface IMetaOptimizerNeuron : INeuron, IHandle<NeuronTelemetry>, IHandle<WiringOptimizationProposed> { }
+
+public interface IGeneratedNeuron : INeuron { }

@@ -8,6 +8,9 @@
     <PackageReference Include="Aspire.StackExchange.Redis" Version="13.4.6" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="*" />
     <PackageReference Include="Microsoft.Orleans.Client" Version="*" />
+    <PackageReference Include="Microsoft.Orleans.Clustering.Redis" Version="*" />
+    <PackageReference Include="Spectre.Console" Version="*" />
+    <PackageReference Include="Spectre.Console.Cli" Version="*" />
   </ItemGroup>
 
   <PropertyGroup>

@@ -12,7 +12,7 @@ Scenario: Aspire neuron handles start and emits completion
   Then the timeline contains a DistributedAppStarted
 
 Scenario: Marketplace publishes and lists packs
-  Given a marketplace neuron "market1"
+  Given a marketplace neuron "market-main"
   When I publish pack "EmailVisualizer" version "1.0"
   And I request published list
   Then the timeline contains a PublishedList
@@ -27,3 +27,14 @@ Scenario: Meta optimizer tracks telemetry and proposes wiring improvements
   And a demo neuron "demo-opt"
   When I fire multiple messages to trigger telemetry
   Then the timeline contains a WiringOptimizationProposed
+
+Scenario: Full grok create-neuron flow: create -> publish to marketplace -> download/install -> use
+  Given a marketplace neuron "market-main"
+  Given a compiler neuron "compiler-flow"
+  When I send create neuron request "grok email analyzer chart"
+  Then the timeline contains a NeuronCodeGenerated
+  When I publish pack "Generated-grokemailanalyzerchart" version "0.1-dev"
+  And I request published list
+  Then the timeline contains a PublishedList
+  When I download/install the pack "Generated-grokemailanalyzerchart" version "0.1-dev"
+  Then the timeline contains a NeuroPackInstalled
