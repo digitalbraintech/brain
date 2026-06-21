@@ -527,4 +527,18 @@ public class BrainMcpTools(IGrainFactory grains)
             .FireAsync(new InstallFromMarketplace(name, version, "mcp-user"));
         return "Installed " + name + " (embodied for use-generated).";
     }
+
+    [McpServerTool(Name = "run_pack"), Description("Find pack by name (from durable marketplace) and execute its code with Roslyn.")]
+    public async Task<string> RunPack(string name, string? input = null)
+    {
+        var m = grains.GetGrain<IMarketplaceNeuron>("market-main");
+        await m.FireAsync(new ListPublished());
+        await Task.Delay(200);
+        var tl = await m.GetTimelineAsync();
+        var pl = tl.LastOrDefault(s => s is PublishedList) as PublishedList;
+        var pack = pl?.Packs.FirstOrDefault(p => p.Name.Contains(name, StringComparison.OrdinalIgnoreCase));
+        if (pack == null) return "Pack not found. Use list_marketplace.";
+        var res = await CodeRunner.ExecuteCode(pack.Code, input ?? "");
+        return "Result: " + res;
+    }
 }
