@@ -4,9 +4,7 @@ using ModelContextProtocol.Protocol;
 using OllamaSharp;
 using Orleans.Journaling;
 using Orleans.Runtime;
-using System.IO;
 using System.Reflection;
-using System.Text.Json;
 
 #pragma warning disable ORLEANSEXP005 // Alpha/experimental journalling APIs
 
@@ -36,99 +34,45 @@ public class AspireOrchestratorNeuron : Neuron, IAspireNeuron
     }
 }
 
-// Real Marketplace neuron - attacks the core blocker.
-// Uses the journal for durability of published packs (replay from events for self-improvement library).
-// Full private + commission support + real NeuroPack with code/owner.
+// Marketplace: purely journal-driven (published packs derived from PublishToMarketplace synapses on demand).
+// No private lists or disk side-effects.
 [GrainType("digitalbrain.marketplace.v1")]
 public class MarketplaceNeuron : Neuron, IMarketplaceNeuron
 {
-    private readonly List<NeuroPack> _published = new();
-    private static readonly string DataPath = Path.Combine("data", "marketplace.json");
-
     public MarketplaceNeuron(ILogger<MarketplaceNeuron> logger)
         : base(logger)
     {
     }
 
-    public override async Task OnActivateAsync(CancellationToken ct)
+    public Task HandleAsync(PublishToMarketplace cmd)
     {
-        await base.OnActivateAsync(ct);
-        LoadFromDisk();
-    }
-
-    private void LoadFromDisk()
-    {
-        try
-        {
-            if (File.Exists(DataPath))
-            {
-                var json = File.ReadAllText(DataPath);
-                var loaded = JsonSerializer.Deserialize<List<NeuroPack>>(json);
-                if (loaded != null)
-                {
-                    _published.Clear();
-                    _published.AddRange(loaded);
-                }
-            }
-        }
-        catch { }
-    }
-
-    private void SaveToDisk()
-    {
-        try
-        {
-            Directory.CreateDirectory(Path.GetDirectoryName(DataPath)!);
-            var json = JsonSerializer.Serialize(_published);
-            File.WriteAllText(DataPath, json);
-        }
-        catch { }
-    }
-
-    public async Task HandleAsync(PublishToMarketplace cmd)
-    {
-        var pack = new NeuroPack(
-            cmd.PackName,
-            cmd.Version,
-            cmd.OwnerId,
-            cmd.IsPrivate,
-            cmd.CommissionRate,
-            cmd.Code,
-            cmd.Description);
-
-        var key = $"{pack.Name}@{pack.Version}";
-        _published.RemoveAll(p => $"{p.Name}@{p.Version}" == key);
-        _published.Add(pack);
-        SaveToDisk();
-
         Logger.LogInformation("Marketplace PUBLISHED real pack {Name}@{Ver} owner={Owner} private={Private} commission={Rate:P0}",
-            pack.Name, pack.Version, pack.OwnerId, pack.IsPrivate, pack.CommissionRate);
+            cmd.PackName, cmd.Version, cmd.OwnerId, cmd.IsPrivate, cmd.CommissionRate);
+        return Task.CompletedTask;
     }
 
     public async Task HandleAsync(InstallFromMarketplace cmd)
     {
-        var key = $"{cmd.PackName}@{cmd.Version}";
-        var pack = _published.FirstOrDefault(p => $"{p.Name}@{p.Version}" == key);
-
+        var pack = FindPublishedPack(cmd.PackName, cmd.Version);
         if (pack == null)
         {
-            Logger.LogWarning("Install failed - pack not found: {Key}", key);
+            Logger.LogWarning("Install failed - pack not found: {Key}", cmd.PackName + "@" + cmd.Version);
             return;
         }
 
         if (pack.IsPrivate && cmd.BuyerId != pack.OwnerId)
         {
-            Logger.LogWarning("Install blocked - pack {Key} is private to owner {Owner}", key, pack.OwnerId);
+            Logger.LogWarning("Install blocked - pack {Key} is private to owner {Owner}", cmd.PackName + "@" + cmd.Version, pack.OwnerId);
             return;
         }
 
         var commissionAmount = 1.0 * pack.CommissionRate;
         await FireAsync(new CommissionTaken(
-            pack.Name, 
-            pack.Version, 
-            cmd.BuyerId, 
-            pack.OwnerId, 
-            pack.CommissionRate, 
+            pack.Name,
+            pack.Version,
+            cmd.BuyerId,
+            pack.OwnerId,
+            pack.CommissionRate,
             commissionAmount));
 
         await FireAsync(new NeuroPackInstalled(pack));
@@ -138,13 +82,31 @@ public class MarketplaceNeuron : Neuron, IMarketplaceNeuron
         await generated.FireAsync(new ExperienceUsed(pack.Name, "installed-and-activated"));
 
         Logger.LogInformation("Marketplace INSTALL {Key} by {Buyer}. Commission {Rate:P0} taken for seller {Seller}.",
-            key, cmd.BuyerId, pack.CommissionRate, pack.OwnerId);
+            cmd.PackName + "@" + cmd.Version, cmd.BuyerId, pack.CommissionRate, pack.OwnerId);
     }
 
     public async Task HandleAsync(ListPublished _cmd)
     {
-        Logger.LogInformation("Marketplace listing {Count} real packs", _published.Count);
-        await FireAsync(new PublishedList(_published.AsReadOnly()));
+        var packs = CollectPublishedFromJournals();
+        Logger.LogInformation("Marketplace listing {Count} real packs", packs.Count);
+        await FireAsync(new PublishedList(packs));
+    }
+
+    private IReadOnlyList<NeuroPack> CollectPublishedFromJournals()
+    {
+        return OutgoingJournal
+            .Concat(IncomingJournal)
+            .OfType<PublishToMarketplace>()
+            .GroupBy(p => $"{p.PackName}@{p.Version}")
+            .Select(g => g.Last())
+            .Select(p => new NeuroPack(p.PackName, p.Version, p.OwnerId, p.IsPrivate, p.CommissionRate, p.Code, p.Description))
+            .ToList();
+    }
+
+    private NeuroPack? FindPublishedPack(string name, string version)
+    {
+        var key = $"{name}@{version}";
+        return CollectPublishedFromJournals().FirstOrDefault(p => $"{p.Name}@{p.Version}" == key);
     }
 }
 
