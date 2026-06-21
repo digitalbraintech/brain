@@ -154,6 +154,8 @@ else
                             CodeRunner.MaterializeAsProject("SelfAnalyzer", lastGeneratedCode);
                             var r = await CodeRunner.ExecuteCode(lastGeneratedCode);
                             Console.WriteLine("=== analysis ===\n" + r);
+                            await grains.GetGrain<INeuron>("optimizer-main").FireAsync(new WiringOptimizationProposed(r ?? "", "self-generated-analyzer"));
+                            Console.WriteLine("fed result from generated software to MetaOptimizer");
                             var mk = grains.GetGrain<IMarketplaceNeuron>("market-main");
                             await mk.FireAsync(new PublishToMarketplace("SelfAnalyzer", "0.1", lastGeneratedCode, "self", false, 0.0, d));
                             Console.WriteLine("published SelfAnalyzer");
