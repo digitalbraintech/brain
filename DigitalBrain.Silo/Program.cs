@@ -1,6 +1,10 @@
+using DigitalBrain.Protocol;
+using Orleans;
 using Orleans.Journaling;
 
 var builder = Host.CreateApplicationBuilder(args);
+
+builder.AddServiceDefaults();
 
 builder.AddKeyedRedisClient("redis");
 builder.AddOllamaApiClient("qwen");
@@ -17,4 +21,14 @@ builder.UseOrleans(siloBuilder =>
 });
 
 var host = builder.Build();
+
+// Bootstrap self-awareness (SystemStatusNeuron will connect MCP + fire Launched on activate)
+var grainFactory = host.Services.GetService<IGrainFactory>();
+if (grainFactory != null)
+{
+    var status = grainFactory.GetGrain<ISystemStatus>("status-main");
+    // Touch to activate (it fires SystemLaunched + status in OnActivate)
+    _ = status.GetTimelineAsync();
+}
+
 host.Run();

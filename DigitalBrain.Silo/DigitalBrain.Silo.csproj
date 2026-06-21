@@ -12,6 +12,7 @@
   <ItemGroup>
     <PackageReference Include="Aspire.StackExchange.Redis" Version="*" />
     <PackageReference Include="CommunityToolkit.Aspire.OllamaSharp" Version="*" />
+    <PackageReference Include="ModelContextProtocol" Version="*" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.9" />
     <PackageReference Include="Microsoft.Orleans.Clustering.Redis" Version="*" />
     <PackageReference Include="Microsoft.Orleans.Core" Version="10.2.1-preview.1" />
@@ -21,5 +22,6 @@
     <PackageReference Include="Microsoft.Orleans.Server" Version="10.2.1-preview.1" />
     <PackageReference Include="Microsoft.Orleans.Streaming" Version="10.2.1-preview.1" />
     <ProjectReference Include="..\DigitalBrain.Protocol\DigitalBrain.Protocol.csproj" />
+    <ProjectReference Include="..\NeuroOSPrototype.ServiceDefaults\NeuroOSPrototype.ServiceDefaults.csproj" />
   </ItemGroup>
 </Project>

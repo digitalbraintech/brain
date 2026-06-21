@@ -45,6 +45,14 @@ public class NeuronTests : IAsyncLifetime
         Assert.Contains(timeline, s => s.Type == nameof(DemoMessageSynapse));
     }
 
+    [Fact]
+    public async Task SystemStatus_Launches_And_Records_Status()
+    {
+        var status = _cluster!.GrainFactory.GetGrain<ISystemStatus>("status-test");
+        var timeline = await status.GetTimelineAsync();
+        Assert.Contains(timeline, s => s.Type == nameof(SystemLaunched) || s.Type == nameof(SystemStatusChanged));
+    }
+
     private class SiloConfigurator : ISiloConfigurator
     {
         public void Configure(ISiloBuilder siloBuilder)

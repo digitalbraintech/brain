@@ -126,3 +126,18 @@ public interface ISoftwareEngineeringTeam : INeuron, IHandle<CreateSimpleApp> { 
 public interface ISoftware20Team : ISoftwareEngineeringTeam { }
 
 public interface ISoftware10Team : ISoftwareEngineeringTeam { }
+
+// Self-awareness: SystemStatus + proposals (MVP for auto diagnose + simulate fix)
+[GenerateSerializer]
+public record SystemLaunched(string SystemName, DateTimeOffset Timestamp) : Synapse(nameof(SystemLaunched), DateTimeOffset.UtcNow);
+
+[GenerateSerializer]
+public record SystemStatusChanged(string Component, string Status, string? Details = null) : Synapse(nameof(SystemStatusChanged), DateTimeOffset.UtcNow);
+
+[GenerateSerializer]
+public record FixProposal(string Issue, string ProposedFix, string From) : Synapse(nameof(FixProposal), DateTimeOffset.UtcNow);
+
+[GenerateSerializer]
+public record SimulationResult(string Scenario, bool Success, string Details) : Synapse(nameof(SimulationResult), DateTimeOffset.UtcNow);
+
+public interface ISystemStatus : INeuron, IHandle<SystemStatusChanged>, IHandle<FixProposal> { }
