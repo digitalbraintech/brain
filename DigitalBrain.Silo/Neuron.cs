@@ -21,9 +21,6 @@ public abstract class Neuron : DurableGrain, INeuron
     protected IDurableList<Synapse> IncomingJournal => this.ServiceProvider.GetRequiredKeyedService<IDurableList<Synapse>>("in-journal");
     protected IDurableList<Synapse> OutgoingJournal => this.ServiceProvider.GetRequiredKeyedService<IDurableList<Synapse>>("out-journal");
 
-    // Legacy alias for existing Replay usage; points to outgoing for compat during transition.
-    protected IDurableList<Synapse> Journal => OutgoingJournal;
-
     public override async Task OnActivateAsync(CancellationToken ct)
     {
         await base.OnActivateAsync(ct);
@@ -80,12 +77,6 @@ public abstract class Neuron : DurableGrain, INeuron
         }
         await branch.FireAsync(new BranchCreated(Self, branchKey));
         return new NeuronId(branchKey);
-    }
-
-    protected async Task ReplayAsync(Func<Synapse, Task> handler, DateTimeOffset? since = null)
-    {
-        foreach (var s in Journal.Where(x => since == null || x.Timestamp >= since))
-            await handler(s);
     }
 
     // Internal for point to point. Incoming synapses are auto-recorded here (called by sender Fire or direct).
