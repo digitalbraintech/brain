@@ -1,0 +1,64 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <!-- 
+      Pinned versions captured 2026-06-21 after applying Elon's 5-step algorithm.
+      - Deleted blanket "always latest" and Version="*".
+      - Pins chosen from actual resolved versions in current working restore (Aspire 13.4.6 daily channel, Orleans preview for journaling features).
+      - Update intentionally via Dependabot/renovate or manual PR after validation, not on every restore.
+    -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Aspire hosting -->
+    <PackageVersion Include="Aspire.Hosting" Version="13.4.6" />
+    <PackageVersion Include="Aspire.Hosting.Orleans" Version="13.4.6" />
+    <PackageVersion Include="Aspire.Hosting.Redis" Version="13.4.6" />
+    <PackageVersion Include="Aspire.StackExchange.Redis" Version="13.4.6" />
+
+    <!-- Community Toolkit (Ollama) -->
+    <PackageVersion Include="CommunityToolkit.Aspire.Hosting.Ollama" Version="13.4.0" />
+    <PackageVersion Include="CommunityToolkit.Aspire.OllamaSharp" Version="13.4.0" />
+
+    <!-- Orleans (note: journaling features use specific preview) -->
+    <PackageVersion Include="Microsoft.Orleans.Client" Version="10.2.0" />
+    <PackageVersion Include="Microsoft.Orleans.Clustering.Redis" Version="10.2.0" />
+    <PackageVersion Include="Microsoft.Orleans.Core" Version="10.2.1-preview.1" />
+    <PackageVersion Include="Microsoft.Orleans.Core.Abstractions" Version="10.2.1-preview.1" />
+    <PackageVersion Include="Microsoft.Orleans.Journaling" Version="10.2.1-preview.1.alpha.1" />
+    <PackageVersion Include="Microsoft.Orleans.Persistence.Memory" Version="10.2.1-preview.1" />
+    <PackageVersion Include="Microsoft.Orleans.Persistence.Redis" Version="10.2.0" />
+    <PackageVersion Include="Microsoft.Orleans.Serialization" Version="10.2.1-preview.1" />
+    <PackageVersion Include="Microsoft.Orleans.Server" Version="10.2.1-preview.1" />
+    <PackageVersion Include="Microsoft.Orleans.Streaming" Version="10.2.1-preview.1" />
+    <PackageVersion Include="Microsoft.Orleans.TestingHost" Version="10.2.0" />
+
+    <!-- Extensions / hosting -->
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.7.0" />
+    <PackageVersion Include="Microsoft.Extensions.ServiceDiscovery" Version="10.7.0" />
+
+    <!-- MCP / LLM integration -->
+    <PackageVersion Include="ModelContextProtocol" Version="1.4.0" />
+
+    <!-- Observability -->
+    <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.16.0" />
+    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.16.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.15.2" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.15.1" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.15.1" />
+
+    <!-- Testing -->
+    <PackageVersion Include="coverlet.collector" Version="10.0.1" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.6.0" />
+    <PackageVersion Include="Reqnroll" Version="3.3.4" />
+    <PackageVersion Include="Reqnroll.Tools.MsBuild.Generation" Version="3.3.4" />
+    <PackageVersion Include="Reqnroll.xUnit" Version="3.3.4" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
+
+    <!-- TUI -->
+    <PackageVersion Include="Spectre.Console" Version="0.57.0" />
+    <PackageVersion Include="Spectre.Console.Cli" Version="0.55.0" />
+  </ItemGroup>
+</Project>

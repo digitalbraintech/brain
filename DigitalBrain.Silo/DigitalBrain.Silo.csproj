@@ -10,17 +10,17 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Aspire.StackExchange.Redis" Version="*" />
-    <PackageReference Include="CommunityToolkit.Aspire.OllamaSharp" Version="*" />
-    <PackageReference Include="ModelContextProtocol" Version="*" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="*" />
-    <PackageReference Include="Microsoft.Orleans.Clustering.Redis" Version="*" />
-    <PackageReference Include="Microsoft.Orleans.Core" Version="10.2.1-preview.1" />
-    <PackageReference Include="Microsoft.Orleans.Journaling" Version="10.2.1-preview.1.alpha.1" />
-    <PackageReference Include="Microsoft.Orleans.Persistence.Memory" Version="10.2.1-preview.1" />
-    <PackageReference Include="Microsoft.Orleans.Persistence.Redis" Version="*" />
-    <PackageReference Include="Microsoft.Orleans.Server" Version="10.2.1-preview.1" />
-    <PackageReference Include="Microsoft.Orleans.Streaming" Version="10.2.1-preview.1" />
+    <PackageReference Include="Aspire.StackExchange.Redis" />
+    <PackageReference Include="CommunityToolkit.Aspire.OllamaSharp" />
+    <PackageReference Include="ModelContextProtocol" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Orleans.Clustering.Redis" />
+    <PackageReference Include="Microsoft.Orleans.Core" />
+    <PackageReference Include="Microsoft.Orleans.Journaling" />
+    <PackageReference Include="Microsoft.Orleans.Persistence.Memory" />
+    <PackageReference Include="Microsoft.Orleans.Persistence.Redis" />
+    <PackageReference Include="Microsoft.Orleans.Server" />
+    <PackageReference Include="Microsoft.Orleans.Streaming" />
     <ProjectReference Include="..\DigitalBrain.Protocol\DigitalBrain.Protocol.csproj" />
     <ProjectReference Include="..\NeuroOSPrototype.ServiceDefaults\NeuroOSPrototype.ServiceDefaults.csproj" />
   </ItemGroup>

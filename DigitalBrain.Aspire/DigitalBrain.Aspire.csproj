@@ -8,10 +8,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Aspire.Hosting" Version="*" />
-    <PackageReference Include="Aspire.Hosting.Orleans" Version="*" />
-    <PackageReference Include="Aspire.Hosting.Redis" Version="*" />
-    <PackageReference Include="CommunityToolkit.Aspire.Hosting.Ollama" Version="*" />
+    <PackageReference Include="Aspire.Hosting" />
+    <PackageReference Include="Aspire.Hosting.Orleans" />
+    <PackageReference Include="Aspire.Hosting.Redis" />
+    <PackageReference Include="CommunityToolkit.Aspire.Hosting.Ollama" />
   </ItemGroup>
 
 </Project>
