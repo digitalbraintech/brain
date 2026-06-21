@@ -45,3 +45,12 @@ Scenario: Simulate a causal scene with ordered synapse sequence and replay (Dura
   And I fire a DemoMessageSynapse with text "step-2"
   Then the timeline contains these synapse types in causal order: DemoMessageSynapse, DemoMessageSynapse
   And replaying shows the message
+
+Scenario: Harness simulates other-brain publish-install-use flow via Marketplace contract
+  Given a marketplace neuron "market-main"
+  Given a compiler neuron "compiler-harness"
+  When I send create neuron request "email analyzer for other brain"
+  Then the timeline contains a NeuronCodeGenerated
+  When I publish, a simulated other brain installs and uses the pack "Generated-emailanalyzerforotherbrain" version "0.1-sim"
+  Then the timeline contains a PublishedList
+  And the generated neuron for pack "Generated-emailanalyzerforotherbrain" received an ExperienceUsed

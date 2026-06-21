@@ -119,7 +119,7 @@ public class MetaOptimizerNeuron : Neuron, IMetaOptimizerNeuron
 
 // Dynamic generated neuron - "loaded" via compiler flow (prototype for NeuroPack dynamic assembly + grain reg)
 [GrainType("neuro.generated")]
-public class GeneratedNeuron : Neuron, IGeneratedNeuron
+public class GeneratedNeuron : Neuron, IGeneratedNeuron, IHandle<NeuronTelemetry>
 {
     private string _id = string.Empty;
 
@@ -132,6 +132,12 @@ public class GeneratedNeuron : Neuron, IGeneratedNeuron
     {
         await base.OnActivateAsync(ct);
         _id = this.GetPrimaryKeyString() ?? "unknown-generated";
+    }
+
+    public Task HandleAsync(NeuronTelemetry telemetry)
+    {
+        // Consumed to prevent re-dispatch recursion; telemetry is journaled via the fire
+        return Task.CompletedTask;
     }
 
     protected override async Task DispatchSynapse(Synapse synapse)

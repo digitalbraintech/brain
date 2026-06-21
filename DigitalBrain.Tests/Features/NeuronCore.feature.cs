@@ -105,7 +105,7 @@ namespace DigitalBrain.Tests.Features
         
         private static global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages InitializeCucumberMessages()
         {
-            return new global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages("Features/NeuronCore.feature.ndjson", 8);
+            return new global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages("Features/NeuronCore.feature.ndjson", 10);
         }
         
         async global::System.Threading.Tasks.Task global::Xunit.IAsyncLifetime.InitializeAsync()
@@ -362,6 +362,98 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
 #line hidden
 #line 40
   await testRunner.ThenAsync("the timeline contains a NeuroPackInstalled", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
+        
+        [global::Xunit.SkippableFactAttribute(DisplayName="Simulate a causal scene with ordered synapse sequence and replay (Durable journal" +
+            ")")]
+        [global::Xunit.TraitAttribute("FeatureTitle", "NeuroOS Neuron Core")]
+        [global::Xunit.TraitAttribute("Description", "Simulate a causal scene with ordered synapse sequence and replay (Durable journal" +
+            ")")]
+        public async global::System.Threading.Tasks.Task SimulateACausalSceneWithOrderedSynapseSequenceAndReplayDurableJournal()
+        {
+            string[] tagsOfScenario = ((string[])(null));
+            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
+            string pickleIndex = "6";
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("Simulate a causal scene with ordered synapse sequence and replay (Durable journal" +
+                    ")", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            string[] tagsOfRule = ((string[])(null));
+            global::Reqnroll.RuleInfo ruleInfo = null;
+#line 42
+this.ScenarioInitialize(scenarioInfo, ruleInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                await testRunner.SkipScenarioAsync();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 43
+  await testRunner.GivenAsync("a demo neuron \"scene-demo\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
+#line hidden
+#line 44
+  await testRunner.WhenAsync("I fire a DemoMessageSynapse with text \"step-1\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+#line 45
+  await testRunner.AndAsync("I fire a DemoMessageSynapse with text \"step-2\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 46
+  await testRunner.ThenAsync("the timeline contains these synapse types in causal order: DemoMessageSynapse, De" +
+                        "moMessageSynapse", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+#line 47
+  await testRunner.AndAsync("replaying shows the message", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
+        
+        [global::Xunit.SkippableFactAttribute(DisplayName="Harness simulates other-brain publish-install-use flow via Marketplace contract")]
+        [global::Xunit.TraitAttribute("FeatureTitle", "NeuroOS Neuron Core")]
+        [global::Xunit.TraitAttribute("Description", "Harness simulates other-brain publish-install-use flow via Marketplace contract")]
+        public async global::System.Threading.Tasks.Task HarnessSimulatesOther_BrainPublish_Install_UseFlowViaMarketplaceContract()
+        {
+            string[] tagsOfScenario = ((string[])(null));
+            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
+            string pickleIndex = "7";
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("Harness simulates other-brain publish-install-use flow via Marketplace contract", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            string[] tagsOfRule = ((string[])(null));
+            global::Reqnroll.RuleInfo ruleInfo = null;
+#line 49
+this.ScenarioInitialize(scenarioInfo, ruleInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                await testRunner.SkipScenarioAsync();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 50
+  await testRunner.GivenAsync("a marketplace neuron \"market-main\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
+#line hidden
+#line 51
+  await testRunner.GivenAsync("a compiler neuron \"compiler-harness\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
+#line hidden
+#line 52
+  await testRunner.WhenAsync("I send create neuron request \"email analyzer for other brain\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+#line 53
+  await testRunner.ThenAsync("the timeline contains a NeuronCodeGenerated", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+#line 54
+  await testRunner.WhenAsync("I publish, a simulated other brain installs and uses the pack \"Generated-emailana" +
+                        "lyzerforotherbrain\" version \"0.1-sim\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+#line 55
+  await testRunner.ThenAsync("the timeline contains a PublishedList", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+#line 56
+  await testRunner.AndAsync("the generated neuron for pack \"Generated-emailanalyzerforotherbrain\" received an " +
+                        "ExperienceUsed", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
             }
             await this.ScenarioCleanupAsync();

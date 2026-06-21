@@ -82,6 +82,25 @@ public class NeuronSteps : IAsyncDisposable
         }
     }
 
+    [When(@"I publish, a simulated other brain installs and uses the pack ""(.*)"" version ""(.*)""")]
+    public async Task WhenIPublishInstallUseAsOtherBrain(string pack, string ver)
+    {
+        await SimulatePublishInstallUse(pack, ver);
+    }
+
+    private async Task SimulatePublishInstallUse(string packName, string version)
+    {
+        // Simulate "other brain" connecting to marketplace contract
+        var market = _cluster.GrainFactory.GetGrain<IMarketplaceNeuron>("market-main");
+        await market.FireAsync(new PublishToMarketplace(packName, version));
+        await market.FireAsync(new ListPublished());  // so PublishedList appears for harness asserts
+        await market.FireAsync(new InstallFromMarketplace(packName, version));
+        // Activate the GeneratedNeuron (as if downloaded/installed) and use it
+        var genKey = "generated-" + packName.ToLower();
+        var gen = _cluster.GrainFactory.GetGrain<IGeneratedNeuron>(genKey);
+        await gen.FireAsync(new ExperienceUsed(packName, "simulated-use-by-other-brain"));
+    }
+
     [When(@"I fire a DemoMessageSynapse with text ""(.*)""")]
     public async Task WhenIFireADemoMessageSynapseWithText(string text)
     {
@@ -159,6 +178,15 @@ public class NeuronSteps : IAsyncDisposable
         var mkt = _cluster.GrainFactory.GetGrain<IMarketplaceNeuron>("market-main");
         _timeline = await mkt.GetTimelineAsync();
         Assert.Contains(_timeline, s => s.Type == nameof(NeuroPackInstalled));
+    }
+
+    [Then(@"the generated neuron for pack ""(.*)"" received an ExperienceUsed")]
+    public async Task ThenGeneratedNeuronReceivedExperienceUsed(string pack)
+    {
+        var genKey = "generated-" + pack.ToLower();
+        var gen = _cluster.GrainFactory.GetGrain<IGeneratedNeuron>(genKey);
+        var tl = await gen.GetTimelineAsync();
+        Assert.Contains(tl, s => s.Type == nameof(ExperienceUsed));
     }
 
     [Then(@"the timeline contains a ExperienceUsed")]
