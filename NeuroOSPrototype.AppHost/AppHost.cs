@@ -1,7 +1,7 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
-// DigitalBrain setup using options and resource concepts from DigitalBrain.Aspire SDK (the AddDigitalBrain in SDK now encapsulates the common wiring logic for redis + orleans + ollama based on options).
-// For this AppHost we use explicit for compatibility, but 3 replicas of kernel as requested.
+// DigitalBrain setup - the SDK (DigitalBrain.Aspire) now has AddDigitalBrain that encapsulates the wiring of redis+orleans+ollama using options for model etc. (see DigitalBrainBuilderExtensions.cs).
+// For compatibility in this AppHost we use explicit wiring with 3 replicas.
 
 var redis = builder.AddRedis("redis");
 var orleans = builder.AddOrleans("neuro")
