@@ -618,8 +618,24 @@ public class KernelTaskNeuron : Neuron, IKernelTask
     {
         await FireAsync(new KernelTaskCreated(cmd.TaskId, cmd.Description));
         await FireAsync(new KernelTaskStarted(cmd.TaskId));
-        // Execute to completion producing real value result (no artificial wait).
-        await FireAsync(new KernelTaskCompleted(cmd.TaskId, "executed:" + cmd.Description));
+        // Real execution: use LLM to actually perform the described task and capture meaningful result value.
+        string result;
+        var llm = ServiceProvider.GetService<IOllamaApiClient>();
+        if (llm != null)
+        {
+            llm.SelectedModel = "qwen2.5-coder:1.5b";
+            var prompt = $"Perform the kernel task and output ONLY the concise result value: {cmd.Description}";
+            var acc = "";
+            await foreach (var ch in llm.GenerateAsync(prompt))
+                if (ch?.Response is string t) acc += t;
+            result = acc.Trim();
+            if (string.IsNullOrWhiteSpace(result)) result = "completed:" + cmd.Description;
+        }
+        else
+        {
+            result = "completed-no-llm:" + cmd.Description;
+        }
+        await FireAsync(new KernelTaskCompleted(cmd.TaskId, result));
     }
 
     public async Task HandleAsync(CancelKernelTask cmd)
