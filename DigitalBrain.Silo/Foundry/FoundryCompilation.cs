@@ -19,8 +19,13 @@ public static class FoundryCompilation
         var refs = new List<MetadataReference>();
         foreach (var dll in Directory.GetFiles(runtimeDir, "*.dll"))
         {
-            try { refs.Add(MetadataReference.CreateFromFile(dll)); }
-            catch { /* skip non-managed or unreadable dlls */ }
+            try
+            {
+                // GetAssemblyName throws BadImageFormatException for native DLLs; use it as a managed-PE filter
+                System.Reflection.AssemblyName.GetAssemblyName(dll);
+                refs.Add(MetadataReference.CreateFromFile(dll));
+            }
+            catch { /* skip native or unreadable dlls */ }
         }
         return refs;
     }
