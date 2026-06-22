@@ -46,6 +46,52 @@ public class CodeFoundrySteps : IAsyncDisposable
         Assert.Contains(_timeline, s => s.Type == nameof(CodeGenerated));
     }
 
+    [Given(@"a code run neuron ""(.*)""")]
+    public async Task GivenACodeRunNeuron(string id)
+    {
+        _currentGrain = _cluster.GrainFactory.GetGrain<ICodeRunNeuron>(id);
+        await _currentGrain.GetTimelineAsync();
+    }
+
+    [When(@"I run generated source returning text ""(.*)""")]
+    public async Task WhenIRunGeneratedSource(string text)
+    {
+        var source = "public static class Module { public static object Run(System.Collections.Generic.IReadOnlyDictionary<string,object?> input) => \"" + text + "\"; }";
+        await _currentGrain!.FireAsync(new RunGeneratedCode(source));
+        _timeline = await _currentGrain.GetTimelineAsync();
+    }
+
+    [When(@"I run invalid generated source")]
+    public async Task WhenIRunInvalidSource()
+    {
+        await _currentGrain!.FireAsync(new RunGeneratedCode("public class Broken { not valid }"));
+        _timeline = await _currentGrain.GetTimelineAsync();
+    }
+
+    [Then(@"the timeline contains a CodeRunResult")]
+    public async Task ThenTimelineContainsCodeRunResult()
+    {
+        _timeline = await _currentGrain!.GetTimelineAsync();
+        Assert.Contains(_timeline, s => s.Type == nameof(CodeRunResult));
+    }
+
+    [Then(@"the last CodeRunResult is successful with output containing ""(.*)""")]
+    public async Task ThenLastRunResultSuccessful(string fragment)
+    {
+        _timeline = await _currentGrain!.GetTimelineAsync();
+        var result = _timeline.OfType<CodeRunResult>().Last();
+        Assert.True(result.Success, result.Error);
+        Assert.Contains(fragment, result.Output);
+    }
+
+    [Then(@"the last CodeRunResult is a failure")]
+    public async Task ThenLastRunResultFailure()
+    {
+        _timeline = await _currentGrain!.GetTimelineAsync();
+        var result = _timeline.OfType<CodeRunResult>().Last();
+        Assert.False(result.Success);
+    }
+
     private class FoundrySiloConfig : ISiloConfigurator
     {
         public void Configure(ISiloBuilder siloBuilder)
