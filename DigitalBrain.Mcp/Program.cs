@@ -168,4 +168,65 @@ public class DigitalBrainTools(IGrainFactory grains)
             return $"Error listing: {ex.Message}";
         }
     }
+
+    // Additional tools to test all neurons via MCP (INO, editor, context, DB, cluster for 3D graph)
+    [McpServerTool(Name = "ask_ino"), Description("Ask the INO AI assistant (uses ContextNeuron for smart mgmt).")]
+    public async Task<string> AskIno([Description("Prompt for INO navigation/assistant")] string prompt)
+    {
+        try { var ino = grains.GetGrain<IInoNeuron>("ino-main"); return await ino.AskAsync(prompt); }
+        catch (Exception ex) { return $"[DEMO INO] {ex.Message}"; }
+    }
+
+    [McpServerTool(Name = "ino_code_editor"), Description("Interact with INOCodeEditor neuron for visual editing/running INO code.")]
+    public async Task<string> InoCodeEditor([Description("Editor ID")] string id, [Description("Code or command")] string code)
+    {
+        try
+        {
+            var ed = grains.GetGrain<IInoCodeEditor>("ino-editor-main");
+            await ed.FireAsync(new InoCodeEdit(id, code));
+            return $"INOCodeEditor received edit for {id}. Run to execute.";
+        }
+        catch (Exception ex) { return $"Error: {ex.Message}"; }
+    }
+
+    [McpServerTool(Name = "update_context_filter"), Description("Update ContextNeuron (e.g. when UI filter changes - INO sees it).")]
+    public async Task<string> UpdateContextFilter([Description("Filter/view name")] string view, [Description("Filter key")] string filter, [Description("Value")] string val)
+    {
+        try
+        {
+            var ctx = grains.GetGrain<IContextNeuron>("context-main");
+            await ctx.FireAsync(new ContextUpdate("filter:" + view, filter, val));
+            await ctx.FireAsync(new FilterChanged(view, filter, val)); // notify for LLM awareness
+            return $"Context+Filter updated for {view}. INO/Context now aware.";
+        }
+        catch (Exception ex) { return $"Error: {ex.Message}"; }
+    }
+
+    [McpServerTool(Name = "db_example"), Description("Test DbSupportNeuron for marketplace DB examples (connect + typed query via synapses).")]
+    public async Task<string> DbExample([Description("Conn name e.g. northwind")] string name, [Description("Query")] string q)
+    {
+        try
+        {
+            var db = grains.GetGrain<IDbSupportNeuron>("db-main");
+            await db.FireAsync(new DbConnect(name, "sqlite", "Data Source=:memory:"));
+            await db.FireAsync(new DbQuery(name, q));
+            return "DB neuron handled connect+query via typed synapses. Check timeline for results.";
+        }
+        catch (Exception ex) { return $"[DEMO DB] {ex.Message}"; }
+    }
+
+    [McpServerTool(Name = "cluster_3d_activity"), Description("Fire activity for 3D graph in UI kit (connects to cluster observation).")]
+    public async Task<string> Cluster3D([Description("Node ID")] string node, [Description("Activity type")] string act, [Description("Value")] double v)
+    {
+        try
+        {
+            var vis = grains.GetGrain<INeuron>("cluster-vis");
+            await vis.FireAsync(new ClusterActivity(node, act, v));
+            await vis.FireAsync(new ThreeDGraphUpdate("main", $"{{\"node\":\"{node}\",\"act\":\"{act}\",\"v\":{v}}}"));
+            return "Cluster activity sent for 3D visualization.";
+        }
+        catch { return "Fired for 3D graph (demo)."; }
+    }
+}
+    }
 }

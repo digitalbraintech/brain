@@ -210,3 +210,41 @@ public record InoResponse(string Prompt, string Response, string[] UsedTaskIds) 
 // For INO excellent long-term/multi-scale context (summaries from journals).
 [GenerateSerializer]
 public record MemorySummary(string Topic, string Summary, DateTimeOffset At) : Synapse(nameof(MemorySummary), At);
+
+// INO Code Editor neuron - for visual editing and execution of INO code
+[GenerateSerializer]
+public record InoCodeEdit(string EditorId, string Code, string Language = "ino") : Synapse(nameof(InoCodeEdit), DateTimeOffset.UtcNow);
+
+[GenerateSerializer]
+public record InoCodeRun(string EditorId, string Result) : Synapse(nameof(InoCodeRun), DateTimeOffset.UtcNow);
+
+public interface IInoCodeEditor : INeuron, IHandle<InoCodeEdit>, IHandle<InoCodeRun> { }
+
+// Smart ContextNeuron for INO - manages chat, agent, filter, cluster contexts like context providers
+[GenerateSerializer]
+public record ContextUpdate(string ContextName, string Key, string Value) : Synapse(nameof(ContextUpdate), DateTimeOffset.UtcNow);
+
+public interface IContextNeuron : INeuron, IHandle<ContextUpdate>
+{
+    Task<string> GetContextAsync(string contextName);
+}
+
+// Dynamic DB support neuron with typed synapses (inspired by .NET 11 Preview 5 EF/file-based + runtime dynamic)
+[GenerateSerializer]
+public record DbConnect(string ConnectionName, string Provider, string ConnectionString) : Synapse(nameof(DbConnect), DateTimeOffset.UtcNow);
+
+[GenerateSerializer]
+public record DbQuery(string ConnectionName, string Query, string? Result = null) : Synapse(nameof(DbQuery), DateTimeOffset.UtcNow);
+
+public interface IDbSupportNeuron : INeuron, IHandle<DbConnect>, IHandle<DbQuery> { }
+
+// Filter changes - INO/Context must be notified so assistant knows current UI view state
+[GenerateSerializer]
+public record FilterChanged(string View, string Filter, string Value) : Synapse(nameof(FilterChanged), DateTimeOffset.UtcNow);
+
+// 3D graph / cluster observation synapses
+[GenerateSerializer]
+public record ClusterActivity(string NodeId, string Activity, double Value) : Synapse(nameof(ClusterActivity), DateTimeOffset.UtcNow);
+
+[GenerateSerializer]
+public record ThreeDGraphUpdate(string GraphId, string DataJson) : Synapse(nameof(ThreeDGraphUpdate), DateTimeOffset.UtcNow);

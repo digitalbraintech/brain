@@ -663,3 +663,72 @@ public class KernelTaskNeuron : Neuron, IKernelTask
         return Task.FromResult(new KernelTaskInfo(id, "created", null));
     }
 }
+
+// INO Code Editor neuron - allows visual editing, saving, running of INO code specs.
+// Ties to IDE surface in UI kit. Can notify context.
+[GrainType("ino.code.editor.v1")]
+public class InoCodeEditorNeuron : Neuron, IInoCodeEditor
+{
+    public InoCodeEditorNeuron(ILogger<InoCodeEditorNeuron> logger) : base(logger) { }
+
+    public async Task HandleAsync(InoCodeEdit cmd)
+    {
+        // Store edit in journal for context
+        Logger.LogInformation("INO Code Editor edit for {Id}", cmd.EditorId);
+        await FireAsync(new InoCodeEdit(cmd.EditorId, cmd.Code, cmd.Language));
+        // Could feed to compiler or INO here
+    }
+
+    public async Task HandleAsync(InoCodeRun cmd)
+    {
+        Logger.LogInformation("INO Code Editor run for {Id}: {Result}", cmd.EditorId, cmd.Result);
+        await FireAsync(cmd);
+    }
+}
+
+// ContextNeuron - smart context management for INO (chat, filters, agents, cluster, etc.)
+// Like context providers in advanced agent systems. INO and UI notify it on changes (filters etc).
+[GrainType("context.manager.v1")]
+public class ContextNeuron : Neuron, IContextNeuron
+{
+    public ContextNeuron(ILogger<ContextNeuron> logger) : base(logger) { }
+
+    public async Task HandleAsync(ContextUpdate cmd)
+    {
+        Logger.LogInformation("Context updated: {Name}.{Key} = {Val}", cmd.ContextName, cmd.Key, cmd.Value);
+        await FireAsync(cmd);
+    }
+
+    public Task<string> GetContextAsync(string contextName)
+    {
+        var entries = OutgoingJournal.Concat(IncomingJournal).OfType<ContextUpdate>()
+            .Where(c => c.ContextName == contextName)
+            .Take(10)
+            .Select(c => $"{c.Key}={c.Value}");
+        return Task.FromResult(string.Join("; ", entries));
+    }
+}
+
+// Dynamic DB neuron - runtime DB support with typed synapses.
+// Uses connections, can "generate" dynamic access (in .NET 11 style file-based/runtime).
+// Marketplace examples use this to connect to real DBs and query via synapses.
+[GrainType("db.support.v1")]
+public class DbSupportNeuron : Neuron, IDbSupportNeuron
+{
+    public DbSupportNeuron(ILogger<DbSupportNeuron> logger) : base(logger) { }
+
+    public async Task HandleAsync(DbConnect cmd)
+    {
+        Logger.LogInformation("DB connected {Name} via {Provider}", cmd.ConnectionName, cmd.Provider);
+        // In real: store conn, use EF dynamic or ADO. For now journal + simulate typed.
+        await FireAsync(cmd);
+    }
+
+    public async Task HandleAsync(DbQuery cmd)
+    {
+        Logger.LogInformation("DB query on {Name}: {Q}", cmd.ConnectionName, cmd.Query);
+        // Simulate result, in real would execute and return typed rows as synapses.
+        var result = $"[DB result for {cmd.Query}] 42 rows";
+        await FireAsync(new DbQuery(cmd.ConnectionName, cmd.Query, result));
+    }
+}

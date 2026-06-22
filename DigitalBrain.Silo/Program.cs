@@ -28,6 +28,9 @@ if (grainFactory != null)
 {
     var status = grainFactory.GetGrain<ISystemStatus>("status-main");
     _ = status.GetTimelineAsync();
+    _ = grainFactory.GetGrain<IInoCodeEditor>("ino-editor-main").GetTimelineAsync();
+    _ = grainFactory.GetGrain<IContextNeuron>("context-main").GetTimelineAsync();
+    _ = grainFactory.GetGrain<IDbSupportNeuron>("db-main").GetTimelineAsync();
 }
 
 host.Run();

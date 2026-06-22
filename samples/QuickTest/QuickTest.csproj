@@ -24,7 +24,9 @@
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
   </ItemGroup>
 
-  <!-- The brain.cs is the main program -->
-  <!-- brain.cs is included automatically as it is in the project directory -->
+  <ItemGroup>
+    <Compile Include="..\..\start.cs" Link="start.cs" />
+  </ItemGroup>
+  <!-- Canonical start.cs is at framework/start.cs for the dotnet run start.cs experience -->
 
 </Project>
