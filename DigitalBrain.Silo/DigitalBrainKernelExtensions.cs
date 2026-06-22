@@ -1,3 +1,4 @@
+using DigitalBrain.Silo.Foundry;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Orleans;
@@ -19,6 +20,7 @@ public static class DigitalBrainKernelExtensions
 
             // Centralized prototype journals (single source in PrototypeJournals).
             siloBuilder.ConfigurePrototypeJournals();
+            siloBuilder.AddFoundry();
 
             // Built-in neurons discovered automatically.
         });

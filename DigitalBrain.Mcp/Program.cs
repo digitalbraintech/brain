@@ -163,14 +163,39 @@ public class DigitalBrainTools(IServiceProvider services, IConfiguration configu
         return (endpoint, model);
     }
 
+    private INeuron ResolveNeuron(string neuronId, string? grainType = null)
+    {
+        if (!string.IsNullOrWhiteSpace(grainType))
+        {
+            return grains.GetGrain<INeuron>(neuronId, grainType);
+        }
+
+        return neuronId switch
+        {
+            "llm-main" => grains.GetGrain<ILlmNeuron>(neuronId),
+            "market-main" => grains.GetGrain<IMarketplaceNeuron>(neuronId),
+            "compiler-main" => grains.GetGrain<ICompiler>(neuronId),
+            "ino-main" => grains.GetGrain<IInoNeuron>(neuronId),
+            "ino-editor-main" => grains.GetGrain<IInoCodeEditor>(neuronId),
+            "context-main" => grains.GetGrain<IContextNeuron>(neuronId),
+            "db-main" => grains.GetGrain<IDbSupportNeuron>(neuronId),
+            "closedloop-main" => grains.GetGrain<INeuron>(neuronId, "DigitalBrain.Silo.SoftwareEngineeringClosedLoopNeuron"),
+            "cluster-vis" => grains.GetGrain<IGeneratedNeuron>(neuronId),
+            _ when neuronId.StartsWith("generated-", StringComparison.OrdinalIgnoreCase) => grains.GetGrain<IGeneratedNeuron>(neuronId),
+            _ when neuronId.StartsWith("task-", StringComparison.OrdinalIgnoreCase) => grains.GetGrain<IKernelTask>(neuronId),
+            _ => grains.GetGrain<IDemoNeuron>(neuronId)
+        };
+    }
+
     [McpServerTool(Name = "fire_synapse"), Description("Fire a synapse (message) to any neuron by ID. Use for demo, system, marketplace etc. Returns confirmation.")]
     public async Task<string> FireSynapse(
         [Description("Neuron ID / grain key, e.g. 'demo-opt', 'llm-main', 'market-main'")] string neuronId,
-        [Description("The text or payload for the synapse (for DemoMessageSynapse)")] string text)
+        [Description("The text or payload for the synapse (for DemoMessageSynapse)")] string text,
+        [Description("Optional Orleans grain class name prefix for advanced ambiguous INeuron targets, e.g. 'DigitalBrain.Silo.SoftwareEngineeringClosedLoopNeuron'")] string? grainType = null)
     {
         try
         {
-            var neuron = grains.GetGrain<INeuron>(neuronId);
+            var neuron = ResolveNeuron(neuronId, grainType);
             await neuron.FireAsync(new DemoMessageSynapse(text));
             return $"Successfully fired DemoMessageSynapse with text '{text}' to neuron '{neuronId}'.";
         }
@@ -183,11 +208,12 @@ public class DigitalBrainTools(IServiceProvider services, IConfiguration configu
     [McpServerTool(Name = "get_timeline"), Description("Get recent timeline (synapses) for a neuron. Useful to see history, responses, published packs etc.")]
     public async Task<string> GetTimeline(
         [Description("Neuron ID to query, e.g. 'llm-main', 'market-main', 'compiler-main'")] string neuronId,
-        [Description("Max number of recent entries")] int maxEntries = 10)
+        [Description("Max number of recent entries")] int maxEntries = 10,
+        [Description("Optional Orleans grain class name prefix for advanced ambiguous INeuron targets, e.g. 'DigitalBrain.Silo.SoftwareEngineeringClosedLoopNeuron'")] string? grainType = null)
     {
         try
         {
-            var neuron = grains.GetGrain<INeuron>(neuronId);
+            var neuron = ResolveNeuron(neuronId, grainType);
             var timeline = await neuron.GetTimelineAsync();
             var recent = timeline.TakeLast(maxEntries);
             var lines = recent.Select(s => $"{s.Timestamp:HH:mm:ss} | {s.Type}: {s}");
@@ -308,7 +334,7 @@ public class DigitalBrainTools(IServiceProvider services, IConfiguration configu
     {
         try
         {
-            var vis = grains.GetGrain<INeuron>("cluster-vis");
+            var vis = ResolveNeuron("cluster-vis");
             await vis.FireAsync(new ClusterActivity(node, act, v));
             await vis.FireAsync(new ThreeDGraphUpdate("main", $"{{\"node\":\"{node}\",\"act\":\"{act}\",\"v\":{v}}}"));
             return "Cluster activity sent for 3D visualization.";
@@ -322,7 +348,7 @@ public class DigitalBrainTools(IServiceProvider services, IConfiguration configu
     {
         try
         {
-            var loop = grains.GetGrain<INeuron>("closedloop-main");
+            var loop = ResolveNeuron("closedloop-main");
             await loop.FireAsync(new ClosedLoopRequest(loopType, prompt));
             // For ui loop, the caller (agent) can also directly use dart MCP: connect + get_widget_tree + hot_reload
             return $"ClosedLoop {loopType} triggered on marketplace-installed experience. For UI: also use dart MCP tools (connect_dart_tooling_daemon, get_widget_tree) then hot_reload after LLM proposes edits.";
@@ -336,5 +362,26 @@ public class DigitalBrainTools(IServiceProvider services, IConfiguration configu
         // This delegates to the dart MCP server available to the host. The UIClosedLoop pack + INO uses this pattern.
         // In real embodiment the neuron/INO would instruct or the MCP host executes.
         return $"[UIClosedLoop] Connect dart DTD {dtdUri}. Then call get_widget_tree(summaryOnly=true). After LLM edit to sdk/flutter_demo or digital_brain_ui, call hot_reload. This enables live widget tree driven authoring/mod of the INO code editor and surfaces.";
+    }
+
+    [McpServerTool(Name = "run_code_foundry")]
+    [Description("Generate, compile, and (Run) execute in-process or (Deploy) build+restart a new neuron. tier is 'Run' or 'Deploy'.")]
+    public async Task<string> RunCodeFoundry(
+        [Description("English/INO spec of the code to generate")] string spec,
+        [Description("'Run' for Tier-1 in-process, 'Deploy' for Tier-2 durable")] string tier = "Run",
+        [Description("Apply automatically")] bool autoApply = true)
+    {
+        var parsedTier = string.Equals(tier, "Deploy", StringComparison.OrdinalIgnoreCase)
+            ? DigitalBrain.Protocol.TargetTier.Deploy
+            : DigitalBrain.Protocol.TargetTier.Run;
+
+        var loop = grains.GetGrain<DigitalBrain.Protocol.ICodeFoundryLoopNeuron>("foundry-main");
+        await loop.FireAsync(new DigitalBrain.Protocol.FoundryRequest(spec, parsedTier, autoApply));
+
+        var timeline = await loop.GetOutgoingTimelineAsync();
+        var terminal = timeline.LastOrDefault(s =>
+            s.Type == nameof(DigitalBrain.Protocol.FoundryCompleted) ||
+            s.Type == nameof(DigitalBrain.Protocol.FoundryRolledBack));
+        return terminal?.Type ?? "FoundryRequest accepted (no terminal synapse yet)";
     }
 }
