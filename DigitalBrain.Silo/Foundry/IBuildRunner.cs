@@ -18,7 +18,10 @@ public sealed class ProcessBuildRunner : IBuildRunner
         try
         {
             await File.WriteAllTextAsync(Path.Combine(tempDir, moduleName + ".cs"), source);
-            await File.WriteAllTextAsync(Path.Combine(tempDir, "verify.csproj"), VerifyProject());
+            var siloProject = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "DigitalBrain.Silo.csproj"));
+            if (!File.Exists(siloProject))
+                siloProject = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "DigitalBrain.Silo.csproj"));
+            await File.WriteAllTextAsync(Path.Combine(tempDir, "verify.csproj"), VerifyProject(siloProject));
 
             var psi = new ProcessStartInfo("dotnet", $"build \"{Path.Combine(tempDir, "verify.csproj")}\" -c Release")
             {
@@ -39,7 +42,7 @@ public sealed class ProcessBuildRunner : IBuildRunner
         }
     }
 
-    private static string VerifyProject() => """
+    private static string VerifyProject(string siloProjectPath) => $"""
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net11.0</TargetFramework>
@@ -47,8 +50,7 @@ public sealed class ProcessBuildRunner : IBuildRunner
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
-    <!-- path resolved at deploy time (see CodeDeployNeuron) -->
-    <ProjectReference Include="..\..\DigitalBrain.Silo\DigitalBrain.Silo.csproj" />
+    <ProjectReference Include="{siloProjectPath}" />
   </ItemGroup>
 </Project>
 """;
