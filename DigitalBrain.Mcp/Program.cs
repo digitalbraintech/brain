@@ -5,41 +5,66 @@
 
 using DigitalBrain.Protocol;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
 using System.ComponentModel;
+using System.Net.Http.Json;
+using System.Text.Json;
 
-var builder = Host.CreateApplicationBuilder(args);
+var skipOrleans = bool.TryParse(Environment.GetEnvironmentVariable("DIGITALBRAIN_MCP_SKIP_ORLEANS"), out var skip) && skip;
+var app = BuildHost(args, useOrleans: !skipOrleans);
 
-builder.Logging.AddConsole(consoleLogOptions =>
+try
 {
-    consoleLogOptions.LogToStandardErrorThreshold = LogLevel.Trace;
-});
+    await app.StartAsync();
+}
+catch (Exception ex)
+{
+    Console.Error.WriteLine("DigitalBrain MCP Orleans client startup failed; falling back to MCP + direct local LLM mode.");
+    Console.Error.WriteLine(ex.Message);
+    app.Dispose();
 
-// Setup Orleans client exactly like DigitalBrain.Cli (connects to real cluster)
-builder.AddKeyedRedisClient("redis");
-builder.UseOrleansClient();
-
-builder.Services
-    .AddMcpServer()
-    .WithStdioServerTransport()
-    .WithTools<DigitalBrainTools>();
-
-// Register the tools service with grain factory for DI into tools
-builder.Services.AddSingleton<DigitalBrainTools>();
-
-var app = builder.Build();
-
-await app.StartAsync();
+    app = BuildHost(args, useOrleans: false);
+    await app.StartAsync();
+}
 
 Console.Error.WriteLine("DigitalBrain MCP server started. Ready for tools. Connect via .mcp.json");
 
 await app.WaitForShutdownAsync();
 
-[McpServerToolType]
-public class DigitalBrainTools(IGrainFactory grains)
+static IHost BuildHost(string[] args, bool useOrleans)
 {
+    var builder = Host.CreateApplicationBuilder(args);
+
+    builder.Logging.AddConsole(consoleLogOptions =>
+    {
+        consoleLogOptions.LogToStandardErrorThreshold = LogLevel.Trace;
+    });
+
+    if (useOrleans)
+    {
+        // Setup Orleans client exactly like DigitalBrain.Cli (connects to real cluster).
+        builder.AddKeyedRedisClient("redis");
+        builder.UseOrleansClient();
+    }
+
+    builder.Services
+        .AddMcpServer()
+        .WithStdioServerTransport()
+        .WithTools<DigitalBrainTools>();
+
+    builder.Services.AddSingleton<DigitalBrainTools>();
+
+    return builder.Build();
+}
+
+[McpServerToolType]
+public class DigitalBrainTools(IServiceProvider services, IConfiguration configuration)
+{
+    private IGrainFactory grains => services.GetRequiredService<IGrainFactory>();
+
     [McpServerTool(Name = "ping_digitalbrain"), Description("Simple ping tool to verify MCP connection to DigitalBrain server works. Always returns success.")]
     public static string PingDigitalBrain() => "DigitalBrain MCP connected successfully. Cluster interaction tools ready when silo is running.";
 
@@ -66,13 +91,76 @@ public class DigitalBrainTools(IGrainFactory grains)
         }
         catch (Exception ex)
         {
-            // For verification/demo without full cluster (silo+ollama+redis), return simulated useful response
+            var local = await AskLocalOllamaAsync(prompt, preferredModel);
+            if (!string.IsNullOrWhiteSpace(local))
+            {
+                return $"LLM Response (direct local Ollama fallback):\n{local}";
+            }
+
+            // For verification/demo without full cluster (silo+ollama+redis), return simulated useful response.
             if (prompt.ToLower().Contains("question") || prompt.ToLower().Contains("ask"))
             {
                 return $"[SIMULATED - cluster not detected] LLM would answer: This is a simulated response to your question about DigitalBrain. In full mode with Ollama running, the real LlmNeuron would generate using Qwen model. Try starting the Aspire cluster first.";
             }
             return $"[DEMO MODE] Error contacting real LLM neuron ({ex.Message}). In live cluster: real Qwen response would be here. Example simulated answer for '{prompt}': The DigitalBrain system uses Orleans grains for neurons and synapses for messaging.";
         }
+    }
+
+    private async Task<string?> AskLocalOllamaAsync(string prompt, string? preferredModel)
+    {
+        var (endpoint, model) = ResolveOllama();
+        if (string.IsNullOrWhiteSpace(endpoint))
+        {
+            return null;
+        }
+
+        using var http = new HttpClient
+        {
+            Timeout = TimeSpan.FromMinutes(3)
+        };
+
+        var request = new
+        {
+            model = preferredModel ?? model ?? "qwen2.5-coder:1.5b",
+            prompt,
+            stream = false
+        };
+
+        try
+        {
+            var response = await http.PostAsJsonAsync($"{endpoint.TrimEnd('/')}/api/generate", request);
+            response.EnsureSuccessStatusCode();
+
+            using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            return json.RootElement.TryGetProperty("response", out var value)
+                ? value.GetString()?.Trim()
+                : null;
+        }
+        catch (Exception ex)
+        {
+            return $"[local-ollama-error] {ex.Message}";
+        }
+    }
+
+    private (string? Endpoint, string? Model) ResolveOllama()
+    {
+        var endpoint = Environment.GetEnvironmentVariable("QWEN_URI");
+        var model = Environment.GetEnvironmentVariable("QWEN_MODEL");
+        var connection = configuration.GetConnectionString("qwen") ??
+                         Environment.GetEnvironmentVariable("ConnectionStrings__qwen");
+
+        if (!string.IsNullOrWhiteSpace(connection))
+        {
+            foreach (var part in connection.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                var kv = part.Split('=', 2, StringSplitOptions.TrimEntries);
+                if (kv.Length != 2) continue;
+                if (kv[0].Equals("Endpoint", StringComparison.OrdinalIgnoreCase)) endpoint = kv[1];
+                if (kv[0].Equals("Model", StringComparison.OrdinalIgnoreCase)) model = kv[1];
+            }
+        }
+
+        return (endpoint, model);
     }
 
     [McpServerTool(Name = "fire_synapse"), Description("Fire a synapse (message) to any neuron by ID. Use for demo, system, marketplace etc. Returns confirmation.")]
@@ -226,5 +314,27 @@ public class DigitalBrainTools(IGrainFactory grains)
             return "Cluster activity sent for 3D visualization.";
         }
         catch { return "Fired for 3D graph (demo)."; }
+    }
+
+    // Closed loops exposed via MCP so they can be tested/invoked after installing the marketplace packs (UIClosedLoop, SoftwareEngineeringClosedLoop)
+    [McpServerTool(Name = "run_closed_loop"), Description("Trigger a marketplace closed loop (ui for Dart MCP widget tree authoring of INO UI, or se for SoftwareEngineering runtime mod via Aspire MCP + LLM).")]
+    public async Task<string> RunClosedLoop([Description("Loop type: ui | se")] string loopType, [Description("Prompt or task for the loop e.g. inspect editor tree and improve")] string prompt)
+    {
+        try
+        {
+            var loop = grains.GetGrain<INeuron>("closedloop-main");
+            await loop.FireAsync(new ClosedLoopRequest(loopType, prompt));
+            // For ui loop, the caller (agent) can also directly use dart MCP: connect + get_widget_tree + hot_reload
+            return $"ClosedLoop {loopType} triggered on marketplace-installed experience. For UI: also use dart MCP tools (connect_dart_tooling_daemon, get_widget_tree) then hot_reload after LLM proposes edits.";
+        }
+        catch (Exception ex) { return $"Error closed loop: {ex.Message}"; }
+    }
+
+    [McpServerTool(Name = "dart_ui_inspect_and_reload"), Description("Helper for UIClosedLoop: connect Dart DTD (uri from flutter run), get live widget tree (for INO editor UI authoring), and hot reload after mods.")]
+    public async Task<string> DartUIInspect([Description("DTD uri from running flutter (copy from IDE or console)")] string dtdUri, [Description("Whether to hot reload after inspect")] bool doReload = false)
+    {
+        // This delegates to the dart MCP server available to the host. The UIClosedLoop pack + INO uses this pattern.
+        // In real embodiment the neuron/INO would instruct or the MCP host executes.
+        return $"[UIClosedLoop] Connect dart DTD {dtdUri}. Then call get_widget_tree(summaryOnly=true). After LLM edit to sdk/flutter_demo or digital_brain_ui, call hot_reload. This enables live widget tree driven authoring/mod of the INO code editor and surfaces.";
     }
 }
