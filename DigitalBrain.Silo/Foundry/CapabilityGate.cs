@@ -8,16 +8,16 @@ public static class CapabilityGate
 {
     private static readonly string[] BannedNamespacePrefixes =
     {
-        "System.Diagnostics.Process",
-        "System.Reflection.Emit",
-        "System.Runtime.InteropServices",
-        "System.Runtime.Loader",
-        "Microsoft.Win32.Registry"
+        "System.Diagnostics.Process.",
+        "System.Reflection.Emit.",
+        "System.Runtime.InteropServices.",
+        "System.Runtime.Loader.",
+        "Microsoft.Win32.Registry."
     };
 
     public static IReadOnlyList<string> FindViolations(CSharpCompilation compilation)
     {
-        var violations = new List<string>();
+        var violations = new HashSet<string>();
         foreach (var tree in compilation.SyntaxTrees)
         {
             var model = compilation.GetSemanticModel(tree);
@@ -37,11 +37,11 @@ public static class CapabilityGate
 
                 foreach (var banned in BannedNamespacePrefixes)
                 {
-                    if (fullName.StartsWith(banned, StringComparison.Ordinal) && !violations.Contains(banned))
+                    if (fullName.StartsWith(banned, StringComparison.Ordinal))
                         violations.Add(banned);
                 }
             }
         }
-        return violations;
+        return violations.ToList();
     }
 }

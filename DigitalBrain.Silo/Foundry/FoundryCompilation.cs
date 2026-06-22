@@ -1,4 +1,4 @@
-using System.Reflection;
+using System.IO;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 
@@ -15,12 +15,12 @@ public static class FoundryCompilation
 
     public static IReadOnlyList<MetadataReference> DefaultReferences()
     {
+        var runtimeDir = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
         var refs = new List<MetadataReference>();
-        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+        foreach (var dll in Directory.GetFiles(runtimeDir, "*.dll"))
         {
-            if (assembly.IsDynamic || string.IsNullOrEmpty(assembly.Location))
-                continue;
-            refs.Add(MetadataReference.CreateFromFile(assembly.Location));
+            try { refs.Add(MetadataReference.CreateFromFile(dll)); }
+            catch { /* skip non-managed or unreadable dlls */ }
         }
         return refs;
     }
