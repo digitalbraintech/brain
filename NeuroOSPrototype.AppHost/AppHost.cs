@@ -1,15 +1,32 @@
+using Aspire.Hosting.DigitalBrain;
+
 var builder = DistributedApplication.CreateBuilder(args);
 
-var redis = builder.AddRedis("redis");
+// Unified with fast start.cs path (memory kernel + surfaces) and full distributed here.
+// See framework/start.cs for fast "dotnet run" INO + tasks + marketplace + UiSurfaces (Gmail etc).
+// Experiences emit UiSurface (AuthButtonSurface etc) for sdk/flutter_demo + Telegram skeleton.
+var ctx = builder.AddDigitalBrain("digitalbrain", options =>
+{
+    options.LlmModel = "qwen2.5-coder:1.5b";
+    options.UseLocalMarketplace = true;
+})
+.WithOrleansDashboard(8080)
+.WithMcp();
 
-var orleans = builder.AddOrleans("neuro")
-    .WithClustering(redis)
-    .WithGrainStorage("Default", redis);
+var silo = builder.AddProject<Projects.DigitalBrain_Silo>("silo")
+    .WithReference(ctx.Orleans)
+    .WithReference((IResourceBuilder<IResourceWithConnectionString>)ctx.Llm)
+    .WithReplicas(ctx.KernelReplicas)
+    .WithEndpoint(name: "orleans-dashboard", port: ctx.OrleansDashboardPort ?? 8080, isProxied: false);
 
-builder.AddProject<Projects.DigitalBrain_Silo>("silo")
-    .WithReference(orleans);
+var startUi = builder.AddProject<Projects.DigitalBrain_Cli>("start-ui")
+    .WithReference(ctx.OrleansClient);
 
-builder.AddProject<Projects.DigitalBrain_Cli>("grok-cli")
-    .WithReference(orleans.AsClient());  // CLI can act as client to fire synapses to neurons
+silo.WithEnvironment("DIGITALBRAIN_USE_LOCAL_MARKETPLACE", ctx.UseLocalMarketplace ? "true" : "false");
+silo.WithEnvironment("DIGITALBRAIN_SURFACES_ENABLED", "true");
+if (ctx.EnableOrleansDashboard)
+{
+    silo.WithEnvironment("ORLEANS_DASHBOARD_PORT", (ctx.OrleansDashboardPort ?? 8080).ToString());
+}
 
 builder.Build().Run();

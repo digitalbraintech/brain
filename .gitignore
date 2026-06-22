@@ -427,3 +427,7 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# DigitalBrain fast-path runtime artifacts (marketplace persistence + user generated software/exports)
+data/
+output/

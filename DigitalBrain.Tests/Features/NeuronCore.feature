@@ -1,4 +1,4 @@
-Feature: NeuroOS Neuron Core
+Feature: DigitalBrain Neuron Core
 
 Scenario: Sending a synapse journals it and is replayable
   Given a demo neuron "test-english"
@@ -38,3 +38,25 @@ Scenario: Full grok create-neuron flow: create -> publish to marketplace -> down
   Then the timeline contains a PublishedList
   When I download/install the pack "Generated-grokemailanalyzerchart" version "0.1-dev"
   Then the timeline contains a NeuroPackInstalled
+
+Scenario: Simulate a causal scene with ordered synapse sequence and replay (Durable journal)
+  Given a demo neuron "scene-demo"
+  When I fire a DemoMessageSynapse with text "step-1"
+  And I fire a DemoMessageSynapse with text "step-2"
+  Then the timeline contains these synapse types in causal order: DemoMessageSynapse, DemoMessageSynapse
+  And replaying shows the message
+
+Scenario: Harness simulates other-brain publish-install-use flow via Marketplace contract
+  Given a marketplace neuron "market-main"
+  Given a compiler neuron "compiler-harness"
+  When I send create neuron request "email analyzer for other brain"
+  Then the timeline contains a NeuronCodeGenerated
+  When I publish, a simulated other brain installs and uses the pack "Generated-emailanalyzerforotherbrain" version "0.1-sim"
+  Then the timeline contains a PublishedList
+  And the generated neuron for pack "Generated-emailanalyzerforotherbrain" received an ExperienceUsed
+
+Scenario: System self-awareness with status, fix proposal and simulation
+  Given a system status neuron "status-self"
+  When I fire a bad status for component "kernel"
+  Then the timeline contains a FixProposal
+  And the timeline contains a SimulationResult with success true

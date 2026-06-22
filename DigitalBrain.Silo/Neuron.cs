@@ -1,45 +1,40 @@
 using DigitalBrain.Protocol;
-using Microsoft.Extensions.Logging;
-using System.Reflection;
+using Orleans.Journaling;
+
+#pragma warning disable ORLEANSEXP005 // Alpha/experimental journalling APIs
 
 namespace DigitalBrain.Silo;
 
-[GrainType("neuro.base.v2")]
-public abstract class Neuron : Grain, INeuron
+[GrainType("digitalbrain.base.v2")]
+public abstract class Neuron : DurableGrain, INeuron
 {
     protected readonly ILogger Logger;
-    protected readonly IPersistentState<List<Synapse>> Journal;
 
     protected NeuronId Self => new(this.GetPrimaryKeyString() ?? this.GetGrainId().ToString());
 
-    protected Neuron(ILogger logger, [PersistentState("journal", "Default")] IPersistentState<List<Synapse>> journal)
+    protected Neuron(ILogger logger)
     {
         Logger = logger;
-        Journal = journal;
     }
+
+    // Dual journals for OS-like causality: incoming = received Deliver, outgoing = our Fires.
+    protected IDurableList<Synapse> IncomingJournal => this.ServiceProvider.GetRequiredKeyedService<IDurableList<Synapse>>("in-journal");
+    protected IDurableList<Synapse> OutgoingJournal => this.ServiceProvider.GetRequiredKeyedService<IDurableList<Synapse>>("out-journal");
 
     public override async Task OnActivateAsync(CancellationToken ct)
     {
         await base.OnActivateAsync(ct);
-        await Journal.ReadStateAsync();
         await FireAsync(new NeuronActivated(Self));
-    }
-
-    public override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken ct)
-    {
-        await Journal.WriteStateAsync();
-        await base.OnDeactivateAsync(reason, ct);
     }
 
     public async ValueTask FireAsync<T>(T payload) where T : Synapse
     {
         var stamped = payload.Stamp(Self);
-        Journal.State.Add(stamped);
-        await Journal.WriteStateAsync();
+        OutgoingJournal.Add(stamped);
+        await WriteStateAsync();
 
         if (stamped.IsBroadcast)
         {
-            // Broadcast via streams deferred for initial prototype (requires more stream config)
         }
         else if (stamped.Receiver is not null)
         {
@@ -48,7 +43,6 @@ public abstract class Neuron : Grain, INeuron
         }
         else
         {
-            // Command/event fired directly on this neuron -> local dispatch (for IHandle etc)
             await DeliverAsync(stamped);
         }
 
@@ -56,17 +50,41 @@ public abstract class Neuron : Grain, INeuron
     }
 
     public Task<IReadOnlyList<Synapse>> GetTimelineAsync() =>
-        Task.FromResult<IReadOnlyList<Synapse>>(Journal.State);
+        Task.FromResult<IReadOnlyList<Synapse>>(OutgoingJournal.ToList());
 
-    protected async Task ReplayAsync(Func<Synapse, Task> handler, DateTimeOffset? since = null)
+    public Task<IReadOnlyList<Synapse>> GetIncomingTimelineAsync() =>
+        Task.FromResult<IReadOnlyList<Synapse>>(IncomingJournal.ToList());
+
+    public Task<IReadOnlyList<Synapse>> GetOutgoingTimelineAsync() =>
+        Task.FromResult<IReadOnlyList<Synapse>>(OutgoingJournal.ToList());
+
+    public async ValueTask<Checkpoint> CreateCheckpointAsync()
     {
-        foreach (var s in Journal.State.Where(x => since == null || x.Timestamp >= since))
-            await handler(s);
+        var snap = OutgoingJournal.Concat(IncomingJournal).DistinctBy(s => new { s.Timestamp, s.Type, Sender = s.Sender?.Value, Receiver = s.Receiver?.Value }).ToList();
+        var cp = new Checkpoint(Self, snap.AsReadOnly(), DateTimeOffset.UtcNow);
+        await FireAsync(cp);
+        return cp;
     }
 
-    // Internal for point to point
+    public async Task<NeuronId> BranchAsync(Checkpoint checkpoint)
+    {
+        var branchKey = $"{Self.Value}@branch-{Guid.NewGuid():N}";
+        // Use a known concrete (IDemoNeuron) as stand-in receiver for branch replay. It implements INeuron fully.
+        var branch = GrainFactory.GetGrain<IDemoNeuron>(branchKey);
+        foreach (var s in checkpoint.Snapshot)
+        {
+            await branch.DeliverAsync(s);
+        }
+        await branch.FireAsync(new BranchCreated(Self, branchKey));
+        return new NeuronId(branchKey);
+    }
+
+    // Internal for point to point. Incoming synapses are auto-recorded here (called by sender Fire or direct).
     public async Task DeliverAsync(Synapse synapse)
     {
+        IncomingJournal.Add(synapse);
+        await WriteStateAsync();
+
         // Support IHandle<T> by reflection for any implementing neuron (prototype; source-gen later)
         var handled = false;
         var grainType = GetType();

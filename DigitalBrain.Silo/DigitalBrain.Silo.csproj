@@ -5,17 +5,24 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>dotnet-DigitalBrain.Silo-ea55b00e-5a06-4791-b7d3-a9f3aabb83f9</UserSecretsId>
+    <!-- Allow alpha/experimental Orleans Journalling APIs (DurableGrain etc) -->
+    <NoWarn>$(NoWarn);ORLEANSEXP005</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Aspire.StackExchange.Redis" Version="13.4.6" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.9" />
-    <PackageReference Include="Microsoft.Orleans.Clustering.Redis" Version="*" />
-    <PackageReference Include="Microsoft.Orleans.Core" Version="10.2.0" />
-    <PackageReference Include="Microsoft.Orleans.Persistence.Memory" Version="10.2.0" />
-    <PackageReference Include="Microsoft.Orleans.Persistence.Redis" Version="*" />
-    <PackageReference Include="Microsoft.Orleans.Server" Version="10.2.0" />
-    <PackageReference Include="Microsoft.Orleans.Streaming" Version="10.2.0" />
+    <PackageReference Include="Aspire.StackExchange.Redis" />
+    <PackageReference Include="CommunityToolkit.Aspire.OllamaSharp" />
+    <PackageReference Include="ModelContextProtocol" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Orleans.Clustering.Redis" />
+    <PackageReference Include="Microsoft.Orleans.Core" />
+    <PackageReference Include="Microsoft.Orleans.Journaling" />
+    <PackageReference Include="Microsoft.Orleans.Persistence.Memory" />
+    <PackageReference Include="Microsoft.Orleans.Persistence.Redis" />
+    <PackageReference Include="Microsoft.Orleans.Server" />
+    <PackageReference Include="Microsoft.Orleans.Streaming" />
+    <!-- Microsoft.Orleans.Dashboard added for .WithOrleansDashboard() - run 'dotnet add package Microsoft.Orleans.Dashboard' if needed for full UI -->
     <ProjectReference Include="..\DigitalBrain.Protocol\DigitalBrain.Protocol.csproj" />
+    <ProjectReference Include="..\NeuroOSPrototype.ServiceDefaults\NeuroOSPrototype.ServiceDefaults.csproj" />
   </ItemGroup>
 </Project>

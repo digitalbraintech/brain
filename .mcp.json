@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "digitalbrain": {
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "samples/QuickTest",
+        "--no-launch-profile",
+        "--",
+        "--mcp"
+      ],
+      "env": {
+        "DOTNET_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}

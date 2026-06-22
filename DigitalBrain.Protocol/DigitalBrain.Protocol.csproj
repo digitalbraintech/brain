@@ -4,11 +4,17 @@
     <TargetFramework>net11.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+
+    <!-- Public contracts package - this is what "marketplace silo with public contracts" depends on -->
+    <IsPackable>true</IsPackable>
+    <PackageId>DigitalBrain.Protocol</PackageId>
+    <Version>0.1.0-preview</Version>
+    <Description>Public contracts (INeuron, Synapse types, I*Neuron interfaces) for DigitalBrain. Stable surface for cross-brain and marketplace scenarios.</Description>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Orleans.Core.Abstractions" Version="10.2.0" />
-    <PackageReference Include="Microsoft.Orleans.Serialization" Version="10.2.0" />
+    <PackageReference Include="Microsoft.Orleans.Core.Abstractions" />
+    <PackageReference Include="Microsoft.Orleans.Serialization" />
   </ItemGroup>
 
 </Project>
