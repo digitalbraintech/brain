@@ -27,3 +27,9 @@ Scenario: Tier-2 deploy with failing verify-build rolls back without restart
   When I deploy module "BadNeuron" with source "// broken"
   Then the timeline contains a FoundryRolledBack
   And the timeline does not contain a SiloRestartRequested
+
+Scenario: Foundry loop checkpoints then completes a Tier-1 request
+  Given a foundry loop neuron "foundry1"
+  When I submit a foundry request "trivial Run returning ok" for tier "Run"
+  Then the timeline contains a FoundryCheckpointed
+  And the timeline contains a FoundryCompleted

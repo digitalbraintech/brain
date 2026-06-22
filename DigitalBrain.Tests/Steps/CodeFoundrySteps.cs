@@ -138,6 +138,35 @@ public class CodeFoundrySteps : IAsyncDisposable
         Assert.Contains(_timeline, s => s.Type == nameof(FoundryRolledBack));
     }
 
+    [Given(@"a foundry loop neuron ""(.*)""")]
+    public async Task GivenAFoundryLoopNeuron(string id)
+    {
+        _currentGrain = _cluster.GrainFactory.GetGrain<ICodeFoundryLoopNeuron>(id);
+        await _currentGrain.GetTimelineAsync();
+    }
+
+    [When(@"I submit a foundry request ""(.*)"" for tier ""(.*)""")]
+    public async Task WhenISubmitFoundryRequest(string spec, string tier)
+    {
+        var parsed = Enum.Parse<TargetTier>(tier);
+        await _currentGrain!.FireAsync(new FoundryRequest(spec, parsed));
+        _timeline = await _currentGrain.GetTimelineAsync();
+    }
+
+    [Then(@"the timeline contains a FoundryCheckpointed")]
+    public async Task ThenTimelineContainsFoundryCheckpointed()
+    {
+        _timeline = await _currentGrain!.GetTimelineAsync();
+        Assert.Contains(_timeline, s => s.Type == nameof(FoundryCheckpointed));
+    }
+
+    [Then(@"the timeline contains a FoundryCompleted")]
+    public async Task ThenTimelineContainsFoundryCompleted()
+    {
+        _timeline = await _currentGrain!.GetTimelineAsync();
+        Assert.Contains(_timeline, s => s.Type == nameof(FoundryCompleted));
+    }
+
     private class FoundrySiloConfig : ISiloConfigurator
     {
         // Populated by the CodeFoundrySteps constructor before cluster deploy so the silo
