@@ -1,4 +1,5 @@
 using Aspire.Hosting.ApplicationModel;
+using Aspire.Hosting.Azure;
 using Aspire.Hosting.Orleans;
 
 namespace Aspire.Hosting.DigitalBrain;
@@ -11,6 +12,11 @@ public sealed class DigitalBrainContext
     public required OrleansServiceClient OrleansClient { get; init; }
     public required int KernelReplicas { get; init; }
     public required bool UseLocalMarketplace { get; init; }
+
+    // Storage resources exposed so AppHost can wire WithReference on silo
+    public required IResourceBuilder<AzureBlobStorageResource> GrainBlobs { get; init; }
+    public required IResourceBuilder<AzureBlobStorageResource> JournalBlobs { get; init; }
+    public required IResourceBuilder<AzureTableStorageResource> ClusteringTable { get; init; }
 
     // For encapsulated dashboard + MCP (WithOrleansDashboard / WithMcp)
     public bool EnableOrleansDashboard { get; set; }
@@ -33,10 +39,15 @@ public static class DigitalBrainBuilderExtensions
 
         var llmModel = options.LlmModel ?? "qwen2.5-coder:1.5b";
 
-        var redis = builder.AddRedis("redis");
+        var storage = builder.AddAzureStorage("storage").RunAsEmulator();
+        var clusteringTable = storage.AddTables("clustering");
+        var grainBlobs = storage.AddBlobs("grainstate");
+        var journalBlobs = storage.AddBlobs("journal");
+
         var orleans = builder.AddOrleans("kernel")
-            .WithClustering(redis)
-            .WithGrainStorage("Default", redis);
+            .WithClustering(clusteringTable)
+            .WithGrainStorage("Default", grainBlobs);
+
         var ollama = builder.AddOllama("ollama")
             .WithGPUSupport()
             .WithDataVolume();
@@ -52,12 +63,13 @@ public static class DigitalBrainBuilderExtensions
             UseLocalMarketplace = options.UseLocalMarketplace,
             EnableOrleansDashboard = options.EnableOrleansDashboard,
             OrleansDashboardPort = options.OrleansDashboardPort,
-            EnableMcp = options.EnableMcp
+            EnableMcp = options.EnableMcp,
+            GrainBlobs = grainBlobs,
+            JournalBlobs = journalBlobs,
+            ClusteringTable = clusteringTable
         };
     }
 
-    // Fluent encapsulation for fast testing + observability (Elon: delete duplicate setup, accelerate live debug)
-    // Usage: var ctx = builder.AddDigitalBrain("db").WithOrleansDashboard(8080).WithMcp();
     public static DigitalBrainContext WithOrleansDashboard(this DigitalBrainContext ctx, int? port = null)
     {
         ctx.EnableOrleansDashboard = true;
@@ -67,7 +79,6 @@ public static class DigitalBrainBuilderExtensions
 
     public static DigitalBrainContext WithMcp(this DigitalBrainContext ctx, int? port = null)
     {
-        // Standalone / connectable MCP for runtime inspection + self-improving (SystemStatus + aspire mcp)
         ctx.EnableMcp = true;
         return ctx;
     }
@@ -79,7 +90,6 @@ public sealed class DigitalBrainOptions
     public int KernelReplicas { get; set; } = 3;
     public bool UseLocalMarketplace { get; set; } = true;
 
-    // Encapsulated observability - add dashboard and MCP hooks
     public bool EnableOrleansDashboard { get; set; } = true;
     public int? OrleansDashboardPort { get; set; } = 8080;
     public bool EnableMcp { get; set; } = true;

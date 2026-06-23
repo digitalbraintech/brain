@@ -10,7 +10,7 @@
 
   <ItemGroup>
     <PackageReference Include="Aspire.Hosting.Orleans" />
-    <PackageReference Include="Aspire.Hosting.Redis" />
+    <PackageReference Include="Aspire.Hosting.Azure.Storage" />
     <PackageReference Include="CommunityToolkit.Aspire.Hosting.Ollama" />
     <ProjectReference Include="..\DigitalBrain.Aspire\DigitalBrain.Aspire.csproj" IsAspireProjectResource="false" />
     <ProjectReference Include="..\DigitalBrain.Silo\DigitalBrain.Silo.csproj" />

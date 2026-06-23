@@ -60,6 +60,72 @@ public class UiSurfaceContractTests
         AssertSynapseAction(marketplace.Props["updateAction"], nameof(InstallFromMarketplace));
     }
 
+    [Fact]
+    public void Live_Kernel_Task_Surface_Is_Derived_From_Task_Journals()
+    {
+        var surface = UiSurfaceLiveData.KernelTasksFromTimelines(new[]
+        {
+            (
+                "task-live-1",
+                (IReadOnlyList<Synapse>)new Synapse[]
+                {
+                    new KernelTaskCreated("task-live-1", "Summarize running kernel"),
+                    new KernelTaskStarted("task-live-1"),
+                    new KernelTaskProgress("task-live-1", "Reading journals")
+                })
+        });
+
+        var tasks = Assert.IsAssignableFrom<IEnumerable<IReadOnlyDictionary<string, object?>>>(surface.Props["tasks"]);
+        var task = Assert.Single(tasks);
+        Assert.Equal("task-live-1", task["taskId"]);
+        Assert.Equal("running", task["state"]);
+        Assert.Equal("Reading journals", task["detail"]);
+
+        var actions = Assert.IsAssignableFrom<IEnumerable<IReadOnlyDictionary<string, object?>>>(surface.Props[UiSurfaceKeys.Actions]);
+        Assert.Contains(actions, a => Equals(a[UiSurfaceKeys.SynapseType], nameof(CancelKernelTask)));
+    }
+
+    [Fact]
+    public void Live_Activity_Graph_Surface_Is_Derived_From_Cluster_Journals()
+    {
+        var surface = UiSurfaceLiveData.ActivityGraphFromTimeline(new Synapse[]
+        {
+            new ClusterActivity("ino-main", "reasoning", 0.8),
+            new ClusterActivity("market-main", "listing", 0.4),
+            new ThreeDGraphUpdate("main", "{\"node\":\"ino-main\"}")
+        });
+
+        var nodes = Assert.IsAssignableFrom<IEnumerable<IReadOnlyDictionary<string, object?>>>(surface.Props["nodes"]);
+        Assert.Contains(nodes, n => Equals(n["id"], "ino-main"));
+        Assert.Contains(nodes, n => Equals(n["id"], "market-main"));
+
+        var events = Assert.IsAssignableFrom<IEnumerable<IReadOnlyDictionary<string, object?>>>(surface.Props["events"]);
+        Assert.Contains(events, e => Equals(e["type"], nameof(ThreeDGraphUpdate)));
+    }
+
+    [Fact]
+    public void Live_Marketplace_Surface_Treats_Local_Ui_Packs_As_Preinstalled()
+    {
+        var surface = UiSurfaceLiveData.MarketplaceListFromPacks(
+            new[]
+            {
+                new NeuroPack(
+                    "DigitalBrain.UIKit.ForUI",
+                    "0.1.0",
+                    "digitalbraintech",
+                    Description: "ForUI primitive pack")
+            },
+            Array.Empty<NeuroPack>());
+
+        var packs = Assert.IsAssignableFrom<IEnumerable<IReadOnlyDictionary<string, object?>>>(surface.Props["packs"]);
+        var pack = Assert.Single(packs);
+        Assert.Equal("DigitalBrain.UIKit.ForUI", pack["name"]);
+        Assert.Equal(true, pack["installed"]);
+
+        AssertSynapseAction(surface.Props["installAction"], nameof(InstallFromMarketplace));
+        AssertSynapseAction(surface.Props["updateAction"], nameof(InstallFromMarketplace));
+    }
+
     private static void AssertCommonProp(UiSurface surface, string key) =>
         Assert.True(surface.Props.ContainsKey(key), $"{surface.Kind} is missing common prop '{key}'.");
 

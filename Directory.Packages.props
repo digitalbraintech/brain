@@ -13,7 +13,10 @@
     <PackageVersion Include="Aspire.Hosting" Version="13.4.6" />
     <PackageVersion Include="Aspire.Hosting.Orleans" Version="13.4.6" />
     <PackageVersion Include="Aspire.Hosting.Redis" Version="13.4.6" />
+    <PackageVersion Include="Aspire.Hosting.Azure.Storage" Version="13.4.6" />
     <PackageVersion Include="Aspire.StackExchange.Redis" Version="13.4.6" />
+    <PackageVersion Include="Aspire.Azure.Data.Tables" Version="13.4.6" />
+    <PackageVersion Include="Aspire.Azure.Storage.Blobs" Version="13.4.6" />
     <!-- Community Toolkit (Ollama) -->
     <PackageVersion Include="CommunityToolkit.Aspire.Hosting.Ollama" Version="13.4.0" />
     <PackageVersion Include="CommunityToolkit.Aspire.OllamaSharp" Version="13.4.0" />
@@ -22,7 +25,9 @@
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="5.3.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" Version="5.3.0" />
     <PackageVersion Include="Microsoft.Orleans.Client" Version="10.2.0" />
+    <PackageVersion Include="Microsoft.Orleans.Clustering.AzureStorage" Version="10.2.0" />
     <PackageVersion Include="Microsoft.Orleans.Clustering.Redis" Version="10.2.0" />
+    <PackageVersion Include="Microsoft.Orleans.Persistence.AzureStorage" Version="10.2.0" />
     <PackageVersion Include="Microsoft.Orleans.Core" Version="10.2.1-preview.1" />
     <PackageVersion Include="Microsoft.Orleans.Core.Abstractions" Version="10.2.1-preview.1" />
     <PackageVersion Include="Microsoft.Orleans.Journaling" Version="10.2.1-preview.1.alpha.1" />

@@ -15,12 +15,38 @@ var ctx = builder.AddDigitalBrain("digitalbrain", options =>
 
 var silo = builder.AddProject<Projects.DigitalBrain_Silo>("silo")
     .WithReference(ctx.Orleans)
+    .WithReference(ctx.ClusteringTable)
+    .WithReference(ctx.GrainBlobs)
+    .WithReference(ctx.JournalBlobs)
     .WithReference((IResourceBuilder<IResourceWithConnectionString>)ctx.Llm)
     .WithReplicas(1)  // Set to 1 to allow proxy-less orleans-dashboard endpoint; use closed loops for multi-kernel concerns via Aspire
     .WithEndpoint(name: "orleans-dashboard", port: ctx.OrleansDashboardPort ?? 8080, isProxied: false);
 
 var startUi = builder.AddProject<Projects.DigitalBrain_Cli>("start-ui")
-    .WithReference(ctx.OrleansClient);
+    .WithReference(ctx.OrleansClient)
+    .WithExplicitStart();
+
+var flutterUiPath = Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "..", "..", "sdk", "flutter_demo"));
+if (Directory.Exists(flutterUiPath))
+{
+    var flutterCommand = builder.Configuration["DigitalBrain:FlutterCommand"]
+        ?? Environment.GetEnvironmentVariable("FLUTTER_COMMAND")
+        ?? "flutter";
+
+    builder.AddExecutable(
+            "flutter-ui",
+            flutterCommand,
+            flutterUiPath,
+            "run",
+            "-d",
+            "windows",
+            "--dart-define",
+            "DIGITALBRAIN_SURFACE_TOOL=get_workbench_surfaces",
+            "--dart-define",
+            "DIGITALBRAIN_ACTION_TOOL=fire_ui_action")
+        .WithEnvironment("DIGITALBRAIN_UI_PACK", "DigitalBrain.UI.AspireFlutter")
+        .WithEnvironment("DIGITALBRAIN_UI_TIER1_RESTART_REQUIRED", "true");
+}
 
 if (ctx.EnableMcp)
 {

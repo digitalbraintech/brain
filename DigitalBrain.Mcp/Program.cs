@@ -64,6 +64,10 @@ static IHost BuildHost(string[] args, bool useOrleans)
 public class DigitalBrainTools(IServiceProvider services, IConfiguration configuration)
 {
     private IGrainFactory grains => services.GetRequiredService<IGrainFactory>();
+    private static readonly JsonSerializerOptions SurfaceJsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        WriteIndented = true
+    };
 
     [McpServerTool(Name = "ping_digitalbrain"), Description("Simple ping tool to verify MCP connection to DigitalBrain server works. Always returns success.")]
     public static string PingDigitalBrain() => "DigitalBrain MCP connected successfully. Cluster interaction tools ready when silo is running.";
@@ -196,6 +200,158 @@ public class DigitalBrainTools(IServiceProvider services, IConfiguration configu
         catch (Exception ex)
         {
             return $"Error getting timeline for {neuronId}: {ex.Message}";
+        }
+    }
+
+    [McpServerTool(Name = "get_workbench_surfaces"), Description("Return dynamic UiSurface JSON for the Flutter workbench, derived from existing task, graph, marketplace, and timeline journals. Pass comma-separated taskIds when the caller knows active kernel tasks.")]
+    public async Task<string> GetWorkbenchSurfaces(
+        [Description("Comma-separated kernel task ids to include, if known. There is no global task registry yet.")] string taskIds = "",
+        [Description("Max graph/timeline events to include")] int maxEvents = 20)
+    {
+        try
+        {
+            var taskTimelines = new List<(string TaskId, IReadOnlyList<Synapse> Timeline)>();
+            foreach (var taskId in SplitIds(taskIds))
+            {
+                var task = grains.GetGrain<IKernelTask>(taskId);
+                taskTimelines.Add((taskId, await task.GetTimelineAsync()));
+            }
+
+            IReadOnlyList<Synapse> graphTimeline = Array.Empty<Synapse>();
+            try
+            {
+                graphTimeline = await grains.GetGrain<INeuron>("cluster-vis").GetTimelineAsync();
+            }
+            catch
+            {
+                // The graph grain is passive until cluster_3d_activity is used.
+            }
+
+            var marketplace = grains.GetGrain<IMarketplaceNeuron>("market-main");
+            await marketplace.FireAsync(new ListPublished());
+            var marketplaceTimeline = await marketplace.GetTimelineAsync();
+            var published = marketplaceTimeline.OfType<PublishedList>().LastOrDefault()?.Packs ?? Array.Empty<NeuroPack>();
+            var installed = marketplaceTimeline.OfType<NeuroPackInstalled>().Select(i => i.Pack).ToArray();
+
+            var timeline = taskTimelines
+                .SelectMany(t => t.Timeline)
+                .Concat(graphTimeline)
+                .Concat(marketplaceTimeline)
+                .OrderBy(s => s.Timestamp)
+                .TakeLast(maxEvents)
+                .ToArray();
+
+            var surfaces = UiSurfaceLiveData.BuildWorkbenchSurfaces(
+                taskTimelines,
+                graphTimeline,
+                published,
+                installed,
+                timeline,
+                maxEvents);
+
+            return JsonSerializer.Serialize(surfaces, SurfaceJsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return $"Error building workbench surfaces: {ex.Message}";
+        }
+    }
+
+    [McpServerTool(Name = "fire_ui_action"), Description("Execute a UiSurface action descriptor by mapping synapseType and props to existing DigitalBrain command contracts.")]
+    public async Task<string> FireUiAction(
+        [Description("Action descriptor JSON with actionId, label, synapseType, and props")] string actionJson,
+        [Description("Fallback neuron id for generic/demo actions")] string defaultNeuronId = "ino-main")
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(actionJson);
+            var action = document.RootElement;
+            var synapseType = ReadString(action, UiSurfaceKeys.SynapseType);
+            if (string.IsNullOrWhiteSpace(synapseType))
+            {
+                return "Action descriptor missing synapseType.";
+            }
+
+            var props = ReadObject(action, UiSurfaceKeys.Props);
+
+            switch (synapseType)
+            {
+                case nameof(RunKernelTask):
+                {
+                    var taskId = ReadString(props, "taskId") ?? "task-" + Guid.NewGuid().ToString("N")[..8];
+                    var description = ReadString(props, "description") ?? ReadString(props, "prompt") ?? "Run kernel task";
+                    var task = grains.GetGrain<IKernelTask>(taskId);
+                    await task.FireAsync(new RunKernelTask(taskId, description));
+                    return $"Fired RunKernelTask for {taskId}.";
+                }
+
+                case nameof(CancelKernelTask):
+                {
+                    var taskId = ReadString(props, "taskId");
+                    if (string.IsNullOrWhiteSpace(taskId))
+                    {
+                        return "CancelKernelTask action requires props.taskId.";
+                    }
+
+                    await grains.GetGrain<IKernelTask>(taskId).FireAsync(new CancelKernelTask(taskId));
+                    return $"Fired CancelKernelTask for {taskId}.";
+                }
+
+                case nameof(InoRequest):
+                {
+                    var prompt = ReadString(props, "prompt") ?? ReadString(props, "text");
+                    if (string.IsNullOrWhiteSpace(prompt))
+                    {
+                        return "InoRequest action requires props.prompt.";
+                    }
+
+                    var sessionId = ReadString(props, "sessionId");
+                    await grains.GetGrain<IInoNeuron>("ino-main").FireAsync(new InoRequest(prompt, sessionId));
+                    return "Fired InoRequest.";
+                }
+
+                case nameof(InstallFromMarketplace):
+                {
+                    var packName = ReadString(props, "packName");
+                    var version = ReadString(props, "version") ?? "0.1.0";
+                    var buyerId = ReadString(props, "buyerId") ?? "current-user";
+                    if (string.IsNullOrWhiteSpace(packName))
+                    {
+                        return "InstallFromMarketplace action requires props.packName.";
+                    }
+
+                    await grains.GetGrain<IMarketplaceNeuron>("market-main")
+                        .FireAsync(new InstallFromMarketplace(packName, version, buyerId));
+                    return $"Fired InstallFromMarketplace for {packName}@{version}.";
+                }
+
+                case nameof(ListPublished):
+                    await grains.GetGrain<IMarketplaceNeuron>("market-main").FireAsync(new ListPublished());
+                    return "Fired ListPublished.";
+
+                case nameof(RestartResource):
+                {
+                    var resourceName = ReadString(props, "resourceName");
+                    if (string.IsNullOrWhiteSpace(resourceName))
+                    {
+                        return "RestartResource action requires props.resourceName.";
+                    }
+
+                    await grains.GetGrain<IAspireNeuron>("aspire-main").FireAsync(new RestartResource(resourceName));
+                    return $"Fired RestartResource for {resourceName}.";
+                }
+
+                default:
+                {
+                    var target = ReadString(props, "neuronId") ?? defaultNeuronId;
+                    await grains.GetGrain<INeuron>(target).FireAsync(new DemoMessageSynapse(actionJson));
+                    return $"Forwarded unrecognized UI action '{synapseType}' to {target} as DemoMessageSynapse.";
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            return $"Error firing UI action: {ex.Message}";
         }
     }
 
@@ -357,5 +513,52 @@ public class DigitalBrainTools(IServiceProvider services, IConfiguration configu
             s.Type == nameof(DigitalBrain.Protocol.FoundryCompleted) ||
             s.Type == nameof(DigitalBrain.Protocol.FoundryRolledBack));
         return terminal?.Type ?? "FoundryRequest accepted (no terminal synapse yet)";
+    }
+
+    private static IEnumerable<string> SplitIds(string value) =>
+        value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(id => !string.IsNullOrWhiteSpace(id));
+
+    private static JsonElement ReadObject(JsonElement element, string propertyName)
+    {
+        var value = ReadElement(element, propertyName);
+        return value.HasValue && value.Value.ValueKind == JsonValueKind.Object ? value.Value : default;
+    }
+
+    private static string? ReadString(JsonElement element, string propertyName)
+    {
+        var value = ReadElement(element, propertyName);
+        if (!value.HasValue)
+        {
+            return null;
+        }
+
+        return value.Value.ValueKind switch
+        {
+            JsonValueKind.String => value.Value.GetString(),
+            JsonValueKind.Number => value.Value.GetRawText(),
+            JsonValueKind.True => bool.TrueString,
+            JsonValueKind.False => bool.FalseString,
+            _ => null
+        };
+    }
+
+    private static JsonElement? ReadElement(JsonElement element, string propertyName)
+    {
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        foreach (var property in element.EnumerateObject())
+        {
+            if (property.NameEquals(propertyName) ||
+                string.Equals(property.Name, propertyName, StringComparison.OrdinalIgnoreCase))
+            {
+                return property.Value;
+            }
+        }
+
+        return null;
     }
 }

@@ -272,6 +272,347 @@ public static class UiSurfaceSamples
     }
 }
 
+public static class UiSurfaceLiveData
+{
+    public static IReadOnlyList<UiSurface> BuildWorkbenchSurfaces(
+        IEnumerable<(string TaskId, IReadOnlyList<Synapse> Timeline)> taskTimelines,
+        IReadOnlyList<Synapse> graphTimeline,
+        IReadOnlyList<NeuroPack> publishedPacks,
+        IReadOnlyList<NeuroPack> installedPacks,
+        IReadOnlyList<Synapse> timelineEvents,
+        int maxEvents = 20) =>
+        new[]
+        {
+            KernelTasksFromTimelines(taskTimelines),
+            ActivityGraphFromTimeline(graphTimeline, maxEvents),
+            MarketplaceListFromPacks(publishedPacks, installedPacks),
+            TimelineFromSynapses(timelineEvents, maxEvents)
+        };
+
+    public static UiSurface KernelTasksFromTimelines(
+        IEnumerable<(string TaskId, IReadOnlyList<Synapse> Timeline)> taskTimelines)
+    {
+        var tasks = taskTimelines
+            .Select(task => BuildKernelTask(task.TaskId, task.Timeline))
+            .Where(task => task.Count > 0)
+            .ToArray();
+
+        return new UiSurface(
+            UiSurfaceKinds.KernelTasks,
+            WithCommon(
+                surfaceId: "surface.kernel-tasks.live",
+                emitter: "digitalbrain.kernel",
+                title: "Kernel Tasks",
+                layout: UiSurfaceLayouts.Panel,
+                priority: 10,
+                props: new Dictionary<string, object?>
+                {
+                    ["tasks"] = tasks,
+                    [UiSurfaceKeys.Actions] = tasks
+                        .SelectMany(task => TaskActions((string)task["taskId"]!, (string)task["title"]!))
+                        .ToArray()
+                }));
+    }
+
+    public static UiSurface ActivityGraphFromTimeline(IReadOnlyList<Synapse> timeline, int maxEvents = 20)
+    {
+        var activity = timeline.OfType<ClusterActivity>().TakeLast(maxEvents).ToList();
+        var nodes = activity
+            .GroupBy(a => a.NodeId)
+            .Select(g =>
+            {
+                var latest = g.Last();
+                return new Dictionary<string, object?>
+                {
+                    ["id"] = latest.NodeId,
+                    ["label"] = latest.NodeId,
+                    ["activity"] = Math.Clamp(latest.Value, 0.0, 1.0)
+                };
+            })
+            .ToArray();
+
+        var edges = nodes
+            .Zip(nodes.Skip(1), (from, to) => new Dictionary<string, object?>
+            {
+                ["from"] = from["id"],
+                ["to"] = to["id"],
+                ["value"] = 0.4
+            })
+            .ToArray();
+
+        var events = timeline
+            .Where(s => s is ClusterActivity or ThreeDGraphUpdate)
+            .TakeLast(maxEvents)
+            .Select(GraphEvent)
+            .ToArray();
+
+        return new UiSurface(
+            UiSurfaceKinds.ActivityGraph,
+            WithCommon(
+                surfaceId: "surface.activity-graph.live",
+                emitter: "digitalbrain.cluster",
+                title: "Activity Graph",
+                layout: UiSurfaceLayouts.Compact,
+                priority: 5,
+                props: new Dictionary<string, object?>
+                {
+                    ["nodes"] = nodes,
+                    ["edges"] = edges,
+                    ["events"] = events
+                }));
+    }
+
+    public static UiSurface MarketplaceListFromPacks(
+        IReadOnlyList<NeuroPack> publishedPacks,
+        IReadOnlyList<NeuroPack> installedPacks)
+    {
+        var installedKeys = installedPacks
+            .Select(PackKey)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var packs = publishedPacks
+            .Select(pack => new Dictionary<string, object?>
+            {
+                ["name"] = pack.Name,
+                ["version"] = pack.Version,
+                ["ownerId"] = pack.OwnerId,
+                ["private"] = pack.IsPrivate,
+                ["commissionRate"] = pack.CommissionRate,
+                ["description"] = pack.Description,
+                ["installed"] = installedKeys.Contains(PackKey(pack)) || pack.Name.StartsWith("DigitalBrain.UI", StringComparison.Ordinal)
+            })
+            .ToArray();
+
+        return new UiSurface(
+            UiSurfaceKinds.MarketplaceList,
+            WithCommon(
+                surfaceId: "surface.marketplace-list.live",
+                emitter: "market-main",
+                title: "Marketplace",
+                layout: UiSurfaceLayouts.Panel,
+                priority: 4,
+                props: new Dictionary<string, object?>
+                {
+                    ["packs"] = packs,
+                    ["installAction"] = UiSurfaceSamples.SynapseAction(
+                        "install-pack",
+                        "Install",
+                        nameof(InstallFromMarketplace),
+                        new Dictionary<string, object?>
+                        {
+                            ["buyerId"] = "current-user"
+                        }),
+                    ["updateAction"] = UiSurfaceSamples.SynapseAction(
+                        "update-pack",
+                        "Update",
+                        nameof(InstallFromMarketplace),
+                        new Dictionary<string, object?>
+                        {
+                            ["buyerId"] = "current-user"
+                        })
+                }));
+    }
+
+    public static UiSurface TimelineFromSynapses(IReadOnlyList<Synapse> timeline, int maxEvents = 20)
+    {
+        var events = timeline
+            .OrderBy(s => s.Timestamp)
+            .TakeLast(maxEvents)
+            .Select(TimelineEvent)
+            .ToArray();
+
+        var filters = events
+            .Select(e => e["type"])
+            .OfType<string>()
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(type => type, StringComparer.Ordinal)
+            .ToArray();
+
+        return new UiSurface(
+            UiSurfaceKinds.Timeline,
+            WithCommon(
+                surfaceId: "surface.timeline.live",
+                emitter: "digitalbrain.journal",
+                title: "Timeline",
+                layout: UiSurfaceLayouts.Drawer,
+                priority: 2,
+                props: new Dictionary<string, object?>
+                {
+                    ["events"] = events,
+                    ["filters"] = new Dictionary<string, object?>
+                    {
+                        ["types"] = filters
+                    }
+                }));
+    }
+
+    private static Dictionary<string, object?> BuildKernelTask(string taskId, IReadOnlyList<Synapse> timeline)
+    {
+        var taskEvents = timeline
+            .Where(s => IsTaskEventFor(s, taskId))
+            .OrderBy(s => s.Timestamp)
+            .ToList();
+
+        if (taskEvents.Count == 0)
+        {
+            return new Dictionary<string, object?>
+            {
+                ["taskId"] = taskId,
+                ["title"] = taskId,
+                ["state"] = "unknown",
+                ["progress"] = 0.0,
+                ["detail"] = "No task journal entries found."
+            };
+        }
+
+        var created = taskEvents.OfType<KernelTaskCreated>().LastOrDefault();
+        var latest = taskEvents.Last();
+        var state = latest switch
+        {
+            KernelTaskCompleted => "completed",
+            KernelTaskCancelled => "cancelled",
+            KernelTaskProgress => "running",
+            KernelTaskStarted => "running",
+            KernelTaskCreated => "created",
+            _ => "unknown"
+        };
+        var progress = latest switch
+        {
+            KernelTaskCompleted => 1.0,
+            KernelTaskCancelled => 0.0,
+            KernelTaskProgress => 0.65,
+            KernelTaskStarted => 0.35,
+            KernelTaskCreated => 0.1,
+            _ => 0.0
+        };
+        var detail = latest switch
+        {
+            KernelTaskCompleted completed => completed.Result ?? "Completed",
+            KernelTaskCancelled => "Cancelled",
+            KernelTaskProgress taskProgress => taskProgress.Detail,
+            KernelTaskStarted => "Started",
+            KernelTaskCreated taskCreated => taskCreated.Description,
+            _ => latest.Type
+        };
+
+        return new Dictionary<string, object?>
+        {
+            ["taskId"] = taskId,
+            ["title"] = created?.Description ?? taskId,
+            ["state"] = state,
+            ["progress"] = progress,
+            ["detail"] = detail,
+            ["updatedAt"] = latest.Timestamp,
+            [UiSurfaceKeys.Actions] = TaskActions(taskId, created?.Description ?? taskId)
+        };
+    }
+
+    private static IReadOnlyDictionary<string, object?>[] TaskActions(string taskId, string description) =>
+        new[]
+        {
+            UiSurfaceSamples.SynapseAction(
+                "inspect-" + taskId,
+                "Inspect",
+                nameof(RunKernelTask),
+                new Dictionary<string, object?>
+                {
+                    ["taskId"] = taskId,
+                    ["description"] = "Inspect task: " + description
+                }),
+            UiSurfaceSamples.SynapseAction(
+                "cancel-" + taskId,
+                "Cancel",
+                nameof(CancelKernelTask),
+                new Dictionary<string, object?>
+                {
+                    ["taskId"] = taskId
+                })
+        };
+
+    private static bool IsTaskEventFor(Synapse synapse, string taskId) =>
+        synapse switch
+        {
+            KernelTaskCreated task => task.TaskId == taskId,
+            KernelTaskStarted task => task.TaskId == taskId,
+            KernelTaskProgress task => task.TaskId == taskId,
+            KernelTaskCompleted task => task.TaskId == taskId,
+            KernelTaskCancelled task => task.TaskId == taskId,
+            _ => false
+        };
+
+    private static Dictionary<string, object?> GraphEvent(Synapse synapse) =>
+        synapse switch
+        {
+            ClusterActivity activity => new Dictionary<string, object?>
+            {
+                ["type"] = nameof(ClusterActivity),
+                ["nodeId"] = activity.NodeId,
+                ["activity"] = activity.Activity,
+                ["value"] = activity.Value,
+                ["at"] = activity.Timestamp
+            },
+            ThreeDGraphUpdate update => new Dictionary<string, object?>
+            {
+                ["type"] = nameof(ThreeDGraphUpdate),
+                ["graphId"] = update.GraphId,
+                ["dataJson"] = update.DataJson,
+                ["at"] = update.Timestamp
+            },
+            _ => TimelineEvent(synapse)
+        };
+
+    private static Dictionary<string, object?> TimelineEvent(Synapse synapse) =>
+        new()
+        {
+            ["type"] = synapse.Type,
+            ["title"] = TitleFor(synapse),
+            ["at"] = synapse.Timestamp,
+            ["sender"] = synapse.Sender?.Value,
+            ["receiver"] = synapse.Receiver?.Value
+        };
+
+    private static string TitleFor(Synapse synapse) =>
+        synapse switch
+        {
+            KernelTaskCreated task => task.Description,
+            KernelTaskProgress task => task.Detail,
+            KernelTaskCompleted task => task.Result ?? "Task completed",
+            KernelTaskCancelled task => "Task cancelled: " + task.TaskId,
+            PublishedList list => $"{list.Packs.Count} published packs",
+            NeuroPackInstalled installed => "Installed " + installed.Pack.Name,
+            ClusterActivity activity => $"{activity.NodeId}: {activity.Activity}",
+            ThreeDGraphUpdate update => "Graph update: " + update.GraphId,
+            InoResponse response => response.Response,
+            _ => synapse.Type
+        };
+
+    private static string PackKey(NeuroPack pack) => pack.Name + "@" + pack.Version;
+
+    private static IReadOnlyDictionary<string, object?> WithCommon(
+        string surfaceId,
+        string emitter,
+        string title,
+        string layout,
+        Dictionary<string, object?> props,
+        int priority = 0,
+        bool requiresInput = false)
+    {
+        props[UiSurfaceKeys.SurfaceId] = surfaceId;
+        props[UiSurfaceKeys.Emitter] = emitter;
+        props[UiSurfaceKeys.Title] = title;
+        props[UiSurfaceKeys.Priority] = priority;
+        props[UiSurfaceKeys.RequiresInput] = requiresInput;
+        props[UiSurfaceKeys.Layout] = layout;
+
+        if (!props.ContainsKey(UiSurfaceKeys.Actions))
+        {
+            props[UiSurfaceKeys.Actions] = Array.Empty<IReadOnlyDictionary<string, object?>>();
+        }
+
+        return props;
+    }
+}
+
 /// <summary>
 /// Auth button surface. GmailDigest etc. return this so the UI kit knows to show Google icon + wire OAuth.
 /// </summary>
