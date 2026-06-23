@@ -265,35 +265,10 @@ static async Task SeedPreExistingAsync(IMarketplaceNeuron market)
         "NeuroTasks", "1.0", "", "digitalbraintech", false, 0.0,
         "Core tasks view and kernel task runner. INO spawns, tracks, completes tasks via journals."));
 
-    await market.FireAsync(new PublishToMarketplace(
-        "DigitalBrain.UIKit.ForUI", "0.1.0",
-        "Trusted Flutter primitive pack: ForUI theme, shell chrome, icons, cards, forms, sidebars, menus, popovers, tooltips, resizable workbench controls, and common UiSurface renderers.",
-        "digitalbraintech", false, 0.0,
-        "Preinstalled ForUI primitive kit for rendering DigitalBrain UiSurface contracts. Tier-1 changes require Flutter rebuild/restart."));
-
-    await market.FireAsync(new PublishToMarketplace(
-        "DigitalBrain.UI.Workbench", "0.1.0",
-        "Startup workbench experience: one canvas with panels for kernel tasks, activity graph, marketplace, INO input, task windows, and timeline.",
-        "digitalbraintech", false, 0.0,
-        "Preinstalled dynamic Flutter workbench. Layout and surface props stream at runtime."));
-
-    await market.FireAsync(new PublishToMarketplace(
-        "DigitalBrain.UI.Graph3D", "0.1.0",
-        "Trusted graph primitive pack: compact neuron activity graph, expandable 3D/canvas graph view, ClusterActivity and ThreeDGraphUpdate renderers.",
-        "digitalbraintech", false, 0.0,
-        "Compact activity graph UI primitive pack for live DigitalBrain cluster state."));
-
-    await market.FireAsync(new PublishToMarketplace(
-        "DigitalBrain.UI.CreatorSurfaces", "0.1.0",
-        "Surface templates for generated software: user-input, task-window, editor, preview, review, and approval panels driven by UiSurface data.",
-        "digitalbraintech", false, 0.0,
-        "Reusable dynamic surface templates for software created inside DigitalBrain."));
-
-    await market.FireAsync(new PublishToMarketplace(
-        "DigitalBrain.UI.AspireFlutter", "0.1.0",
-        "Aspire Flutter integration recipe: one default Flutter UI client resource, start/restart descriptors, and rebuild guidance for trusted primitive pack updates.",
-        "digitalbraintech", false, 0.0,
-        "Local Flutter client integration pack. Keeps startup to one UI resource by default."));
+    foreach (var command in MarketplaceSeeds.LocalUiPackPublishCommands())
+    {
+        await market.FireAsync(command);
+    }
 
     await market.FireAsync(new PublishToMarketplace(
         "AwesomeExample", "1.0", "", "awesome-team", false, 0.10,

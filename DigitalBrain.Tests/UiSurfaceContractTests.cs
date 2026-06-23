@@ -126,6 +126,19 @@ public class UiSurfaceContractTests
         AssertSynapseAction(surface.Props["updateAction"], nameof(InstallFromMarketplace));
     }
 
+    [Fact]
+    public void Local_Marketplace_Seeds_Include_Preinstalled_Ui_Packs()
+    {
+        var packs = MarketplaceSeeds.LocalUiPacks;
+
+        Assert.Contains(packs, p => p.Name == "DigitalBrain.UIKit.ForUI");
+        Assert.Contains(packs, p => p.Name == "DigitalBrain.UI.Workbench");
+        Assert.Contains(packs, p => p.Name == "DigitalBrain.UI.Graph3D");
+        Assert.Contains(packs, p => p.Name == "DigitalBrain.UI.CreatorSurfaces");
+        Assert.Contains(packs, p => p.Name == "DigitalBrain.UI.AspireFlutter");
+        Assert.All(packs, p => Assert.Equal("digitalbraintech", p.OwnerId));
+    }
+
     private static void AssertCommonProp(UiSurface surface, string key) =>
         Assert.True(surface.Props.ContainsKey(key), $"{surface.Kind} is missing common prop '{key}'.");
 

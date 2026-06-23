@@ -238,9 +238,8 @@ public class DigitalBrainTools(IServiceProvider services, IConfiguration configu
             }
 
             var marketplace = grains.GetGrain<IMarketplaceNeuron>("market-main");
-            await marketplace.FireAsync(new ListPublished());
+            var published = await GetPublishedPacksWithLocalSeedsAsync(marketplace);
             var marketplaceTimeline = await marketplace.GetTimelineAsync();
-            var published = marketplaceTimeline.OfType<PublishedList>().LastOrDefault()?.Packs ?? Array.Empty<NeuroPack>();
             var installed = marketplaceTimeline.OfType<NeuroPackInstalled>().Select(i => i.Pack).ToArray();
 
             var timeline = taskTimelines
@@ -395,6 +394,7 @@ public class DigitalBrainTools(IServiceProvider services, IConfiguration configu
         try
         {
             var market = grains.GetGrain<IMarketplaceNeuron>("market-main");
+            await GetPublishedPacksWithLocalSeedsAsync(market);
             await market.FireAsync(new InstallFromMarketplace(packName, version, buyerId));
             return $"Installed '{packName}@{version}' for buyer '{buyerId}'. Commission should have been taken.";
         }
@@ -410,11 +410,9 @@ public class DigitalBrainTools(IServiceProvider services, IConfiguration configu
         try
         {
             var market = grains.GetGrain<IMarketplaceNeuron>("market-main");
-            await market.FireAsync(new ListPublished());
-            var timeline = await market.GetTimelineAsync();
-            var list = timeline.LastOrDefault(s => s is PublishedList) as PublishedList;
-            if (list == null || list.Packs.Count == 0) return "No packs published yet.";
-            return string.Join("\n", list.Packs.Select(p => 
+            var packs = await GetPublishedPacksWithLocalSeedsAsync(market);
+            if (packs.Count == 0) return "No packs published yet.";
+            return string.Join("\n", packs.Select(p =>
                 $"- {p.Name}@{p.Version} (owner: {p.OwnerId}, private: {p.IsPrivate}, comm: {p.CommissionRate:P0})"));
         }
         catch (Exception ex)
@@ -470,16 +468,30 @@ public class DigitalBrainTools(IServiceProvider services, IConfiguration configu
     }
 
     [McpServerTool(Name = "cluster_3d_activity"), Description("Fire activity for 3D graph in UI kit (connects to cluster observation).")]
-    public async Task<string> Cluster3D([Description("Node ID")] string node, [Description("Activity type")] string act, [Description("Value")] double v)
+    public async Task<string> Cluster3D(
+        [Description("Node ID")] string node,
+        [Description("Activity type")] string activity,
+        [Description("Value")] double value)
     {
         try
         {
             var vis = ResolveNeuron("cluster-vis");
-            await vis.FireAsync(new ClusterActivity(node, act, v));
-            await vis.FireAsync(new ThreeDGraphUpdate("main", $"{{\"node\":\"{node}\",\"act\":\"{act}\",\"v\":{v}}}"));
+            await vis.FireAsync(new ClusterActivity(node, activity, value));
+
+            var graphUpdateJson = JsonSerializer.Serialize(new
+            {
+                node,
+                activity,
+                value
+            });
+            await vis.FireAsync(new ThreeDGraphUpdate("main", graphUpdateJson));
+
             return "Cluster activity sent for 3D visualization.";
         }
-        catch { return "Fired for 3D graph (demo)."; }
+        catch (Exception ex)
+        {
+            return $"Error sending cluster activity: {Explain(ex)}";
+        }
     }
 
     // Closed loops exposed via MCP so they can be tested/invoked after installing the marketplace packs (UIClosedLoop, SoftwareEngineeringClosedLoop)
@@ -528,6 +540,37 @@ public class DigitalBrainTools(IServiceProvider services, IConfiguration configu
     private static IEnumerable<string> SplitIds(string value) =>
         value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Where(id => !string.IsNullOrWhiteSpace(id));
+
+    private static async Task<IReadOnlyList<NeuroPack>> GetPublishedPacksWithLocalSeedsAsync(IMarketplaceNeuron marketplace)
+    {
+        await marketplace.FireAsync(new ListPublished());
+        var published = await ReadLatestPublishedPacksAsync(marketplace);
+        var publishedKeys = published.Select(PackKey).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var missingLocalPacks = MarketplaceSeeds.LocalUiPacks
+            .Where(pack => !publishedKeys.Contains(PackKey(pack)))
+            .ToArray();
+
+        if (missingLocalPacks.Length == 0)
+        {
+            return published;
+        }
+
+        foreach (var pack in missingLocalPacks)
+        {
+            await marketplace.FireAsync(MarketplaceSeeds.ToPublishCommand(pack));
+        }
+
+        await marketplace.FireAsync(new ListPublished());
+        return await ReadLatestPublishedPacksAsync(marketplace);
+    }
+
+    private static async Task<IReadOnlyList<NeuroPack>> ReadLatestPublishedPacksAsync(IMarketplaceNeuron marketplace)
+    {
+        var timeline = await marketplace.GetTimelineAsync();
+        return timeline.OfType<PublishedList>().LastOrDefault()?.Packs ?? Array.Empty<NeuroPack>();
+    }
+
+    private static string PackKey(NeuroPack pack) => $"{pack.Name}@{pack.Version}";
 
     private static string Explain(Exception exception)
     {

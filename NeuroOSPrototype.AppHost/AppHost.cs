@@ -32,6 +32,8 @@ if (Directory.Exists(flutterUiPath))
     var flutterCommand = builder.Configuration["DigitalBrain:FlutterCommand"]
         ?? Environment.GetEnvironmentVariable("FLUTTER_COMMAND")
         ?? "flutter";
+    var mcpProjectPath = Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "..", "DigitalBrain.Mcp"));
+    var mcpDllPath = Path.Combine(mcpProjectPath, "bin", "Debug", "net11.0", "DigitalBrain.Mcp.dll");
 
     builder.AddExecutable(
             "flutter-ui",
@@ -44,8 +46,13 @@ if (Directory.Exists(flutterUiPath))
             "DIGITALBRAIN_SURFACE_TOOL=get_workbench_surfaces",
             "--dart-define",
             "DIGITALBRAIN_ACTION_TOOL=fire_ui_action")
+        .WithReference(ctx.OrleansClient)
+        .WithReference((IResourceBuilder<IResourceWithConnectionString>)ctx.Llm)
         .WithEnvironment("DIGITALBRAIN_UI_PACK", "DigitalBrain.UI.AspireFlutter")
-        .WithEnvironment("DIGITALBRAIN_UI_TIER1_RESTART_REQUIRED", "true");
+        .WithEnvironment("DIGITALBRAIN_UI_TIER1_RESTART_REQUIRED", "true")
+        .WithEnvironment("DIGITALBRAIN_MCP_COMMAND", "dotnet")
+        .WithEnvironment("DIGITALBRAIN_MCP_ARGS", mcpDllPath)
+        .WithEnvironment("DIGITALBRAIN_MCP_WORKDIR", mcpProjectPath);
 }
 
 if (ctx.EnableMcp)
