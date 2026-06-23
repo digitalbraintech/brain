@@ -58,6 +58,13 @@ if (ctx.EnableMcp)
 
 silo.WithEnvironment("DIGITALBRAIN_USE_LOCAL_MARKETPLACE", ctx.UseLocalMarketplace ? "true" : "false");
 silo.WithEnvironment("DIGITALBRAIN_SURFACES_ENABLED", "true");
+
+// Inject Ollama LLM config so AddDigitalBrainChat registers IChatClient in the Aspire-hosted silo.
+// Cloud path: override DigitalBrain__Llm__Provider=azureopenai via DIGITALBRAIN_ENV or appsettings.
+silo.WithEnvironment("DigitalBrain__Llm__Provider", "ollama");
+silo.WithEnvironment("DigitalBrain__Llm__Model", ctx.LlmModel);
+silo.WithEnvironment("DigitalBrain__Llm__OllamaEndpoint",
+    ReferenceExpression.Create($"http://{ctx.OllamaEndpoint.Property(EndpointProperty.Host)}:{ctx.OllamaEndpoint.Property(EndpointProperty.Port)}"));
 if (ctx.EnableOrleansDashboard)
 {
     silo.WithEnvironment("ORLEANS_DASHBOARD_PORT", (ctx.OrleansDashboardPort ?? 8080).ToString());

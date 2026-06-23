@@ -13,6 +13,12 @@ public sealed class DigitalBrainContext
     public required int KernelReplicas { get; init; }
     public required bool UseLocalMarketplace { get; init; }
 
+    // The resolved LLM model name (e.g. "qwen2.5-coder:1.5b") for env injection
+    public required string LlmModel { get; init; }
+
+    // Ollama container http endpoint for DigitalBrain__Llm__OllamaEndpoint injection
+    public required EndpointReference OllamaEndpoint { get; init; }
+
     // Storage resources exposed so AppHost can wire WithReference on silo
     public required IResourceBuilder<AzureBlobStorageResource> GrainBlobs { get; init; }
     public required IResourceBuilder<AzureBlobStorageResource> JournalBlobs { get; init; }
@@ -61,6 +67,8 @@ public static class DigitalBrainBuilderExtensions
             OrleansClient = orleans.AsClient(),
             KernelReplicas = options.KernelReplicas,
             UseLocalMarketplace = options.UseLocalMarketplace,
+            LlmModel = llmModel,
+            OllamaEndpoint = ollama.GetEndpoint("http"),
             EnableOrleansDashboard = options.EnableOrleansDashboard,
             OrleansDashboardPort = options.OrleansDashboardPort,
             EnableMcp = options.EnableMcp,
