@@ -421,15 +421,28 @@ public class SoftwareEngineeringClosedLoopNeuron : Neuron, IHandle<ClosedLoopReq
             }
             var full = sysPrompt + "\nPROMPT: " + req.Prompt + "\nCTX: journal-driven";
             var acc = "";
-            await foreach (var ch in llm.GenerateAsync(full))
-                if (ch?.Response is string t) acc += t;
-            analysis = acc.Trim();
+            try
+            {
+                await foreach (var ch in llm.GenerateAsync(full))
+                    if (ch?.Response is string t) acc += t;
+                analysis = string.IsNullOrWhiteSpace(acc) ? "processed" : acc.Trim();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "ClosedLoop LLM analysis failed; recording fallback completion.");
+                analysis = "llm-error-fallback: " + ex.GetBaseException().Message;
+            }
         }
 
         await FireAsync(new ClosedLoopCompleted(req.LoopType, analysis.Length > 20 ? analysis : "processed", false));
 
         // For SE, attempt Aspire MCP driven apply if prompt indicates modification
-        if (!req.LoopType.Contains("ui", StringComparison.OrdinalIgnoreCase) && analysis.Contains("restart", StringComparison.OrdinalIgnoreCase) || analysis.Contains("apply", StringComparison.OrdinalIgnoreCase))
+        var shouldAttemptAspireApply =
+            !req.LoopType.Contains("ui", StringComparison.OrdinalIgnoreCase) &&
+            (analysis.Contains("restart", StringComparison.OrdinalIgnoreCase) ||
+             analysis.Contains("apply", StringComparison.OrdinalIgnoreCase));
+
+        if (shouldAttemptAspireApply)
         {
             await EnsureAspireMcpAsync();
             if (_aspireMcp != null)

@@ -431,3 +431,7 @@ FodyWeavers.xsd
 # DigitalBrain fast-path runtime artifacts (marketplace persistence + user generated software/exports)
 data/
 output/
+
+# stray local build/test output redirects
+build-output.txt
+test-output.txt
