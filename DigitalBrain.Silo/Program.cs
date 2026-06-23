@@ -27,12 +27,18 @@ if (isAspireHosted)
     // Cloud host (standalone ACA): bind the journal BlobServiceClient from ConnectionStrings__journal here;
     // clustering + grain storage are wired directly in UseOrleans below from their connection strings. (Under an
     // Aspire AppHost those would be wired by WithClustering/WithGrainStorage; in ACA the silo configures Orleans itself.)
-    builder.AddKeyedAzureBlobServiceClient("journal");
+    var clusteringServiceKey = Environment.GetEnvironmentVariable("Orleans__Clustering__ServiceKey") ?? "clustering";
+    var grainStorageServiceKey = Environment.GetEnvironmentVariable("Orleans__GrainStorage__Default__ServiceKey") ?? "grainstate";
+    const string journalServiceKey = "journal";
+
+    builder.AddKeyedAzureTableServiceClient(clusteringServiceKey);
+    builder.AddKeyedAzureBlobServiceClient(grainStorageServiceKey);
+    builder.AddKeyedAzureBlobServiceClient(journalServiceKey);
 
     builder.Services.AddSingleton<IConfigureOptions<AzureBlobJournalStorageOptions>>(sp =>
         new ConfigureNamedOptions<AzureBlobJournalStorageOptions>(
             Options.DefaultName,
-            options => options.BlobServiceClient = sp.GetRequiredKeyedService<BlobServiceClient>("journal")));
+            options => options.BlobServiceClient = sp.GetRequiredKeyedService<BlobServiceClient>(journalServiceKey)));
 }
 
 builder.Services.AddDigitalBrainChat(builder.Configuration);
@@ -50,10 +56,13 @@ builder.UseOrleans(siloBuilder =>
     {
         // Cloud path: wire Orleans clustering (Table) + grain storage (Blob) from the injected connection strings,
         // then the durable Blob journal. A stable cluster/service id lets the silo rejoin the same cluster on restart.
+        var clusterId = builder.Configuration["Orleans:ClusterId"] ?? "digitalbrain";
+        var serviceId = builder.Configuration["Orleans:ServiceId"] ?? "digitalbrain";
+
         siloBuilder.Configure<ClusterOptions>(options =>
         {
-            options.ClusterId = "digitalbrain";
-            options.ServiceId = "digitalbrain";
+            options.ClusterId = clusterId;
+            options.ServiceId = serviceId;
         });
         siloBuilder.UseAzureStorageClustering(options =>
             options.ConfigureTableServiceClient(builder.Configuration.GetConnectionString("clustering")!));
