@@ -16,7 +16,7 @@ namespace DigitalBrain.Deploy;
 // Minimal Pulumi program for DigitalBrain / NeuroOS. Provisions only what the runtime actually uses:
 // a resource group, one StorageV2 account (Orleans Table clustering + Blob grain/journal), Azure OpenAI
 // (gpt-4o-mini "chat"), Log Analytics + App Insights, an ACA managed environment, and a single silo
-// container app (ingress-less worker) pulling its image from public GHCR. Replaces the vendored DeploymentKit.
+// container app with an internal Http2 ingress (gRPC gateway on port 8080). Replaces the vendored DeploymentKit.
 internal static class Program
 {
     private const string Region = "westeurope";
@@ -176,6 +176,12 @@ internal static class Program
             ManagedEnvironmentId = containerEnvironment.Id,
             Configuration = new AppInputs.ConfigurationArgs
             {
+                Ingress = new AppInputs.IngressArgs
+                {
+                    External = false,
+                    TargetPort = 8080,
+                    Transport = "Http2"
+                },
                 Secrets =
                 {
                     new AppInputs.SecretArgs { Name = StorageConnectionSecret, Value = storageConnectionString },

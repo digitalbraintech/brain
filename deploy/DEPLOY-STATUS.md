@@ -13,7 +13,7 @@ resources). Both kept resources and the silo are healthy.
 - `azure-native:cognitiveservices:Account` digitalbrainopenaiprod (S0) + `Deployment` chat (gpt-4o-mini, GlobalStandard, cap 10)
 - `azure-native:operationalinsights:Workspace` digitalbrain-log-prod + `applicationinsights:Component` digitalbrain-ai-prod
 - `azure-native:app:ManagedEnvironment` digitalbrain-cae-prod
-- `azure-native:app:ContainerApp` digitalbrain-jobs (silo, no ingress / worker)
+- `azure-native:app:ContainerApp` digitalbrain-jobs (silo, internal Http2 ingress on port 8080 / gRPC gateway)
 
 ### Deleted in Pass 1
 Key Vault (`digitalbrainkvprod`), ACR (`digitalbrainacrprod`), the gateway app (`digitalbrain-api`,
@@ -22,13 +22,15 @@ external HTTP — `api.digitalbrain.tech` no longer served), and the empty Deplo
 placeholder-image deploy are gone.
 
 ### Image registry
-The silo image lives in **public Docker Hub**: `docker.io/vhorbachov/digitalbrain-silo:v3`
+The silo image lives in **public Docker Hub**: `docker.io/vhorbachov/digitalbrain-silo:v4`
 (built with `dotnet publish -t:PublishContainer --os linux --arch x64`, pushed via the docker CLI). ACA
 pulls it anonymously — no registry credentials. Live revision `digitalbrain-jobs--0000005` is `Running`
 on this image.
 
 ### Silo (Orleans) runtime
-The silo (`digitalbrain-jobs`) runs as an ingress-less worker with Azure **Table clustering**
+The silo now exposes an internal-only Http2 ingress on port 8080 serving the gRPC `DigitalBrainGateway` (Ask/Fire/Timeline/Health).
+
+The silo (`digitalbrain-jobs`) runs with Azure **Table clustering**
 (`OrleansSiloInstances`), **Blob grain storage** (`grainstate`) and **Blob journaling**, all wired from
 the injected `ConnectionStrings__clustering/grainstate/journal` (one StorageV2 connection string, a
 Container App secret) plus `DigitalBrain__Llm__AzureOpenAIEndpoint/AzureOpenAIKey` and
