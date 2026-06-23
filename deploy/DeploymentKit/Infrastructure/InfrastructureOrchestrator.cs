@@ -11,7 +11,7 @@ namespace DeploymentKit.Infrastructure;
 /// <summary>
 /// Orchestrates the creation of all infrastructure resources in the correct order
 /// </summary>
-public class InfrastructureOrchestrator(ILogger<InfrastructureOrchestrator> logger, ICorrelationIdService correlationIdService, IPreDeploymentValidator preDeploymentValidator, INetworkService networkService, IContainerRegistryService containerRegistryService, IDatabaseService databaseService, ICacheService cacheService, IMonitoringService monitoringService, IStorageService storageService, IContainerAppsService containerAppsService, IKeyVaultService keyVaultService, IApplicationGatewayService applicationGatewayService, IDomainOptimizationService domainOptimizationService, IEventHubsService eventHubsService, IFrontDoorDeployer frontDoorDeployer, ICertificateManagementService? certificateManagementService = null, IDatabaseMigrationService? databaseMigrationService = null)
+public class InfrastructureOrchestrator(ILogger<InfrastructureOrchestrator> logger, ICorrelationIdService correlationIdService, IPreDeploymentValidator preDeploymentValidator, INetworkService networkService, IContainerRegistryService containerRegistryService, IDatabaseService databaseService, ICacheService cacheService, IMonitoringService monitoringService, IStorageService storageService, IContainerAppsService containerAppsService, IKeyVaultService keyVaultService, IApplicationGatewayService applicationGatewayService, IDomainOptimizationService domainOptimizationService, IEventHubsService eventHubsService, IFrontDoorDeployer frontDoorDeployer, IOpenAiService openAiService, ICertificateManagementService? certificateManagementService = null, IDatabaseMigrationService? databaseMigrationService = null)
 {
     private readonly ILogger<InfrastructureOrchestrator> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     private readonly ICorrelationIdService _correlationIdService = correlationIdService ?? throw new ArgumentNullException(nameof(correlationIdService));
@@ -28,6 +28,7 @@ public class InfrastructureOrchestrator(ILogger<InfrastructureOrchestrator> logg
     private readonly IDomainOptimizationService _domainOptimizationService = domainOptimizationService ?? throw new ArgumentNullException(nameof(domainOptimizationService));
     private readonly IEventHubsService _eventHubsService = eventHubsService ?? throw new ArgumentNullException(nameof(eventHubsService));
     private readonly IFrontDoorDeployer _frontDoorDeployer = frontDoorDeployer ?? throw new ArgumentNullException(nameof(frontDoorDeployer));
+    private readonly IOpenAiService _openAiService = openAiService ?? throw new ArgumentNullException(nameof(openAiService));
 
     /// <summary>
     /// Deploys the complete 
@@ -87,6 +88,7 @@ public class InfrastructureOrchestrator(ILogger<InfrastructureOrchestrator> logg
             var keyVaultTask = CreateServiceWithLogging("KeyVault", () => _keyVaultService.CreateAsync(settings, resourceGroup.Name, cancellationToken), correlationId);
             var eventHubsTask = CreateServiceWithLogging("EventHubs", () => _eventHubsService.CreateAsync(settings, resourceGroup.Name, cancellationToken), correlationId);
             var cacheTask = CreateServiceWithLogging("Cache", () => _cacheService.CreateAsync(settings, resourceGroup.Name, cancellationToken), correlationId);
+            var openAiTask = CreateServiceWithLogging("OpenAI", () => _openAiService.CreateAsync(settings, resourceGroup.Name, cancellationToken), correlationId);
 
             // Wait for Network to be available for VNet integrated services
             var network = await networkTask;
@@ -94,7 +96,7 @@ public class InfrastructureOrchestrator(ILogger<InfrastructureOrchestrator> logg
             // Database service relies on Network for VNet integration
             var databaseTask = CreateServiceWithLogging("Database", () => _databaseService.CreateAsync(settings, resourceGroup.Name, network, cancellationToken), correlationId);
 
-            await Task.WhenAll(monitoringTask, containerRegistryTask, storageTask, keyVaultTask, eventHubsTask, databaseTask, cacheTask);
+            await Task.WhenAll(monitoringTask, containerRegistryTask, storageTask, keyVaultTask, eventHubsTask, databaseTask, cacheTask, openAiTask);
 
             var monitoring = await monitoringTask;
             var containerRegistry = await containerRegistryTask;
@@ -103,6 +105,7 @@ public class InfrastructureOrchestrator(ILogger<InfrastructureOrchestrator> logg
             var eventHubs = await eventHubsTask;
             var database = await databaseTask;
             var cache = await cacheTask;
+            var openAi = await openAiTask;
 
             _logger.LogInformation("All independent services created in {ElapsedMs}ms for CorrelationId: {CorrelationId}", independentServicesStopwatch.ElapsedMilliseconds, correlationId);
 
@@ -182,9 +185,11 @@ public class InfrastructureOrchestrator(ILogger<InfrastructureOrchestrator> logg
                 cache,
                 network,
                 eventHubs,
-                keyVault,
-                cancellationToken,
-                azureFrontDoorId);
+                storage: storage,
+                openAi: openAi,
+                keyVault: keyVault,
+                cancellationToken: cancellationToken,
+                azureFrontDoorId: azureFrontDoorId);
             _logger.LogInformation("Container Apps created in {ElapsedMs}ms for CorrelationId: {CorrelationId}", containerAppsStopwatch.ElapsedMilliseconds, correlationId);
 
             cancellationToken.ThrowIfCancellationRequested();
@@ -248,6 +253,7 @@ public class InfrastructureOrchestrator(ILogger<InfrastructureOrchestrator> logg
                 ApplicationGateway = applicationGateway,
                 DomainOptimization = domainOptimization,
                 EventHubs = eventHubs,
+                OpenAi = openAi,
                 FrontDoor = frontDoor,
                 ApiUrl = domainOptimization?.OptimizedDomainUrl ?? containerApps.ApiAppUrl,
                 WebsiteUrl = frontDoor?.WebsiteCustomDomainHostName != null

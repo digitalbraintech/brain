@@ -27,6 +27,8 @@ public class ResourceNamingService : IResourceNamingService
 
     public string GenerateStorageAccountName(string prefix, string environment) => SanitizeAlphanumeric( string.Format(System.Globalization.CultureInfo.InvariantCulture, InfrastructureConstants.NamingPatterns.StorageAccount, prefix, environment), InfrastructureConstants.NamingPatterns.MaxStorageAccountNameLength).ToLowerInvariant();
 
+    public string GenerateOpenAiAccountName(string prefix, string environment) => SanitizeAlphanumeric(string.Format(System.Globalization.CultureInfo.InvariantCulture, "{0}openai{1}", prefix, environment), 24).ToLowerInvariant();
+
     public string GenerateContainerAppsEnvironmentName(string prefix, string environment) => string.Format(System.Globalization.CultureInfo.InvariantCulture, InfrastructureConstants.NamingPatterns.ContainerAppsEnvironment, prefix, environment);
 
     public string GenerateContainerAppName(string prefix, string appType, string environment) => string.Format(System.Globalization.CultureInfo.InvariantCulture, InfrastructureConstants.NamingPatterns.ContainerApp, prefix, appType);

@@ -63,6 +63,14 @@ public interface IResourceNamingService
     string GenerateStorageAccountName(string prefix, string environment);
 
     /// <summary>
+    /// Generates a standardized name for an Azure OpenAI (Cognitive Services) account
+    /// </summary>
+    /// <param name="prefix">Project or application prefix for resource identification</param>
+    /// <param name="environment">Target environment (dev, staging, prod)</param>
+    /// <returns>Formatted Azure OpenAI account name following Azure naming conventions</returns>
+    string GenerateOpenAiAccountName(string prefix, string environment);
+
+    /// <summary>
     /// Generates a standardized name for Azure Container Apps Environment
     /// </summary>
     /// <param name="prefix">Project or application prefix for resource identification</param>

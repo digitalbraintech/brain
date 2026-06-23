@@ -32,15 +32,23 @@ public class KeyVaultService(ILogger<KeyVaultService> logger, IResourceNamingSer
                 ?? Environment.GetEnvironmentVariable("AZURE_TENANT_ID")
                 ?? throw new InvalidOperationException("AZURE_TENANT_ID or ARM_TENANT_ID environment variable is required");
 
+            // RBAC vaults ignore access policies, so the deploying principal's object id is only needed for the
+            // legacy access-policy path. Require ARM_CLIENT_ID/AZURE_CLIENT_ID only when RBAC is disabled.
+            var rbacEnabled = settings.KeyVault?.EnableRbacAuthorization == true;
             var currentPrincipalId = Environment.GetEnvironmentVariable("ARM_CLIENT_ID")
-                ?? Environment.GetEnvironmentVariable("AZURE_CLIENT_ID")
-                ?? throw new InvalidOperationException("AZURE_CLIENT_ID or ARM_CLIENT_ID environment variable is required");
+                ?? Environment.GetEnvironmentVariable("AZURE_CLIENT_ID");
+
+            if (!rbacEnabled && string.IsNullOrEmpty(currentPrincipalId))
+            {
+                throw new InvalidOperationException("AZURE_CLIENT_ID or ARM_CLIENT_ID environment variable is required");
+            }
 
             // Determine SKU based on environment
             var skuName = settings.Environment.ToLowerInvariant() == ServiceConstants.KeyVault.ProductionEnvironment ? SkuName.Premium : SkuName.Standard;
 
-            // Get access policies for the environment
-            var accessPolicies = GetAccessPolicies(settings, currentPrincipalId, tenantId);
+            var accessPolicies = rbacEnabled
+                ? new InputList<AccessPolicyEntryArgs>()
+                : GetAccessPolicies(settings, currentPrincipalId!, tenantId);
 
             var keyVault = new Vault(keyVaultName, new VaultArgs
             {

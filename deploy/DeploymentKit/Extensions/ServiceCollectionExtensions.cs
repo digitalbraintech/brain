@@ -103,6 +103,10 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IOpenAiService, OpenAiService>();
         services.AddScoped<IContainerAppsService, ContainerAppsService>();
         services.AddScoped<IGreenBlueContainerAppsService, GreenBlueContainerAppsService>();
+        services.AddScoped<ISlotManagementService, SlotManagementService>();
+        services.AddScoped<IDeploymentStatusService, DeploymentStatusService>();
+        services.AddScoped<IIngressManagementService, IngressManagementService>();
+        services.AddScoped<ITrafficManagementService, TrafficManagementService>();
         services.AddScoped<GreenBlueTrafficSwitcher>();
         services.AddScoped<IKeyVaultService, KeyVaultService>();
         services.AddScoped<INetworkService, NetworkService>();

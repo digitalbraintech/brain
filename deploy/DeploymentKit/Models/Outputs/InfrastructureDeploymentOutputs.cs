@@ -16,7 +16,8 @@ public class InfrastructureDeploymentOutputs
     public DomainOptimizationOutputs? DomainOptimization { get; set; }
     public FrontDoorOutputs? FrontDoor { get; set; }
     public EventHubsOutputs EventHubs { get; set; } = null!;
-    
+    public OpenAiOutputs? OpenAi { get; set; }
+
     public Output<string> ApiUrl { get; set; } = null!;
     public Output<string> WebsiteUrl { get; set; } = null!;
     public Output<string> MiniAppUrl { get; set; } = null!;

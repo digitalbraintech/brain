@@ -64,8 +64,9 @@ public class NetworkService(ILogger<NetworkService> logger, IResourceNamingServi
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            // Skip VNet creation for public environments without subnets configured
-            if (string.IsNullOrEmpty(settings.Network.VNetAddressSpace) ||
+            // Skip VNet creation for public environments without subnets configured (or when networking is unused)
+            if (settings.Network == null ||
+                string.IsNullOrEmpty(settings.Network.VNetAddressSpace) ||
                 string.IsNullOrEmpty(settings.Network.ContainerAppsSubnet))
             {
                 _logger.LogInformation("Skipping VNet creation for public environment (IsInternalEnvironment=false) for CorrelationId: {CorrelationId}", correlationId);

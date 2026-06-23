@@ -30,7 +30,7 @@ public class InfrastructureSettings
     [Required(ErrorMessage = "Resource group type is required")]
     public ResourceGroupType ResourceGroupType { get; set; } = ResourceGroupType.Application;
 
-    [Required(ErrorMessage = "Database settings are required")]
+    // Optional: a PostgreSQL server is only provisioned when added via AddDatabase(); null is a valid no-op.
     public DatabaseSettings? Database { get; set; } = new();
 
     [Required(ErrorMessage = "Container settings are required")]
@@ -45,7 +45,7 @@ public class InfrastructureSettings
     // Event Hubs is optional - only required if message broker functionality is needed
     public EventHubsSettings? EventHubs { get; set; }
 
-    [Required(ErrorMessage = "Network settings are required")]
+    // Optional: a virtual network is only provisioned when added via AddNetworking(); null is a valid no-op.
     public NetworkSettings? Network { get; set; } = new();
 
     // Optional storage settings (validated when provided)

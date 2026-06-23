@@ -40,14 +40,17 @@ public static class ContainerAppsSecretsHelper
         // Add standard secrets based on placeholder mode
         if (settings.Container is { UsePlaceholderImages: true })
         {
-            secretsList.Add(new SecretArgs
+            if (!string.IsNullOrEmpty(settings.Database?.Password))
             {
-                Name = ServiceConstants.ContainerApps.DbPasswordSecretRef,
-                Value = Output.CreateSecret(settings.Database?.Password ?? throw new InvalidOperationException("Database password is required"))
-            });
-            secretNames.Add(ServiceConstants.ContainerApps.DbPasswordSecretRef);
+                secretsList.Add(new SecretArgs
+                {
+                    Name = ServiceConstants.ContainerApps.DbPasswordSecretRef,
+                    Value = Output.CreateSecret(settings.Database.Password)
+                });
+                secretNames.Add(ServiceConstants.ContainerApps.DbPasswordSecretRef);
+            }
 
-            if (!hasKeyVaultDb)
+            if (!hasKeyVaultDb && settings.Database != null)
             {
                 secretsList.Add(new SecretArgs
                 {
@@ -66,14 +69,17 @@ public static class ContainerAppsSecretsHelper
             });
             secretNames.Add(ServiceConstants.ContainerApps.AcrPasswordSecretRef);
 
-            secretsList.Add(new SecretArgs
+            if (!string.IsNullOrEmpty(settings.Database?.Password))
             {
-                Name = ServiceConstants.ContainerApps.DbPasswordSecretRef,
-                Value = Output.CreateSecret(settings.Database?.Password ?? throw new InvalidOperationException("Database password is required"))
-            });
-            secretNames.Add(ServiceConstants.ContainerApps.DbPasswordSecretRef);
+                secretsList.Add(new SecretArgs
+                {
+                    Name = ServiceConstants.ContainerApps.DbPasswordSecretRef,
+                    Value = Output.CreateSecret(settings.Database.Password)
+                });
+                secretNames.Add(ServiceConstants.ContainerApps.DbPasswordSecretRef);
+            }
 
-            if (!hasKeyVaultDb)
+            if (!hasKeyVaultDb && settings.Database != null)
             {
                 secretsList.Add(new SecretArgs
                 {

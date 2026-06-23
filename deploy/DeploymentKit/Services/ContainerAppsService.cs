@@ -25,6 +25,8 @@ public class ContainerAppsService(ILogger<ContainerAppsService> logger, IResourc
         CacheOutputs cache,
         NetworkOutputs network,
         EventHubsOutputs eventHubs,
+        StorageOutputs? storage = null,
+        OpenAiOutputs? openAi = null,
         KeyVaultOutputs? keyVault = null,
         CancellationToken cancellationToken = default,
         Input<string>? azureFrontDoorId = null)
@@ -44,6 +46,8 @@ public class ContainerAppsService(ILogger<ContainerAppsService> logger, IResourc
                 cache,
                 network,
                 eventHubs,
+                storage,
+                openAi,
                 keyVault,
                 cancellationToken,
                 azureFrontDoorId));
@@ -58,6 +62,8 @@ public class ContainerAppsService(ILogger<ContainerAppsService> logger, IResourc
         CacheOutputs cache,
         NetworkOutputs network,
         EventHubsOutputs eventHubs,
+        StorageOutputs? storage = null,
+        OpenAiOutputs? openAi = null,
         KeyVaultOutputs? keyVault = null,
         CancellationToken cancellationToken = default,
         Input<string>? azureFrontDoorId = null)
@@ -143,9 +149,11 @@ public class ContainerAppsService(ILogger<ContainerAppsService> logger, IResourc
 
             var containerAppsEnvironment = new ManagedEnvironment(environmentName, managedEnvArgs, ComponentResourceScope.CreateChildOptions(environmentName));
 
-            var apiApp = CreateApiContainerApp(settings, resourceGroup, containerAppsEnvironment, containerRegistry, database, cache, monitoring, eventHubs, keyVault, azureFrontDoorId);
-            var jobsApp = CreateJobsContainerApp(settings, resourceGroup, containerAppsEnvironment, containerRegistry, database, cache, monitoring, eventHubs, keyVault, azureFrontDoorId);
-            var botApp = CreateBotContainerApp(settings, resourceGroup, containerAppsEnvironment, containerRegistry, database, cache, monitoring, eventHubs, keyVault, azureFrontDoorId);
+            var digitalBrainEnv = BuildDigitalBrainRuntimeEnv(settings, storage, openAi);
+
+            var apiApp = CreateApiContainerApp(settings, resourceGroup, containerAppsEnvironment, containerRegistry, database, cache, monitoring, eventHubs, keyVault, azureFrontDoorId, digitalBrainEnv);
+            var jobsApp = CreateJobsContainerApp(settings, resourceGroup, containerAppsEnvironment, containerRegistry, database, cache, monitoring, eventHubs, keyVault, azureFrontDoorId, digitalBrainEnv);
+            var botApp = CreateBotContainerApp(settings, resourceGroup, containerAppsEnvironment, containerRegistry, database, cache, monitoring, eventHubs, keyVault, azureFrontDoorId, digitalBrainEnv);
 
             ContainerAppsIdentityHelper.ConfigureKeyVaultAccessForContainerApps(settings, keyVault, apiApp, jobsApp, botApp, _namingService);
 
@@ -216,9 +224,9 @@ public class ContainerAppsService(ILogger<ContainerAppsService> logger, IResourc
             await cacheTask,
             await networkTask,
             await eventHubsTask,
-            await keyVaultTask,
-            cancellationToken,
-            azureFrontDoorId);
+            keyVault: await keyVaultTask,
+            cancellationToken: cancellationToken,
+            azureFrontDoorId: azureFrontDoorId);
     }
 
     private ContainerApp CreateApiContainerApp(
@@ -231,7 +239,8 @@ public class ContainerAppsService(ILogger<ContainerAppsService> logger, IResourc
         MonitoringOutputs monitoring,
         EventHubsOutputs eventHubs,
         KeyVaultOutputs? keyVault,
-        Input<string>? azureFrontDoorId)
+        Input<string>? azureFrontDoorId,
+        IEnumerable<EnvironmentVarArgs>? additionalEnv)
     {
         var apiAppName = _namingService.GenerateContainerAppName(settings.NamingPrefix, ServiceConstants.ContainerAppTypes.Api, settings.Environment);
         var imageToUse = ResolveImage(settings.Container!.UsePlaceholderImages, containerRegistry.LoginServer, settings.Container.ApiImageTag);
@@ -262,7 +271,7 @@ public class ContainerAppsService(ILogger<ContainerAppsService> logger, IResourc
                     {
                         Name = ServiceConstants.ContainerAppTypes.Api,
                         Image = imageToUse,
-                        Env = ContainerAppsConfigurationHelper.BuildEnvironmentVariables(settings, cache, eventHubs, monitoring, keyVault, azureFrontDoorId, _logger),
+                        Env = ContainerAppsConfigurationHelper.BuildEnvironmentVariables(settings, cache, eventHubs, monitoring, keyVault, azureFrontDoorId, _logger, additionalEnv),
                         Resources = new ContainerResourcesArgs
                         {
                             Cpu = settings.Container.CpuLimit,
@@ -286,11 +295,14 @@ public class ContainerAppsService(ILogger<ContainerAppsService> logger, IResourc
         MonitoringOutputs monitoring,
         EventHubsOutputs eventHubs,
         KeyVaultOutputs? keyVault,
-        Input<string>? azureFrontDoorId)
+        Input<string>? azureFrontDoorId,
+        IEnumerable<EnvironmentVarArgs>? additionalEnv)
     {
         var jobsAppName = _namingService.GenerateContainerAppName(settings.NamingPrefix, ServiceConstants.ContainerAppTypes.Jobs, settings.Environment);
         var imageToUse = ResolveImage(settings.Container!.UsePlaceholderImages, containerRegistry.LoginServer, settings.Container.JobsImageTag);
-        var ingressConfig = ContainerAppsConfigurationHelper.CreateIngressConfiguration(CreateInternalIngressSettings(settings), _logger);
+        // The Jobs app is a background worker (e.g. an Orleans silo) that serves no HTTP, so it gets no ingress —
+        // an HTTP readiness probe on an ingress port it never listens on would keep the revision unhealthy.
+        IngressArgs? ingressConfig = null;
         var registries = BuildRegistries(settings, containerRegistry);
         var (secrets, secretNames) = ContainerAppsSecretsHelper.BuildSecretsListWithKeyVault(settings, containerRegistry, database, keyVault, _logger);
 
@@ -317,7 +329,7 @@ public class ContainerAppsService(ILogger<ContainerAppsService> logger, IResourc
                     {
                         Name = ServiceConstants.ContainerAppTypes.Jobs,
                         Image = imageToUse,
-                        Env = ContainerAppsConfigurationHelper.BuildEnvironmentVariables(settings, cache, eventHubs, monitoring, keyVault, azureFrontDoorId, _logger),
+                        Env = ContainerAppsConfigurationHelper.BuildEnvironmentVariables(settings, cache, eventHubs, monitoring, keyVault, azureFrontDoorId, _logger, additionalEnv),
                         Resources = new ContainerResourcesArgs
                         {
                             Cpu = settings.Container.CpuLimit,
@@ -341,7 +353,8 @@ public class ContainerAppsService(ILogger<ContainerAppsService> logger, IResourc
         MonitoringOutputs monitoring,
         EventHubsOutputs eventHubs,
         KeyVaultOutputs? keyVault,
-        Input<string>? azureFrontDoorId)
+        Input<string>? azureFrontDoorId,
+        IEnumerable<EnvironmentVarArgs>? additionalEnv)
     {
         if (settings.Bot?.Enabled != true)
         {
@@ -380,7 +393,7 @@ public class ContainerAppsService(ILogger<ContainerAppsService> logger, IResourc
                     {
                         Name = ServiceConstants.ContainerAppTypes.Bot,
                         Image = imageToUse,
-                        Env = BuildBotEnvironmentVariables(settings, cache, eventHubs, monitoring, keyVault, azureFrontDoorId),
+                        Env = BuildBotEnvironmentVariables(settings, cache, eventHubs, monitoring, keyVault, azureFrontDoorId, additionalEnv),
                         Resources = new ContainerResourcesArgs
                         {
                             Cpu = settings.Container.CpuLimit,
@@ -400,7 +413,8 @@ public class ContainerAppsService(ILogger<ContainerAppsService> logger, IResourc
         EventHubsOutputs eventHubs,
         MonitoringOutputs monitoring,
         KeyVaultOutputs? keyVault,
-        Input<string>? azureFrontDoorId)
+        Input<string>? azureFrontDoorId,
+        IEnumerable<EnvironmentVarArgs>? additionalEnv)
     {
         var botSettings = settings.Bot!;
         var kafkaBootstrap = eventHubs.EventHubsEndpoint.Apply(endpoint =>
@@ -426,6 +440,11 @@ public class ContainerAppsService(ILogger<ContainerAppsService> logger, IResourc
             new() { Name = ServiceConstants.EnvironmentVariables.KafkaSaslPassword, Value = eventHubs.EventHubsConnectionString }
         };
 
+        if (additionalEnv != null)
+        {
+            additionalEnvironmentVariables.AddRange(additionalEnv);
+        }
+
         return ContainerAppsConfigurationHelper.BuildEnvironmentVariables(
             settings,
             cache,
@@ -435,6 +454,37 @@ public class ContainerAppsService(ILogger<ContainerAppsService> logger, IResourc
             azureFrontDoorId,
             _logger,
             additionalEnvironmentVariables);
+    }
+
+    // Plain env vars from the caller (e.g. DigitalBrain__Llm__Provider/Model, DIGITALBRAIN_ENV) plus the
+    // NeuroOS silo/gateway runtime contract: one Storage connection string drives Orleans clustering (Table)
+    // and grain/journal storage (Blob); the Azure OpenAI endpoint+key back the cloud IChatClient.
+    private static List<EnvironmentVarArgs> BuildDigitalBrainRuntimeEnv(InfrastructureSettings settings, StorageOutputs? storage, OpenAiOutputs? openAi)
+    {
+        var env = new List<EnvironmentVarArgs>();
+
+        if (settings.Container?.AdditionalEnvironmentVariables != null)
+        {
+            foreach (var pair in settings.Container.AdditionalEnvironmentVariables)
+            {
+                env.Add(new EnvironmentVarArgs { Name = pair.Key, Value = pair.Value });
+            }
+        }
+
+        if (storage != null)
+        {
+            env.Add(new EnvironmentVarArgs { Name = "ConnectionStrings__clustering", Value = storage.ConnectionString });
+            env.Add(new EnvironmentVarArgs { Name = "ConnectionStrings__grainstate", Value = storage.ConnectionString });
+            env.Add(new EnvironmentVarArgs { Name = "ConnectionStrings__journal", Value = storage.ConnectionString });
+        }
+
+        if (openAi != null)
+        {
+            env.Add(new EnvironmentVarArgs { Name = "DigitalBrain__Llm__AzureOpenAIEndpoint", Value = openAi.Endpoint });
+            env.Add(new EnvironmentVarArgs { Name = "DigitalBrain__Llm__AzureOpenAIKey", Value = openAi.PrimaryKey });
+        }
+
+        return env;
     }
 
     private static Output<string> ResolveContainerAppUrl(ContainerApp app) =>
@@ -530,7 +580,7 @@ public class ContainerAppsService(ILogger<ContainerAppsService> logger, IResourc
             ConsumerGroupName = "$Default"
         };
 
-        var result = await CreateAsync(settings, resourceGroup, monitoring, containerRegistry, database, cache, network, eventHubs, null, cancellationToken, null);
+        var result = await CreateAsync(settings, resourceGroup, monitoring, containerRegistry, database, cache, network, eventHubs, keyVault: null, cancellationToken: cancellationToken, azureFrontDoorId: null);
         return result;
     }
 

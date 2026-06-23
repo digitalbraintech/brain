@@ -1,0 +1,4 @@
+encryptionsalt: v1:1mTrpGijTVE=:v1:AvipetckTQKaHa+L:NbyRQ4eNUUDLr1Yu7UywG1VqnUlyWg==
+config:
+  digitalbrain-deploy:imageTag: v3
+  digitalbrain-deploy:usePlaceholderImages: "false"

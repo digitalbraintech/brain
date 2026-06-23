@@ -74,7 +74,8 @@ public class StorageService(ILogger<StorageService> logger, IResourceNamingServi
 
             // Create Storage Account
             var storageStopwatch = Stopwatch.StartNew();
-            var storageAccount = CreateStorageAccount(settings, resourceGroup, storageAccountName, correlationId, DefaultAction.Deny, enableStaticWebsite: false, siteSettings: null);
+            var networkDefaultAction = settings.Storage.AllowPublicNetworkAccess ? DefaultAction.Allow : DefaultAction.Deny;
+            var storageAccount = CreateStorageAccount(settings, resourceGroup, storageAccountName, correlationId, networkDefaultAction, enableStaticWebsite: false, siteSettings: null);
             _logger.LogInformation(ServiceConstants.Storage.AccountCreationSuccessMessage, storageAccountName, storageStopwatch.ElapsedMilliseconds, correlationId);
 
             var websiteStorage = CreateStaticSiteStorageAccount(settings, resourceGroup, correlationId, settings.WebsiteStaticSite);

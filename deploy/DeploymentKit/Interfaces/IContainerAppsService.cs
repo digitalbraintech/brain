@@ -32,6 +32,8 @@ public interface IContainerAppsService : IInfrastructureService
         CacheOutputs cache,
         NetworkOutputs network,
         EventHubsOutputs eventHubs,
+        StorageOutputs? storage = null,
+        OpenAiOutputs? openAi = null,
         KeyVaultOutputs? keyVault = null,
         CancellationToken cancellationToken = default,
         Input<string>? azureFrontDoorId = null);

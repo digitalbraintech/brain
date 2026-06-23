@@ -38,6 +38,12 @@ public class StorageSettings
     public bool AllowSharedKeyAccess { get; set; } = true;
 
     /// <summary>
+    /// When true the account's network default action is Allow (reachable from public networks); otherwise Deny.
+    /// Required for workloads without VNet integration (e.g. public Container Apps) to reach the account.
+    /// </summary>
+    public bool AllowPublicNetworkAccess { get; set; }
+
+    /// <summary>
     /// Default content type for blobs
     /// </summary>
     [RegularExpression(@"^[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9]/[a-zA-Z0-9][a-zA-Z0-9\-\+]*[a-zA-Z0-9]$", ErrorMessage = "Invalid content type format")]

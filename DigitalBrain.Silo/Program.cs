@@ -4,6 +4,7 @@ using DigitalBrain.Silo.Foundry;
 using DigitalBrain.Silo.Llm;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Orleans.Configuration;
 using Orleans.Journaling;
 using Orleans.Journaling.Json;
 
@@ -23,12 +24,11 @@ var isAspireHosted = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("C
 
 if (isAspireHosted)
 {
-    // Aspire injects Azure Storage connection strings via env; register keyed service clients so Orleans + journaling can resolve them.
-    builder.AddKeyedAzureTableServiceClient("clustering");
-    builder.AddKeyedAzureBlobServiceClient("grainstate");
+    // Cloud host (standalone ACA): bind the journal BlobServiceClient from ConnectionStrings__journal here;
+    // clustering + grain storage are wired directly in UseOrleans below from their connection strings. (Under an
+    // Aspire AppHost those would be wired by WithClustering/WithGrainStorage; in ACA the silo configures Orleans itself.)
     builder.AddKeyedAzureBlobServiceClient("journal");
 
-    // Bind keyed journal BlobServiceClient to AzureBlobJournalStorageOptions before UseOrleans sees it.
     builder.Services.AddSingleton<IConfigureOptions<AzureBlobJournalStorageOptions>>(sp =>
         new ConfigureNamedOptions<AzureBlobJournalStorageOptions>(
             Options.DefaultName,
@@ -48,8 +48,17 @@ builder.UseOrleans(siloBuilder =>
     }
     else
     {
-        // Aspire path: clustering + grain storage wired by Aspire Orleans integration via WithClustering/WithGrainStorage.
-        // Journal: BlobServiceClient bound above via IConfigureOptions; just register the provider + format.
+        // Cloud path: wire Orleans clustering (Table) + grain storage (Blob) from the injected connection strings,
+        // then the durable Blob journal. A stable cluster/service id lets the silo rejoin the same cluster on restart.
+        siloBuilder.Configure<ClusterOptions>(options =>
+        {
+            options.ClusterId = "digitalbrain";
+            options.ServiceId = "digitalbrain";
+        });
+        siloBuilder.UseAzureStorageClustering(options =>
+            options.ConfigureTableServiceClient(builder.Configuration.GetConnectionString("clustering")!));
+        siloBuilder.AddAzureBlobGrainStorage("Default", options =>
+            options.ConfigureBlobServiceClient(builder.Configuration.GetConnectionString("grainstate")!));
         siloBuilder.AddAzureBlobJournalStorage()
             .UseJsonJournalFormat(DigitalBrain.Protocol.JournalJsonContext.Default);
     }

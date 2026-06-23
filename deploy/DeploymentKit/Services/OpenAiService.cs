@@ -38,7 +38,7 @@ public class OpenAiService(ILogger<OpenAiService> logger, IResourceNamingService
 
         cancellationToken.ThrowIfCancellationRequested();
 
-        string accountName = BuildAccountName(settings.NamingPrefix, settings.Environment);
+        string accountName = _namingService.GenerateOpenAiAccountName(settings.NamingPrefix, settings.Environment);
         _logger.LogInformation("Creating Azure OpenAI account {AccountName} in {Location}.", accountName, settings.Location);
 
         var account = new Account(accountName, new AccountArgs
@@ -98,13 +98,6 @@ public class OpenAiService(ILogger<OpenAiService> logger, IResourceNamingService
 
         _logger.LogInformation("Azure OpenAI account {AccountName} configured with chat deployment {Deployment}.", accountName, openAi.ChatDeploymentName);
         return Task.FromResult(outputs);
-    }
-
-    private string BuildAccountName(string prefix, string environment)
-    {
-        string combined = $"{prefix}openai{environment}";
-        string sanitized = new string(combined.Where(char.IsLetterOrDigit).ToArray()).ToLowerInvariant();
-        return sanitized.Length <= 24 ? sanitized : sanitized[..24];
     }
 
     async Task<object> IInfrastructureService.CreateAsync(InfrastructureSettings settings, Input<string> resourceGroup, CancellationToken cancellationToken) => await CreateAsync(settings, resourceGroup, cancellationToken);

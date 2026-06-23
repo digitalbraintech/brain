@@ -33,17 +33,6 @@ public static class ContainerAppEnvVarHelper
         {
             new() { Name = ServiceConstants.EnvironmentVariables.AspNetCoreUrls, Value = ServiceConstants.ContainerDefaults.AspNetCoreUrlsValue },
             new() { Name = ServiceConstants.EnvironmentVariables.AspNetCoreEnvironment, Value = settings.Environment },
-            hasKeyVaultDb
-                ? new EnvironmentVarArgs
-                {
-                    Name = ServiceConstants.EnvironmentVariables.PostgresConnectionString,
-                    SecretRef = DbSecretName.ToLowerInvariant()
-                }
-                : new EnvironmentVarArgs
-                {
-                    Name = ServiceConstants.EnvironmentVariables.PostgresConnectionString,
-                    SecretRef = ServiceConstants.ContainerApps.PostgresConnectionStringSecretRef
-                },
             new() { Name = ServiceConstants.EnvironmentVariables.RedisConnectionString, Value = cache.ConnectionString },
             new() { Name = ServiceConstants.EnvironmentVariables.EventHubsConnectionString, Value = eventHubs.EventHubsConnectionString },
             new() { Name = ServiceConstants.EnvironmentVariables.ApplicationInsightsConnectionString, Value = monitoring.ApplicationInsightsConnectionString },
@@ -60,6 +49,25 @@ public static class ContainerAppEnvVarHelper
             ServiceConstants.EnvironmentVariables.ApplicationInsightsConnectionString,
             ServiceConstants.EnvironmentVariables.OtelExporterEndpoint
         };
+
+        // Only wire the Postgres connection string when a database is actually provisioned; an empty
+        // secret value is rejected by Container Apps (ContainerAppSecretInvalid).
+        if (hasKeyVaultDb)
+        {
+            envVarsList.Add(new EnvironmentVarArgs
+            {
+                Name = ServiceConstants.EnvironmentVariables.PostgresConnectionString,
+                SecretRef = DbSecretName.ToLowerInvariant()
+            });
+        }
+        else if (settings.Database != null)
+        {
+            envVarsList.Add(new EnvironmentVarArgs
+            {
+                Name = ServiceConstants.EnvironmentVariables.PostgresConnectionString,
+                SecretRef = ServiceConstants.ContainerApps.PostgresConnectionStringSecretRef
+            });
+        }
 
         if (azureFrontDoorId != null)
         {
