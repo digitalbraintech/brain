@@ -56,6 +56,11 @@ if (ctx.EnableMcp)
         .WithReference((IResourceBuilder<IResourceWithConnectionString>)ctx.Llm);
 }
 
+var gateway = builder.AddProject<Projects.DigitalBrain_Gateway>("gateway")
+    .WithReference(ctx.OrleansClient)
+    .WithReference(ctx.ClusteringTable)
+    .WithExternalHttpEndpoints();
+
 silo.WithEnvironment("DIGITALBRAIN_USE_LOCAL_MARKETPLACE", ctx.UseLocalMarketplace ? "true" : "false");
 silo.WithEnvironment("DIGITALBRAIN_SURFACES_ENABLED", "true");
 

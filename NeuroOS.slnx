@@ -1,5 +1,6 @@
 <Solution>
   <Project Path="DigitalBrain.Aspire/DigitalBrain.Aspire.csproj" />
+  <Project Path="DigitalBrain.Gateway/DigitalBrain.Gateway.csproj" />
   <Project Path="DigitalBrain.Cli/DigitalBrain.Cli.csproj" />
   <Project Path="DigitalBrain.Protocol/DigitalBrain.Protocol.csproj" />
   <Project Path="DigitalBrain.Silo/DigitalBrain.Silo.csproj" />
