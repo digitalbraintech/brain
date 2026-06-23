@@ -10,8 +10,10 @@
     <EnableSdkContainerSupport>true</EnableSdkContainerSupport>
     <ContainerRepository>digitalbrain-silo</ContainerRepository>
     <!-- noble-chiseled not yet published for .NET 11 preview; use standard preview base -->
-    <ContainerBaseImage>mcr.microsoft.com/dotnet/aspnet:11.0-preview</ContainerBaseImage>
-    <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
+    <!-- runtime base: silo is a Worker SDK host (Host.CreateApplicationBuilder), never calls MapDefaultEndpoints/WebApplication -->
+    <ContainerBaseImage>mcr.microsoft.com/dotnet/runtime:11.0-preview</ContainerBaseImage>
+    <RuntimeIdentifiers>linux-x64;win-x64</RuntimeIdentifiers>
+    <ContainerRuntimeIdentifier>linux-x64</ContainerRuntimeIdentifier>
   </PropertyGroup>
 
   <ItemGroup>

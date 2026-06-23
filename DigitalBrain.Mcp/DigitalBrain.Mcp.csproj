@@ -9,7 +9,8 @@
     <ContainerRepository>digitalbrain-mcp</ContainerRepository>
     <!-- noble-chiseled not yet published for .NET 11 preview; use standard preview base -->
     <ContainerBaseImage>mcr.microsoft.com/dotnet/runtime:11.0-preview</ContainerBaseImage>
-    <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
+    <RuntimeIdentifiers>linux-x64;win-x64</RuntimeIdentifiers>
+    <ContainerRuntimeIdentifier>linux-x64</ContainerRuntimeIdentifier>
   </PropertyGroup>
 
   <ItemGroup>
@@ -22,9 +23,9 @@
     <PackageReference Include="Microsoft.Extensions.Hosting" />
 
     <!-- Orleans Client like DigitalBrain.Cli -->
+    <PackageReference Include="Aspire.Azure.Data.Tables" />
     <PackageReference Include="Aspire.StackExchange.Redis" />
     <PackageReference Include="Microsoft.Orleans.Client" />
-    <PackageReference Include="Microsoft.Orleans.Clustering.AzureStorage" />
     <PackageReference Include="Microsoft.Orleans.Clustering.Redis" />
     <PackageReference Include="Microsoft.Orleans.Core" />
   </ItemGroup>
