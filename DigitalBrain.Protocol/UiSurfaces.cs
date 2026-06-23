@@ -7,6 +7,34 @@ namespace DigitalBrain.Protocol;
 [GenerateSerializer]
 public record UiSurface(string Kind, IReadOnlyDictionary<string, object?> Props) : Synapse(nameof(UiSurface), DateTimeOffset.UtcNow);
 
+[GenerateSerializer]
+public record ChartSpec(
+    [property: Id(0)] string Title,
+    [property: Id(1)] string ChartType,
+    [property: Id(2)] IReadOnlyList<IReadOnlyDictionary<string, object?>> Data,
+    [property: Id(3)] string X,
+    [property: Id(4)] string Y,
+    [property: Id(5)] string? Series = null,
+    [property: Id(6)] string? Color = null,
+    [property: Id(7)] bool Tooltip = true,
+    [property: Id(8)] bool Crosshair = true,
+    [property: Id(9)] string? Summary = null)
+{
+    public IReadOnlyDictionary<string, object?> ToProps() => new Dictionary<string, object?>
+    {
+        ["title"] = Title,
+        ["chartType"] = ChartType,
+        ["data"] = Data,
+        ["x"] = X,
+        ["y"] = Y,
+        ["series"] = Series,
+        ["color"] = Color,
+        ["tooltip"] = Tooltip,
+        ["crosshair"] = Crosshair,
+        ["summary"] = Summary
+    };
+}
+
 public static class UiSurfaceKinds
 {
     public const string AuthButton = "auth-button";
@@ -18,6 +46,7 @@ public static class UiSurfaceKinds
     public const string UserInput = "user-input";
     public const string MarketplaceList = "marketplace-list";
     public const string Timeline = "timeline";
+    public const string DataChart = "data-chart";
 }
 
 public static class UiSurfaceKeys
@@ -33,6 +62,7 @@ public static class UiSurfaceKeys
     public const string Label = "label";
     public const string SynapseType = "synapseType";
     public const string Props = "props";
+    public const string ChartSpec = "chartSpec";
 }
 
 public static class UiSurfaceLayouts
@@ -235,6 +265,43 @@ public static class UiSurfaceSamples
                 }
             }));
 
+    public static UiSurface DataChart() => DataChart(
+        surfaceId: "surface.data-chart.demo",
+        emitter: "chart-main",
+        spec: new ChartSpec(
+            Title: "Sales by Month",
+            ChartType: "bar",
+            Data: new[]
+            {
+                new Dictionary<string, object?> { ["month"] = "Jan", ["sales"] = 12 },
+                new Dictionary<string, object?> { ["month"] = "Feb", ["sales"] = 18 }
+            },
+            X: "month",
+            Y: "sales",
+            Summary: "2 rows. Bar chart of sales by month."));
+
+    public static UiSurface DataChart(string surfaceId, string emitter, ChartSpec spec) => new(
+        UiSurfaceKinds.DataChart,
+        WithCommon(
+            surfaceId: surfaceId,
+            emitter: emitter,
+            title: spec.Title,
+            layout: UiSurfaceLayouts.Panel,
+            priority: 6,
+            props: new Dictionary<string, object?>
+            {
+                [UiSurfaceKeys.ChartSpec] = spec.ToProps(),
+                ["chartType"] = spec.ChartType,
+                ["data"] = spec.Data,
+                ["x"] = spec.X,
+                ["y"] = spec.Y,
+                ["series"] = spec.Series,
+                ["color"] = spec.Color,
+                ["tooltip"] = spec.Tooltip,
+                ["crosshair"] = spec.Crosshair,
+                ["summary"] = spec.Summary
+            }));
+
     public static IReadOnlyDictionary<string, object?> SynapseAction(
         string actionId,
         string label,
@@ -280,14 +347,20 @@ public static class UiSurfaceLiveData
         IReadOnlyList<NeuroPack> publishedPacks,
         IReadOnlyList<NeuroPack> installedPacks,
         IReadOnlyList<Synapse> timelineEvents,
-        int maxEvents = 20) =>
-        new[]
+        int maxEvents = 20,
+        IReadOnlyList<Synapse>? chartTimeline = null)
+    {
+        var surfaces = new List<UiSurface>
         {
             KernelTasksFromTimelines(taskTimelines),
             ActivityGraphFromTimeline(graphTimeline, maxEvents),
-            MarketplaceListFromPacks(publishedPacks, installedPacks),
-            TimelineFromSynapses(timelineEvents, maxEvents)
+            MarketplaceListFromPacks(publishedPacks, installedPacks)
         };
+
+        surfaces.AddRange(ChartSurfacesFromTimeline(chartTimeline ?? timelineEvents, maxEvents));
+        surfaces.Add(TimelineFromSynapses(timelineEvents, maxEvents));
+        return surfaces;
+    }
 
     public static UiSurface KernelTasksFromTimelines(
         IEnumerable<(string TaskId, IReadOnlyList<Synapse> Timeline)> taskTimelines)
@@ -446,6 +519,22 @@ public static class UiSurfaceLiveData
                 }));
     }
 
+    public static IReadOnlyList<UiSurface> ChartSurfacesFromTimeline(IReadOnlyList<Synapse> timeline, int maxEvents = 20)
+    {
+        var generated = timeline
+            .OfType<DataChartGenerated>()
+            .Select(generated => generated.Surface);
+
+        var direct = timeline
+            .OfType<UiSurface>()
+            .Where(surface => surface.Kind == UiSurfaceKinds.DataChart);
+
+        return generated
+            .Concat(direct)
+            .TakeLast(maxEvents)
+            .ToArray();
+    }
+
     private static Dictionary<string, object?> BuildKernelTask(string taskId, IReadOnlyList<Synapse> timeline)
     {
         var taskEvents = timeline
@@ -582,6 +671,8 @@ public static class UiSurfaceLiveData
             NeuroPackInstalled installed => "Installed " + installed.Pack.Name,
             ClusterActivity activity => $"{activity.NodeId}: {activity.Activity}",
             ThreeDGraphUpdate update => "Graph update: " + update.GraphId,
+            DataChartGenerated generated => "Chart generated: " + generated.RequestId,
+            DataChartFailed failed => "Chart failed: " + failed.Reason,
             InoResponse response => response.Response,
             _ => synapse.Type
         };

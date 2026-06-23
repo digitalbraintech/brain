@@ -67,6 +67,9 @@ namespace DigitalBrain.Protocol;
 [JsonSerializable(typeof(FilterChanged))]
 [JsonSerializable(typeof(ClusterActivity))]
 [JsonSerializable(typeof(ThreeDGraphUpdate))]
+[JsonSerializable(typeof(VisualizeDataRequest))]
+[JsonSerializable(typeof(DataChartGenerated))]
+[JsonSerializable(typeof(DataChartFailed))]
 [JsonSerializable(typeof(WidgetTreeInspected))]
 [JsonSerializable(typeof(UIModificationProposed))]
 [JsonSerializable(typeof(SystemModificationProposed))]
@@ -85,6 +88,7 @@ namespace DigitalBrain.Protocol;
 [JsonSerializable(typeof(FoundryRolledBack))]
 // UI surface synapses
 [JsonSerializable(typeof(UiSurface))]
+[JsonSerializable(typeof(ChartSpec))]
 [JsonSerializable(typeof(AuthButtonSurface))]
 [JsonSerializable(typeof(ListSurface))]
 [JsonSerializable(typeof(IdeSurface))]

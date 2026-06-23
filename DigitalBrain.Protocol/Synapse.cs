@@ -283,6 +283,21 @@ public record ClusterActivity(string NodeId, string Activity, double Value) : Sy
 [GenerateSerializer]
 public record ThreeDGraphUpdate(string GraphId, string DataJson) : Synapse(nameof(ThreeDGraphUpdate), DateTimeOffset.UtcNow);
 
+[GenerateSerializer]
+public record VisualizeDataRequest(
+    string Prompt,
+    string DataJson,
+    string? ChartHint = null,
+    string? RequestId = null) : Synapse(nameof(VisualizeDataRequest), DateTimeOffset.UtcNow, CorrelationId: RequestId);
+
+[GenerateSerializer]
+public record DataChartGenerated(string RequestId, UiSurface Surface) : Synapse(nameof(DataChartGenerated), DateTimeOffset.UtcNow);
+
+[GenerateSerializer]
+public record DataChartFailed(string RequestId, string Reason) : Synapse(nameof(DataChartFailed), DateTimeOffset.UtcNow);
+
+public interface IDataVisualizationNeuron : INeuron, IHandle<VisualizeDataRequest> { }
+
 // Closed loops for marketplace (UI authoring via Dart MCP + widget tree; SoftwareEngineering runtime mod via Aspire MCP + LLM)
 
 

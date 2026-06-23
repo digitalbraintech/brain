@@ -79,6 +79,7 @@ if (grainFactory != null)
     _ = grainFactory.GetGrain<IInoCodeEditor>("ino-editor-main").GetTimelineAsync();
     _ = grainFactory.GetGrain<IContextNeuron>("context-main").GetTimelineAsync();
     _ = grainFactory.GetGrain<IDbSupportNeuron>("db-main").GetTimelineAsync();
+    _ = grainFactory.GetGrain<IDataVisualizationNeuron>("chart-main").GetTimelineAsync();
     // Closed loop activation via Mcp or INO using closed loops only (removed direct INeuron to avoid ambiguity; use mcp and closed loops to activate)
 }
 

@@ -1,4 +1,5 @@
 using DigitalBrain.Protocol;
+using DigitalBrain.Silo;
 
 namespace DigitalBrain.Tests;
 
@@ -11,7 +12,8 @@ public class UiSurfaceContractTests
         { UiSurfaceSamples.TaskWindow(), new[] { "taskId", "state", "body", UiSurfaceKeys.Actions } },
         { UiSurfaceSamples.UserInput(), new[] { "prompt", "schema", "submitAction", "cancelAction" } },
         { UiSurfaceSamples.MarketplaceList(), new[] { "packs", "installAction", "updateAction" } },
-        { UiSurfaceSamples.Timeline(), new[] { "events", "filters" } }
+        { UiSurfaceSamples.Timeline(), new[] { "events", "filters" } },
+        { UiSurfaceSamples.DataChart(), new[] { UiSurfaceKeys.ChartSpec, "data", "x", "y", "chartType" } }
     };
 
     [Theory]
@@ -41,6 +43,7 @@ public class UiSurfaceContractTests
         Assert.Equal("user-input", UiSurfaceKinds.UserInput);
         Assert.Equal("marketplace-list", UiSurfaceKinds.MarketplaceList);
         Assert.Equal("timeline", UiSurfaceKinds.Timeline);
+        Assert.Equal("data-chart", UiSurfaceKinds.DataChart);
     }
 
     [Fact]
@@ -124,6 +127,40 @@ public class UiSurfaceContractTests
 
         AssertSynapseAction(surface.Props["installAction"], nameof(InstallFromMarketplace));
         AssertSynapseAction(surface.Props["updateAction"], nameof(InstallFromMarketplace));
+    }
+
+    [Fact]
+    public void Live_DataChart_Surface_Is_Derived_From_Chart_Journal()
+    {
+        var generated = new DataChartGenerated("req-1", UiSurfaceSamples.DataChart());
+
+        var surfaces = UiSurfaceLiveData.ChartSurfacesFromTimeline(new Synapse[] { generated });
+
+        var surface = Assert.Single(surfaces);
+        Assert.Equal(UiSurfaceKinds.DataChart, surface.Kind);
+        Assert.True(surface.Props.ContainsKey(UiSurfaceKeys.ChartSpec));
+    }
+
+    [Fact]
+    public void DataVisualization_Builder_Produces_Generic_DataChart_Surface()
+    {
+        var surface = DataChartBuilder.BuildSurface(
+            "req-builder",
+            "chart-main",
+            "show revenue trend over time",
+            """
+            [
+              { "month": "Jan", "revenue": 10, "region": "EU" },
+              { "month": "Feb", "revenue": 14, "region": "EU" }
+            ]
+            """);
+
+        Assert.Equal(UiSurfaceKinds.DataChart, surface.Kind);
+        var spec = Assert.IsAssignableFrom<IReadOnlyDictionary<string, object?>>(surface.Props[UiSurfaceKeys.ChartSpec]);
+        Assert.Equal("line", spec["chartType"]);
+        Assert.Equal("month", spec["x"]);
+        Assert.Equal("revenue", spec["y"]);
+        Assert.Equal("region", spec["series"]);
     }
 
     [Fact]

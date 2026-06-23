@@ -237,6 +237,16 @@ public class DigitalBrainTools(IServiceProvider services, IConfiguration configu
                 // The graph grain is passive until cluster_3d_activity is used.
             }
 
+            IReadOnlyList<Synapse> chartTimeline = Array.Empty<Synapse>();
+            try
+            {
+                chartTimeline = await grains.GetGrain<IDataVisualizationNeuron>("chart-main").GetTimelineAsync();
+            }
+            catch
+            {
+                // The chart grain is passive until visualize_data is used.
+            }
+
             var marketplace = grains.GetGrain<IMarketplaceNeuron>("market-main");
             var published = await GetPublishedPacksWithLocalSeedsAsync(marketplace);
             var marketplaceTimeline = await marketplace.GetTimelineAsync();
@@ -245,6 +255,7 @@ public class DigitalBrainTools(IServiceProvider services, IConfiguration configu
             var timeline = taskTimelines
                 .SelectMany(t => t.Timeline)
                 .Concat(graphTimeline)
+                .Concat(chartTimeline)
                 .Concat(marketplaceTimeline)
                 .OrderBy(s => s.Timestamp)
                 .TakeLast(maxEvents)
@@ -256,13 +267,50 @@ public class DigitalBrainTools(IServiceProvider services, IConfiguration configu
                 published,
                 installed,
                 timeline,
-                maxEvents);
+                maxEvents,
+                chartTimeline);
 
             return JsonSerializer.Serialize(surfaces, SurfaceJsonOptions);
         }
         catch (Exception ex)
         {
             return $"Error building workbench surfaces: {Explain(ex)}";
+        }
+    }
+
+    [McpServerTool(Name = "visualize_data"), Description("Infer a generic data-chart UiSurface from JSON rows and return the generated surface JSON. The Flutter UI renders this dynamically by UiSurface.kind.")]
+    public async Task<string> VisualizeData(
+        [Description("Prompt describing what chart the user wants, e.g. 'show sales trend over time'")] string prompt,
+        [Description("JSON array of row objects, or an object containing rows/data/items")] string dataJson,
+        [Description("Optional chart hint: bar, line, area, scatter, or pie")] string? chartHint = null)
+    {
+        var requestId = "chart-" + Guid.NewGuid().ToString("N")[..10];
+
+        try
+        {
+            var chart = grains.GetGrain<IDataVisualizationNeuron>("chart-main");
+            await chart.FireAsync(new VisualizeDataRequest(prompt, dataJson, chartHint, requestId));
+
+            var timeline = await chart.GetTimelineAsync();
+            var failed = timeline
+                .OfType<DataChartFailed>()
+                .LastOrDefault(result => result.RequestId == requestId);
+            if (failed is not null)
+            {
+                return $"Data chart generation failed: {failed.Reason}";
+            }
+
+            var generated = timeline
+                .OfType<DataChartGenerated>()
+                .LastOrDefault(result => result.RequestId == requestId);
+
+            return generated is null
+                ? $"VisualizeDataRequest accepted as {requestId}, but no chart result was found yet."
+                : JsonSerializer.Serialize(generated.Surface, SurfaceJsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return $"Error visualizing data: {Explain(ex)}";
         }
     }
 
@@ -593,6 +641,7 @@ public class DigitalBrainTools(IServiceProvider services, IConfiguration configu
             "closedloop-main" => grains.GetGrain<IClosedLoopNeuron>(neuronId),
             "compiler-main" => grains.GetGrain<ICompiler>(neuronId),
             "context-main" => grains.GetGrain<IContextNeuron>(neuronId),
+            "chart-main" => grains.GetGrain<IDataVisualizationNeuron>(neuronId),
             "db-main" => grains.GetGrain<IDbSupportNeuron>(neuronId),
             "foundry-main" => grains.GetGrain<ICodeFoundryLoopNeuron>(neuronId),
             "ino-editor-main" => grains.GetGrain<IInoCodeEditor>(neuronId),

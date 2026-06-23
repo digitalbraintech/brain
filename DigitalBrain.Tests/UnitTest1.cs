@@ -200,6 +200,30 @@ public class NeuronTests : IAsyncLifetime
         // May have triggered task if parsed, but fallback ok
     }
 
+    [Fact]
+    public async Task DataVisualizationNeuron_Emits_DataChart_Surface()
+    {
+        var chart = _cluster!.GrainFactory.GetGrain<IDataVisualizationNeuron>("chart-test");
+
+        await chart.FireAsync(new VisualizeDataRequest(
+            "show sales by month",
+            """
+            [
+              { "month": "Jan", "sales": 12 },
+              { "month": "Feb", "sales": 18 }
+            ]
+            """,
+            "bar",
+            "req-test"));
+
+        var timeline = await chart.GetTimelineAsync();
+        var generated = timeline.OfType<DataChartGenerated>().LastOrDefault(result => result.RequestId == "req-test");
+
+        Assert.NotNull(generated);
+        Assert.Equal(UiSurfaceKinds.DataChart, generated.Surface.Kind);
+        Assert.True(generated.Surface.Props.ContainsKey(UiSurfaceKeys.ChartSpec));
+    }
+
     private class SiloConfigurator : ISiloConfigurator
     {
         public void Configure(ISiloBuilder siloBuilder)
