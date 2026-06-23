@@ -7,6 +7,11 @@
     <UserSecretsId>dotnet-DigitalBrain.Silo-ea55b00e-5a06-4791-b7d3-a9f3aabb83f9</UserSecretsId>
     <!-- Allow alpha/experimental Orleans Journalling APIs (DurableGrain etc) -->
     <NoWarn>$(NoWarn);ORLEANSEXP005</NoWarn>
+    <EnableSdkContainerSupport>true</EnableSdkContainerSupport>
+    <ContainerRepository>digitalbrain-silo</ContainerRepository>
+    <!-- noble-chiseled not yet published for .NET 11 preview; use standard preview base -->
+    <ContainerBaseImage>mcr.microsoft.com/dotnet/aspnet:11.0-preview</ContainerBaseImage>
+    <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
   </PropertyGroup>
 
   <ItemGroup>
