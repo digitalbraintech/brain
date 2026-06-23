@@ -150,10 +150,11 @@ public class ContainerAppsService(ILogger<ContainerAppsService> logger, IResourc
             var containerAppsEnvironment = new ManagedEnvironment(environmentName, managedEnvArgs, ComponentResourceScope.CreateChildOptions(environmentName));
 
             var digitalBrainEnv = BuildDigitalBrainRuntimeEnv(settings, storage, openAi);
+            var digitalBrainSecrets = BuildDigitalBrainRuntimeSecrets(settings, storage, openAi);
 
-            var apiApp = CreateApiContainerApp(settings, resourceGroup, containerAppsEnvironment, containerRegistry, database, cache, monitoring, eventHubs, keyVault, azureFrontDoorId, digitalBrainEnv);
-            var jobsApp = CreateJobsContainerApp(settings, resourceGroup, containerAppsEnvironment, containerRegistry, database, cache, monitoring, eventHubs, keyVault, azureFrontDoorId, digitalBrainEnv);
-            var botApp = CreateBotContainerApp(settings, resourceGroup, containerAppsEnvironment, containerRegistry, database, cache, monitoring, eventHubs, keyVault, azureFrontDoorId, digitalBrainEnv);
+            var apiApp = CreateApiContainerApp(settings, resourceGroup, containerAppsEnvironment, containerRegistry, database, cache, monitoring, eventHubs, keyVault, azureFrontDoorId, digitalBrainEnv, digitalBrainSecrets);
+            var jobsApp = CreateJobsContainerApp(settings, resourceGroup, containerAppsEnvironment, containerRegistry, database, cache, monitoring, eventHubs, keyVault, azureFrontDoorId, digitalBrainEnv, digitalBrainSecrets);
+            var botApp = CreateBotContainerApp(settings, resourceGroup, containerAppsEnvironment, containerRegistry, database, cache, monitoring, eventHubs, keyVault, azureFrontDoorId, digitalBrainEnv, digitalBrainSecrets);
 
             ContainerAppsIdentityHelper.ConfigureKeyVaultAccessForContainerApps(settings, keyVault, apiApp, jobsApp, botApp, _namingService);
 
@@ -240,13 +241,14 @@ public class ContainerAppsService(ILogger<ContainerAppsService> logger, IResourc
         EventHubsOutputs eventHubs,
         KeyVaultOutputs? keyVault,
         Input<string>? azureFrontDoorId,
-        IEnumerable<EnvironmentVarArgs>? additionalEnv)
+        IEnumerable<EnvironmentVarArgs>? additionalEnv,
+        IEnumerable<SecretArgs>? additionalSecrets)
     {
         var apiAppName = _namingService.GenerateContainerAppName(settings.NamingPrefix, ServiceConstants.ContainerAppTypes.Api, settings.Environment);
         var imageToUse = ResolveImage(settings.Container!.UsePlaceholderImages, containerRegistry.LoginServer, settings.Container.ApiImageTag);
         var ingressConfig = ContainerAppsConfigurationHelper.CreateIngressConfiguration(settings.Container.IngressSettings, _logger);
         var registries = BuildRegistries(settings, containerRegistry);
-        var (secrets, secretNames) = ContainerAppsSecretsHelper.BuildSecretsListWithKeyVault(settings, containerRegistry, database, keyVault, _logger);
+        var (secrets, secretNames) = ContainerAppsSecretsHelper.BuildSecretsListWithKeyVault(settings, containerRegistry, database, keyVault, _logger, additionalSecrets);
 
         _logger.LogInformation("Creating API Container App with {SecretCount} secrets configured", secretNames.Count);
 
@@ -296,7 +298,8 @@ public class ContainerAppsService(ILogger<ContainerAppsService> logger, IResourc
         EventHubsOutputs eventHubs,
         KeyVaultOutputs? keyVault,
         Input<string>? azureFrontDoorId,
-        IEnumerable<EnvironmentVarArgs>? additionalEnv)
+        IEnumerable<EnvironmentVarArgs>? additionalEnv,
+        IEnumerable<SecretArgs>? additionalSecrets)
     {
         var jobsAppName = _namingService.GenerateContainerAppName(settings.NamingPrefix, ServiceConstants.ContainerAppTypes.Jobs, settings.Environment);
         var imageToUse = ResolveImage(settings.Container!.UsePlaceholderImages, containerRegistry.LoginServer, settings.Container.JobsImageTag);
@@ -304,7 +307,7 @@ public class ContainerAppsService(ILogger<ContainerAppsService> logger, IResourc
         // an HTTP readiness probe on an ingress port it never listens on would keep the revision unhealthy.
         IngressArgs? ingressConfig = null;
         var registries = BuildRegistries(settings, containerRegistry);
-        var (secrets, secretNames) = ContainerAppsSecretsHelper.BuildSecretsListWithKeyVault(settings, containerRegistry, database, keyVault, _logger);
+        var (secrets, secretNames) = ContainerAppsSecretsHelper.BuildSecretsListWithKeyVault(settings, containerRegistry, database, keyVault, _logger, additionalSecrets);
 
         _logger.LogInformation("Creating Jobs Container App with {SecretCount} secrets configured", secretNames.Count);
 
@@ -354,7 +357,8 @@ public class ContainerAppsService(ILogger<ContainerAppsService> logger, IResourc
         EventHubsOutputs eventHubs,
         KeyVaultOutputs? keyVault,
         Input<string>? azureFrontDoorId,
-        IEnumerable<EnvironmentVarArgs>? additionalEnv)
+        IEnumerable<EnvironmentVarArgs>? additionalEnv,
+        IEnumerable<SecretArgs>? additionalSecrets)
     {
         if (settings.Bot?.Enabled != true)
         {
@@ -368,7 +372,7 @@ public class ContainerAppsService(ILogger<ContainerAppsService> logger, IResourc
         var imageToUse = ResolveImage(settings.Container!.UsePlaceholderImages, containerRegistry.LoginServer, imageTag ?? string.Empty);
         var ingressConfig = ContainerAppsConfigurationHelper.CreateIngressConfiguration(CreateBotIngressSettings(settings), _logger);
         var registries = BuildRegistries(settings, containerRegistry);
-        var (secrets, secretNames) = ContainerAppsSecretsHelper.BuildSecretsListWithKeyVault(settings, containerRegistry, database, keyVault, _logger);
+        var (secrets, secretNames) = ContainerAppsSecretsHelper.BuildSecretsListWithKeyVault(settings, containerRegistry, database, keyVault, _logger, additionalSecrets);
 
         _logger.LogInformation("Creating Bot Container App with {SecretCount} secrets configured", secretNames.Count);
 
@@ -456,9 +460,35 @@ public class ContainerAppsService(ILogger<ContainerAppsService> logger, IResourc
             additionalEnvironmentVariables);
     }
 
-    // Plain env vars from the caller (e.g. DigitalBrain__Llm__Provider/Model, DIGITALBRAIN_ENV) plus the
-    // NeuroOS silo/gateway runtime contract: one Storage connection string drives Orleans clustering (Table)
-    // and grain/journal storage (Blob); the Azure OpenAI endpoint+key back the cloud IChatClient.
+    // Container App secret names backing the NeuroOS runtime contract.
+    private const string StorageConnectionSecretName = "digitalbrain-storage-connection";
+    private const string OpenAiKeySecretName = "digitalbrain-openai-key";
+
+    private static bool OpenAiEnabled(InfrastructureSettings settings, OpenAiOutputs? openAi) =>
+        openAi != null && settings.OpenAi?.Enabled == true;
+
+    // Secret values for the runtime contract — the Storage connection string (Orleans clustering/grain/journal)
+    // and the Azure OpenAI key — registered as Container App secrets and referenced from env via SecretRef.
+    private static List<SecretArgs> BuildDigitalBrainRuntimeSecrets(InfrastructureSettings settings, StorageOutputs? storage, OpenAiOutputs? openAi)
+    {
+        var secrets = new List<SecretArgs>();
+
+        if (storage != null && settings.Storage != null)
+        {
+            secrets.Add(new SecretArgs { Name = StorageConnectionSecretName, Value = storage.ConnectionString });
+        }
+
+        if (OpenAiEnabled(settings, openAi))
+        {
+            secrets.Add(new SecretArgs { Name = OpenAiKeySecretName, Value = openAi!.PrimaryKey });
+        }
+
+        return secrets;
+    }
+
+    // Plain env vars from the caller (Provider/Model/DIGITALBRAIN_ENV) plus the NeuroOS runtime contract: the
+    // Storage connection string drives Orleans clustering (Table) + grain/journal (Blob); the Azure OpenAI
+    // endpoint + key back the cloud IChatClient. Secret values are referenced via SecretRef, not inlined.
     private static List<EnvironmentVarArgs> BuildDigitalBrainRuntimeEnv(InfrastructureSettings settings, StorageOutputs? storage, OpenAiOutputs? openAi)
     {
         var env = new List<EnvironmentVarArgs>();
@@ -471,17 +501,17 @@ public class ContainerAppsService(ILogger<ContainerAppsService> logger, IResourc
             }
         }
 
-        if (storage != null)
+        if (storage != null && settings.Storage != null)
         {
-            env.Add(new EnvironmentVarArgs { Name = "ConnectionStrings__clustering", Value = storage.ConnectionString });
-            env.Add(new EnvironmentVarArgs { Name = "ConnectionStrings__grainstate", Value = storage.ConnectionString });
-            env.Add(new EnvironmentVarArgs { Name = "ConnectionStrings__journal", Value = storage.ConnectionString });
+            env.Add(new EnvironmentVarArgs { Name = "ConnectionStrings__clustering", SecretRef = StorageConnectionSecretName });
+            env.Add(new EnvironmentVarArgs { Name = "ConnectionStrings__grainstate", SecretRef = StorageConnectionSecretName });
+            env.Add(new EnvironmentVarArgs { Name = "ConnectionStrings__journal", SecretRef = StorageConnectionSecretName });
         }
 
-        if (openAi != null)
+        if (OpenAiEnabled(settings, openAi))
         {
-            env.Add(new EnvironmentVarArgs { Name = "DigitalBrain__Llm__AzureOpenAIEndpoint", Value = openAi.Endpoint });
-            env.Add(new EnvironmentVarArgs { Name = "DigitalBrain__Llm__AzureOpenAIKey", Value = openAi.PrimaryKey });
+            env.Add(new EnvironmentVarArgs { Name = "DigitalBrain__Llm__AzureOpenAIEndpoint", Value = openAi!.Endpoint });
+            env.Add(new EnvironmentVarArgs { Name = "DigitalBrain__Llm__AzureOpenAIKey", SecretRef = OpenAiKeySecretName });
         }
 
         return env;

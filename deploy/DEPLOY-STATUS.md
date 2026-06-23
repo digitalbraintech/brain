@@ -41,7 +41,8 @@ MCP app not deployed), so no journal blobs exist until an interaction path is ad
 
 ## Fixes applied to the vendored DeploymentKit (all pre-existing, surfaced once DeployAsync actually ran)
 1. Provision OpenAI in the orchestrator (was never wired); align its naming with `IResourceNamingService`.
-2. Inject the runtime contract (storage conn strings + OpenAI endpoint/key + `AdditionalEnvironmentVariables`) into the apps.
+2. Inject the runtime contract into the apps: the storage connection string + Azure OpenAI key are Container App
+   **secrets** referenced via `SecretRef`; the OpenAI endpoint + `AdditionalEnvironmentVariables` are plain env vars.
 3. Register 4 missing green/blue DI services (DI graph was incomplete).
 4. Make `Database`/`Network` settings optional (drop `[Required]`); null-guard `NetworkService`.
 5. KeyVault: skip the access-policy / `ARM_CLIENT_ID` path under RBAC.
@@ -71,4 +72,3 @@ pulumi destroy --stack dev --cwd framework/deploy
 ## Follow-ups (not blocking gateway-live)
 - Un-stub the gateway `/status` cluster/storage/journal probes (currently return `unknown` / `-1`).
 - Add an interaction path (deploy MCP app, or a gateway endpoint) to exercise neurons → then journal-entry survival is demonstrable.
-- Optionally harden: inject the storage conn string + OpenAI key as Container App *secrets* (SecretRef) instead of plain env values.

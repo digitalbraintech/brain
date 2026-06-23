@@ -26,7 +26,8 @@ public static class ContainerAppsSecretsHelper
         ContainerRegistryOutputs containerRegistry,
         DatabaseOutputs database,
         KeyVaultOutputs? keyVault,
-        ILogger logger)
+        ILogger logger,
+        IEnumerable<SecretArgs>? additionalSecrets = null)
     {
         var useKeyVaultSecrets = ShouldUseKeyVaultSecrets(settings, keyVault);
         var DbSecretName = ToKeyVaultSecretName(ServiceConstants.EnvironmentVariables.PostgresConnectionString);
@@ -114,6 +115,11 @@ public static class ContainerAppsSecretsHelper
                     logger.LogDebug("Added Container App secret {SecretName} from Key Vault", secretName);
                 }
             }
+        }
+
+        if (additionalSecrets != null)
+        {
+            secretsList.AddRange(additionalSecrets);
         }
 
         logger.LogInformation("Total secrets configured for Container App: {Count}", secretsList.Count);
