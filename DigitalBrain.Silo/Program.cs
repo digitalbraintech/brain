@@ -68,6 +68,7 @@ if (isAspireHosted)
 builder.Services.AddDigitalBrainChat(builder.Configuration);
 builder.Services.AddKernelSecurity(builder.Configuration);
 builder.Services.AddEconomics(builder.Configuration);
+builder.Services.AddContextStore(builder.Configuration);
 
 builder.UseOrleans(siloBuilder =>
 {
