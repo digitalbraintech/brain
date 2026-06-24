@@ -109,7 +109,8 @@ public class MarketplaceNeuron : Neuron, IMarketplaceNeuron
             Logger.LogInformation("Install entitlement verified for premium pack {Key}, buyer {Buyer}", cmd.PackName + "@" + cmd.Version, cmd.BuyerId);
         }
 
-        var commissionAmount = 1.0 * pack.CommissionRate;
+        // Commission amount is 0 for now (free packs use Price only for gating). Real amount = Price * Rate when payment flow supplies tx value.
+        var commissionAmount = 0.0;
         await FireAsync(new CommissionTaken(
             pack.Name,
             pack.Version,
