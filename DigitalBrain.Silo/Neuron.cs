@@ -10,12 +10,12 @@ namespace DigitalBrain.Silo;
 public abstract class Neuron : DurableGrain, INeuron
 {
     protected readonly ILogger Logger;
-    private IDurableList<Synapse>? _incomingJournal;
-    private IDurableList<Synapse>? _outgoingJournal;
+    private IDurableList<Synapse>? _incomingSynapses;
+    private IDurableList<Synapse>? _outgoingSynapses;
 
     // The synapse currently being handled. Synapses fired while handling it are caused by it.
-    // Grains are non-reentrant, so a plain field with save/restore correctly nests self-fire chains.
-    private Synapse? _cause;
+    // Grains are non-reentrant by Orleans contract, so plain field + finally-restore correctly nests causal chains.
+    private Synapse? _currentCause;
 
     protected NeuronId Self => new(this.GetPrimaryKeyString() ?? this.GetGrainId().ToString());
 
@@ -24,11 +24,11 @@ public abstract class Neuron : DurableGrain, INeuron
         Logger = logger;
     }
 
-    // Dual journals for OS-like causality: incoming = received Deliver, outgoing = our Fires.
-    protected IDurableList<Synapse> IncomingJournal => _incomingJournal ??= ResolveJournal("in-journal");
-    protected IDurableList<Synapse> OutgoingJournal => _outgoingJournal ??= ResolveJournal("out-journal");
+    // Dual journals (self-explanatory names): incoming received via Deliver, outgoing from our Fire calls.
+    protected IDurableList<Synapse> IncomingJournal => _incomingSynapses ??= ResolveRequiredJournal("in-journal");
+    protected IDurableList<Synapse> OutgoingJournal => _outgoingSynapses ??= ResolveRequiredJournal("out-journal");
 
-    private IDurableList<Synapse> ResolveJournal(string key)
+    private IDurableList<Synapse> ResolveRequiredJournal(string key)
     {
         var journal = this.ServiceProvider.GetKeyedService<IDurableList<Synapse>>(key);
         if (journal is not null)
@@ -36,23 +36,22 @@ public abstract class Neuron : DurableGrain, INeuron
             return journal;
         }
 
-        Logger.LogWarning("Journal service {JournalKey} is not registered; using prototype in-memory journal for {Neuron}.", key, Self);
-        return new InMemoryJournalForPrototype<Synapse>();
+        // Fail fast: missing registration means wiring error (prototype or real Azure journal). No silent in-memory degradation.
+        throw new InvalidOperationException($"Required journal '{key}' not registered for {Self}. Ensure ConfigurePrototypeJournals() or AddAzureBlobJournalStorage + UseJsonJournalFormat is called on the silo builder.");
     }
 
-    private void AddToJournal(ref IDurableList<Synapse>? journal, string key, Synapse synapse)
+    private void AddToJournal(ref IDurableList<Synapse>? journalField, string key, Synapse synapse)
     {
-        var target = journal ??= ResolveJournal(key);
+        var target = journalField ??= ResolveRequiredJournal(key);
         try
         {
             target.Add(synapse);
         }
         catch (Exception ex) when (IsJournalWriterUninitialized(ex))
         {
-            Logger.LogWarning(ex, "Journal service {JournalKey} cannot write for {Neuron}; switching to prototype in-memory journal.", key, Self);
-            target = new InMemoryJournalForPrototype<Synapse>();
-            journal = target;
-            target.Add(synapse);
+            // Fail fast instead of silent switch. Durability is required for causation, checkpoints, marketplace etc.
+            Logger.LogError(ex, "Journal writer not initialized for durable write of {Key} in {Neuron}.", key, Self);
+            throw new InvalidOperationException($"Journal writer for '{key}' is not initialized for {Self}. Operation aborted to preserve durability guarantees.", ex);
         }
     }
 
@@ -64,7 +63,8 @@ public abstract class Neuron : DurableGrain, INeuron
         }
         catch (Exception ex) when (IsJournalWriterUninitialized(ex))
         {
-            Logger.LogWarning(ex, "Journal state writer is not initialized during activation for {Neuron}; continuing with in-memory journal state.", Self);
+            Logger.LogError(ex, "Journal state writer not initialized on activation for {Neuron}. Durability required.", Self);
+            throw new InvalidOperationException($"Journal not ready on activation for {Self}.", ex);
         }
 
         await FireAsync(new NeuronActivated(Self));
@@ -72,8 +72,8 @@ public abstract class Neuron : DurableGrain, INeuron
 
     public async ValueTask FireAsync<T>(T payload) where T : Synapse
     {
-        var stamped = payload.Stamp(Self, _cause);
-        AddToJournal(ref _outgoingJournal, "out-journal", stamped);
+        var stamped = payload.Stamp(Self, _currentCause);
+        AddToJournal(ref _outgoingSynapses, "out-journal", stamped);
         await WriteJournalStateAsync();
 
         if (stamped.IsBroadcast)
@@ -131,7 +131,7 @@ public abstract class Neuron : DurableGrain, INeuron
     {
         foreach (var s in checkpoint.Snapshot)
         {
-            AddToJournal(ref _incomingJournal, "in-journal", s);
+            AddToJournal(ref _incomingSynapses, "in-journal", s);
         }
         await WriteJournalStateAsync();
     }
@@ -139,47 +139,57 @@ public abstract class Neuron : DurableGrain, INeuron
     // Internal for point to point. Incoming synapses are auto-recorded here (called by sender Fire or direct).
     public async Task DeliverAsync(Synapse synapse)
     {
-        AddToJournal(ref _incomingJournal, "in-journal", synapse);
+        AddToJournal(ref _incomingSynapses, "in-journal", synapse);
         await WriteJournalStateAsync();
 
         // Synapses fired while handling this one inherit its correlation and are caused by it.
-        var previousCause = _cause;
-        _cause = synapse;
+        var previousCause = _currentCause;
+        _currentCause = synapse;
         try
         {
-            // Support IHandle<T> by reflection for any implementing neuron (prototype; source-gen later)
-            var handled = false;
-            var grainType = GetType();
-            foreach (var iface in grainType.GetInterfaces())
+            // Reflection-based IHandle<T> lookup kept for flexibility with dynamic/embodied synapses.
+            // Prefer explicit interface impls (e.g. : IHandle<SpecificSynapse>) + Orleans grain dispatch for perf/AOT.
+            // Logs (Debug) when hit to surface reliance on prototype path.
+            if (!await TryHandleViaDeclaredInterfaceAsync(synapse))
             {
-                if (iface.IsGenericType && iface.GetGenericTypeDefinition() == typeof(IHandle<>))
-                {
-                    var handledType = iface.GetGenericArguments()[0];
-                    if (handledType == synapse.GetType() || handledType.IsAssignableFrom(synapse.GetType()))
-                    {
-                        var method = iface.GetMethod("HandleAsync", new[] { handledType });
-                        if (method != null)
-                        {
-                            var result = method.Invoke(this, new object[] { synapse });
-                            if (result is Task t) await t;
-                            else if (result is ValueTask vt) await vt;
-                            handled = true;
-                            break;
-                        }
-                    }
-                }
-            }
-
-            if (!handled)
                 await DispatchSynapse(synapse);
+            }
         }
         finally
         {
-            _cause = previousCause;
+            _currentCause = previousCause;
         }
     }
 
     protected virtual Task DispatchSynapse(Synapse synapse) => Task.CompletedTask;
+
+    // Tries to locate and invoke IHandle<T>.HandleAsync via declared interfaces on this grain (prototype path).
+    // Concrete grains should prefer listing IHandle<T> so Orleans + source-gen can handle; this remains for flexibility with dynamic synapses.
+    // Logs at Debug when used so prototype reliance is observable.
+    private async ValueTask<bool> TryHandleViaDeclaredInterfaceAsync(Synapse synapse)
+    {
+        var grainType = GetType();
+        foreach (var iface in grainType.GetInterfaces())
+        {
+            if (!iface.IsGenericType || iface.GetGenericTypeDefinition() != typeof(IHandle<>))
+                continue;
+
+            var handledType = iface.GetGenericArguments()[0];
+            if (handledType != synapse.GetType() && !handledType.IsAssignableFrom(synapse.GetType()))
+                continue;
+
+            var handleMethod = iface.GetMethod("HandleAsync", new[] { handledType });
+            if (handleMethod is null)
+                continue;
+
+            Logger.LogDebug("Reflection IHandle<> dispatch for synapse {Type} on {GrainType}", synapse.Type, grainType.Name);
+            var result = handleMethod.Invoke(this, new object[] { synapse });
+            if (result is Task t) await t;
+            else if (result is ValueTask vt) await vt;
+            return true;
+        }
+        return false;
+    }
 
     private async Task WriteJournalStateAsync()
     {
@@ -189,7 +199,8 @@ public abstract class Neuron : DurableGrain, INeuron
         }
         catch (Exception ex) when (IsJournalWriterUninitialized(ex))
         {
-            Logger.LogWarning(ex, "Journal state writer is not initialized for {Neuron}; continuing with in-memory journal state.", Self);
+            Logger.LogError(ex, "Journal state writer not initialized for durable WriteStateAsync in {Neuron}.", Self);
+            throw new InvalidOperationException($"Durable journal writer not initialized for {Self}.", ex);
         }
     }
 
