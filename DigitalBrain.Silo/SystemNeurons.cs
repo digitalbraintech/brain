@@ -293,8 +293,11 @@ public class GeneratedNeuron : Neuron, IGeneratedNeuron, IHandle<NeuronTelemetry
 
     public override Task OnDeactivateAsync(Orleans.DeactivationReason reason, CancellationToken cancellationToken)
     {
-        _embodied?.Dispose();   // unload the collectible ALC when the grain deactivates
+        // Unload the ALC (if any) on deactivation. This is necessary but not always sufficient for full collection:
+        // Orleans may retain type info / proxies. Use weak-ref verification in tests + explicit GC pressure for proof.
+        var toUnload = _embodied;
         _embodied = null;
+        toUnload?.Dispose();
         return base.OnDeactivateAsync(reason, cancellationToken);
     }
 

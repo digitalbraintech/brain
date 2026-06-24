@@ -21,8 +21,12 @@ public sealed class EmbodiedPack(string packName, AssemblyLoadContext context, I
 
     public string Respond(string input) => behavior.Respond(input);
 
-    // Dropping the only reference + Unload lets the collectible ALC be GC'd (e.g. on uninstall / new version).
-    public void Dispose() => context.Unload();
+    // Explicit Unload after dropping strong refs. Collectible ALCs require no remaining roots (statics, events, async locals, Orleans caches).
+    // In practice with Orleans grains, full unload may require deactivation + GC pressure; see GeneratedNeuron OnDeactivate.
+    public void Dispose()
+    {
+        context.Unload();
+    }
 }
 
 public sealed class PackAlcEmbodier : IPackEmbodiment
