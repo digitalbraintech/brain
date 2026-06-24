@@ -12,6 +12,10 @@ public abstract class Neuron : DurableGrain, INeuron
     private IDurableList<Synapse>? _incomingJournal;
     private IDurableList<Synapse>? _outgoingJournal;
 
+    // The synapse currently being handled. Synapses fired while handling it are caused by it.
+    // Grains are non-reentrant, so a plain field with save/restore correctly nests self-fire chains.
+    private Synapse? _cause;
+
     protected NeuronId Self => new(this.GetPrimaryKeyString() ?? this.GetGrainId().ToString());
 
     protected Neuron(ILogger logger)
@@ -67,7 +71,7 @@ public abstract class Neuron : DurableGrain, INeuron
 
     public async ValueTask FireAsync<T>(T payload) where T : Synapse
     {
-        var stamped = payload.Stamp(Self);
+        var stamped = payload.Stamp(Self, _cause);
         AddToJournal(ref _outgoingJournal, "out-journal", stamped);
         await WriteJournalStateAsync();
 
@@ -123,31 +127,41 @@ public abstract class Neuron : DurableGrain, INeuron
         AddToJournal(ref _incomingJournal, "in-journal", synapse);
         await WriteJournalStateAsync();
 
-        // Support IHandle<T> by reflection for any implementing neuron (prototype; source-gen later)
-        var handled = false;
-        var grainType = GetType();
-        foreach (var iface in grainType.GetInterfaces())
+        // Synapses fired while handling this one inherit its correlation and are caused by it.
+        var previousCause = _cause;
+        _cause = synapse;
+        try
         {
-            if (iface.IsGenericType && iface.GetGenericTypeDefinition() == typeof(IHandle<>))
+            // Support IHandle<T> by reflection for any implementing neuron (prototype; source-gen later)
+            var handled = false;
+            var grainType = GetType();
+            foreach (var iface in grainType.GetInterfaces())
             {
-                var handledType = iface.GetGenericArguments()[0];
-                if (handledType == synapse.GetType() || handledType.IsAssignableFrom(synapse.GetType()))
+                if (iface.IsGenericType && iface.GetGenericTypeDefinition() == typeof(IHandle<>))
                 {
-                    var method = iface.GetMethod("HandleAsync", new[] { handledType });
-                    if (method != null)
+                    var handledType = iface.GetGenericArguments()[0];
+                    if (handledType == synapse.GetType() || handledType.IsAssignableFrom(synapse.GetType()))
                     {
-                        var result = method.Invoke(this, new object[] { synapse });
-                        if (result is Task t) await t;
-                        else if (result is ValueTask vt) await vt;
-                        handled = true;
-                        break;
+                        var method = iface.GetMethod("HandleAsync", new[] { handledType });
+                        if (method != null)
+                        {
+                            var result = method.Invoke(this, new object[] { synapse });
+                            if (result is Task t) await t;
+                            else if (result is ValueTask vt) await vt;
+                            handled = true;
+                            break;
+                        }
                     }
                 }
             }
-        }
 
-        if (!handled)
-            await DispatchSynapse(synapse);
+            if (!handled)
+                await DispatchSynapse(synapse);
+        }
+        finally
+        {
+            _cause = previousCause;
+        }
     }
 
     protected virtual Task DispatchSynapse(Synapse synapse) => Task.CompletedTask;

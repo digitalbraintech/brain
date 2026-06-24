@@ -1,4 +1,5 @@
 using DigitalBrain.Protocol;
+using DigitalBrain.Silo.Foundry;
 using Microsoft.Extensions.AI;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
@@ -43,6 +44,9 @@ public class AspireOrchestratorNeuron : Neuron, IAspireNeuron
 [GrainType("digitalbrain.marketplace.v1")]
 public class MarketplaceNeuron : Neuron, IMarketplaceNeuron
 {
+    // Transition policy: unsigned packs install with a warning. Flip to true before enabling remote/untrusted install.
+    private const bool RejectUnsignedPacks = false;
+
     public MarketplaceNeuron(ILogger<MarketplaceNeuron> logger)
         : base(logger)
     {
@@ -70,6 +74,29 @@ public class MarketplaceNeuron : Neuron, IMarketplaceNeuron
             return;
         }
 
+        // Trust gate. A PRESENT-but-invalid signature is always rejected. A MISSING signature is warn-only
+        // during the transition (RejectUnsignedPacks=false) so the existing unsigned seeds keep working;
+        // flip to strict before any remote/untrusted install is enabled.
+        var isSigned = !string.IsNullOrEmpty(pack.AuthorPublicKeyBase64) && !string.IsNullOrEmpty(pack.SignatureBase64);
+        if (isSigned)
+        {
+            if (!PackSignatureVerifier.VerifyPack(pack))
+            {
+                Logger.LogWarning("Install REJECTED - invalid signature on pack {Key}", cmd.PackName + "@" + cmd.Version);
+                return;
+            }
+            Logger.LogInformation("Install signature verified for pack {Key}", cmd.PackName + "@" + cmd.Version);
+        }
+        else if (RejectUnsignedPacks)
+        {
+            Logger.LogWarning("Install REJECTED - pack {Key} is unsigned and unsigned installs are disabled", cmd.PackName + "@" + cmd.Version);
+            return;
+        }
+        else
+        {
+            Logger.LogWarning("Install WARNING - pack {Key} is unsigned (allowed during trust transition)", cmd.PackName + "@" + cmd.Version);
+        }
+
         var commissionAmount = 1.0 * pack.CommissionRate;
         await FireAsync(new CommissionTaken(
             pack.Name,
@@ -83,6 +110,8 @@ public class MarketplaceNeuron : Neuron, IMarketplaceNeuron
 
         var genKey = "generated-" + pack.Name.ToLowerInvariant();
         var generated = GrainFactory.GetGrain<IGeneratedNeuron>(genKey);
+        // Deliver the full pack (with Code) so the host neuron can compile + embody it; then trigger a use.
+        await generated.DeliverAsync(new NeuroPackInstalled(pack));
         await generated.FireAsync(new ExperienceUsed(pack.Name, "installed-and-activated"));
 
         Logger.LogInformation("Marketplace INSTALL {Key} by {Buyer}. Commission {Rate:P0} taken for seller {Seller}.",
@@ -103,7 +132,7 @@ public class MarketplaceNeuron : Neuron, IMarketplaceNeuron
             .OfType<PublishToMarketplace>()
             .GroupBy(p => $"{p.PackName}@{p.Version}")
             .Select(g => g.Last())
-            .Select(p => new NeuroPack(p.PackName, p.Version, p.OwnerId, p.IsPrivate, p.CommissionRate, p.Code, p.Description))
+            .Select(p => new NeuroPack(p.PackName, p.Version, p.OwnerId, p.IsPrivate, p.CommissionRate, p.Code, p.Description, p.AuthorPublicKeyBase64, p.SignatureBase64))
             .ToList();
     }
 
@@ -233,23 +262,28 @@ public class MetaOptimizerNeuron : Neuron, IMetaOptimizerNeuron
     }
 }
 
-// Dynamic generated neuron.
-// On install, it receives a real NeuroPack (code + description).
-// This is the key to self-development: the installed pack now **defines the behavior** of this neuron instance.
-// When used (ExperienceUsed or direct fire), if a pack is installed we embody it by delegating to the LLM
-// with the pack's code/description as the "personality" or logic. This closes the generate -> install -> live loop
-// without needing full dynamic C# compilation (which would be a much bigger change).
+// Host for installed packs (keystone embodiment, option b).
+// On install it receives the real NeuroPack and COMPILES pack.Code into a collectible ALC via IPackEmbodiment,
+// holding the live IPackBehavior capability. On use it dispatches to that compiled code for real and fires a
+// PackEmission with the pack's actual output — replacing the old LLM "personality" stub, which now only serves
+// as a fallback for natural-language packs whose Code is not a compilable IPackBehavior.
 [GrainType("digitalbrain.generated")]
 public class GeneratedNeuron : Neuron, IGeneratedNeuron, IHandle<NeuronTelemetry>
 {
+    private EmbodiedPack? _embodied;
+
     public GeneratedNeuron(ILogger<GeneratedNeuron> logger)
         : base(logger)
     {
     }
 
-    public Task HandleAsync(NeuronTelemetry telemetry)
+    public Task HandleAsync(NeuronTelemetry telemetry) => Task.CompletedTask;
+
+    public override Task OnDeactivateAsync(Orleans.DeactivationReason reason, CancellationToken cancellationToken)
     {
-        return Task.CompletedTask;
+        _embodied?.Dispose();   // unload the collectible ALC when the grain deactivates
+        _embodied = null;
+        return base.OnDeactivateAsync(reason, cancellationToken);
     }
 
     protected override async Task DispatchSynapse(Synapse synapse)
@@ -258,50 +292,98 @@ public class GeneratedNeuron : Neuron, IGeneratedNeuron, IHandle<NeuronTelemetry
         Logger.LogInformation("GeneratedNeuron {Id} dispatched {Type}", id, synapse.Type);
         await FireAsync(new NeuronTelemetry(Self, "generated-dispatched"));
 
-        if (synapse is NeuroPackInstalled installed)
+        switch (synapse)
         {
-            var p = installed.Pack;
-            Logger.LogInformation("GeneratedNeuron received and ACTIVATED pack {Name}@{Ver}. It will now embody this experience.", p.Name, p.Version);
+            case NeuroPackInstalled installed:
+                TryEmbody(installed.Pack);
+                break;
+            case DemoMessageSynapse msg:
+                Logger.LogInformation("Generated handled message: {Text}", msg.Text);
+                break;
+            case ExperienceUsed used:
+                await UseExperienceAsync(used);
+                break;
         }
-        else if (synapse is DemoMessageSynapse msg)
-        {
-            Logger.LogInformation("Generated handled message: {Text}", msg.Text);
-        }
-        else if (synapse is ExperienceUsed used)
-        {
-            var inst = LastInstalledPack();
-            if (inst != null)
-            {
-                var (packKey, code, desc) = inst.Value;
-                var behaviorPrompt = $"You are now the installed experience '{packKey}'.\n" +
-                                     $"Description: {desc}\n" +
-                                     $"Implementation guidance/code:\n{code}\n\n" +
-                                     $"Handle the following usage: {used.Action} on input related to '{used.Pack}'.\n" +
-                                     "Respond in character as this specific installed neuron/experience would. Be concise and useful.";
+    }
 
-                var chat = ServiceProvider.GetService<IChatClient>();
-                if (chat != null)
-                {
-                    var response = await chat.GetResponseAsync(behaviorPrompt);
-                    await FireAsync(new LlmResponse(behaviorPrompt, response.Text.Trim(), "embodied-pack"));
-                    Logger.LogInformation("GeneratedNeuron embodied installed pack '{Pack}' for action '{Action}'", packKey, used.Action);
-                }
-                else
-                {
-                    await FireAsync(new LlmResponse(used.Pack, $"[Embodied: {packKey}] Simulated response to {used.Action} using installed experience.", "sim"));
-                }
-            }
-            else
-            {
-                Logger.LogInformation("Generated experience {Pack} used: {Action} (no installed pack yet).", used.Pack, used.Action);
-            }
+    // Compile + load the pack into a collectible ALC. A pack that is not a compilable IPackBehavior
+    // (e.g. a natural-language pack) fails embodiment; we log it and fall back to the LLM path on use.
+    private void TryEmbody(NeuroPack pack)
+    {
+        if (string.IsNullOrWhiteSpace(pack.Code))
+            return;
+
+        var embodier = ServiceProvider.GetService<IPackEmbodiment>();
+        if (embodier is null)
+        {
+            Logger.LogWarning("No IPackEmbodiment registered; pack '{Pack}' will use the LLM fallback.", pack.Name);
+            return;
         }
+
+        try
+        {
+            _embodied?.Dispose();
+            _embodied = embodier.Embody(pack.Name, pack.Code);
+            Logger.LogInformation("GeneratedNeuron EMBODIED pack {Name}@{Ver} as real compiled C#.", pack.Name, pack.Version);
+        }
+        catch (PackEmbodimentException ex)
+        {
+            _embodied = null;
+            Logger.LogWarning(ex, "Pack '{Pack}' is not a compilable IPackBehavior; using LLM fallback on use.", pack.Name);
+        }
+    }
+
+    private void EnsureEmbodied()
+    {
+        if (_embodied is not null) return;
+        var last = OutgoingJournal.Concat(IncomingJournal).OfType<NeuroPackInstalled>().LastOrDefault();
+        if (last is not null)
+            TryEmbody(last.Pack);
+    }
+
+    private async Task UseExperienceAsync(ExperienceUsed used)
+    {
+        EnsureEmbodied();
+
+        // Real path: the pack's compiled code runs and we emit its actual output.
+        if (_embodied is not null)
+        {
+            var output = _embodied.Respond(used.Action);
+            await FireAsync(new PackEmission(_embodied.PackName, used.Action, output));
+            Logger.LogInformation("GeneratedNeuron ran embodied pack '{Pack}' for action '{Action}'", _embodied.PackName, used.Action);
+            return;
+        }
+
+        // Fallback for natural-language packs with no compilable Code: LLM "embodiment" (the legacy behavior).
+        var inst = LastInstalledPack();
+        if (inst is null)
+        {
+            Logger.LogInformation("Generated experience {Pack} used: {Action} (no installed pack yet).", used.Pack, used.Action);
+            return;
+        }
+
+        var (packKey, code, desc) = inst.Value;
+        var chat = ServiceProvider.GetService<IChatClient>();
+        if (chat is null)
+        {
+            await FireAsync(new LlmResponse(used.Pack, $"[Embodied: {packKey}] Simulated response to {used.Action} using installed experience.", "sim"));
+            return;
+        }
+
+        var behaviorPrompt = $"You are now the installed experience '{packKey}'.\n" +
+                             $"Description: {desc}\n" +
+                             $"Implementation guidance/code:\n{code}\n\n" +
+                             $"Handle the following usage: {used.Action} on input related to '{used.Pack}'.\n" +
+                             "Respond in character as this specific installed neuron/experience would. Be concise and useful.";
+        var response = await chat.GetResponseAsync(behaviorPrompt);
+        await FireAsync(new LlmResponse(behaviorPrompt, response.Text.Trim(), "embodied-pack"));
+        Logger.LogInformation("GeneratedNeuron LLM-embodied pack '{Pack}' for action '{Action}'", packKey, used.Action);
     }
 
     private (string Key, string Code, string Description)? LastInstalledPack()
     {
         var last = OutgoingJournal.Concat(IncomingJournal).OfType<NeuroPackInstalled>().LastOrDefault();
-        if (last == null) return null;
+        if (last is null) return null;
         var p = last.Pack;
         return ($"{p.Name}@{p.Version}", p.Code, p.Description);
     }
