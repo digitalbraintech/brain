@@ -30,6 +30,9 @@ builder.WebHost.ConfigureKestrel(options =>
 
 builder.Services.AddGrpc();
 
+// Server-driven UI fanout: neurons broadcast RfwCards; WatchHomeFeed gRPC subscribers stream them.
+builder.Services.AddSingleton<HomeFeedBus>();
+
 // Co-host the MCP tool surface in-process: the tools resolve grains via the silo's own IGrainFactory,
 // eliminating the cross-process Orleans-client hop the standalone stdio server incurs. Internal-only — no
 // External ingress is wired (remote exposure awaits an auth decision before mutation tools go outside).

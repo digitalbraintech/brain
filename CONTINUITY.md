@@ -38,7 +38,10 @@ NOT regressions; everything else green.
   SyntheticPaymentGateway (tested) and StripePaymentGateway (real Stripe.net 48.1.0, behind config, fail-fast).
   99/101 green.
 
-## CORE CONSOLIDATION COMPLETE — 11 commits on consolidation/best-of-breed. Remaining = explicitly deferred:
+## Extended (deferred items, user-requested)
+- L9 UI backbone DONE: RfwCard synapse + HomeFeedBus (fanout+dedup) + ChatNeuron (IHandle<VisualizeDataRequest> -> RfwCard) + streaming gRPC WatchHomeFeed. SDUI: UiSurface canonical, RfwCard added. Flutter client + gRPC wire test deferred (env sockets).
+- IN PROGRESS: Context phase 2 (Qdrant + embeddings + PDF), then WASM sandbox.
+## Remaining:
 - L9 UI: server-side streaming gRPC pipeline (uigateway.proto + HomeFeedBus + ConversationGrain + RfwCard) and
   the 108-file Flutter client. XL; needs a canonical-SDUI-model decision (keep UiSurface + add RfwCard, vs migrate).
 - WASM/IWasm sandbox: net-new, zero prior art; only if untrusted third-party packs must run sandboxed.

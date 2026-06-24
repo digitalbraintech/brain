@@ -1,4 +1,5 @@
 using DigitalBrain.Protocol;
+using DigitalBrain.Silo;
 using DigitalBrain.Silo.Foundry;
 using DigitalBrain.Silo.Llm;
 using Microsoft.Extensions.AI;
@@ -24,6 +25,7 @@ public sealed class NeuronTestSiloConfigurator : ISiloConfigurator
                 services.AddSingleton<IJournaledStateManager, TestJournaledStateManager>();
                 services.AddSingleton<IPackEmbodiment, PackAlcEmbodier>();
                 services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(new NoOpEmbeddingGenerator());
+                services.AddSingleton<HomeFeedBus>();
             });
     }
 }

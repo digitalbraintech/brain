@@ -106,4 +106,6 @@ namespace DigitalBrain.Protocol;
 // Economics / licensing
 [JsonSerializable(typeof(LicenseGranted))]
 [JsonSerializable(typeof(LicenseKeyPair))]
+// Server-driven UI
+[JsonSerializable(typeof(RfwCard))]
 public partial class JournalJsonContext : JsonSerializerContext;

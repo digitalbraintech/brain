@@ -28,7 +28,7 @@ public class GatewayServiceTests : IAsyncLifetime
     public async Task DisposeAsync() => await _cluster.StopAllSilosAsync();
 
     private GatewayService NewService() =>
-        new(_cluster.GrainFactory, new ConfigurationBuilder().Build(), NullLogger<GatewayService>.Instance);
+        new(_cluster.GrainFactory, new ConfigurationBuilder().Build(), new DigitalBrain.Silo.HomeFeedBus(), NullLogger<GatewayService>.Instance);
 
     [Fact]
     public async Task Ask_Ino_ReturnsNonEmptyReply()
