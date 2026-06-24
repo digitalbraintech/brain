@@ -97,6 +97,18 @@ public class MarketplaceNeuron : Neuron, IMarketplaceNeuron
             Logger.LogWarning("Install WARNING - pack {Key} is unsigned (allowed during trust transition)", cmd.PackName + "@" + cmd.Version);
         }
 
+        // Economics gate: a premium pack (Price > 0) requires the buyer to hold a license (entitlement).
+        if (pack.Price > 0m)
+        {
+            var license = GrainFactory.GetGrain<ILicenseNeuron>("license-main");
+            if (!await license.HasLicenseAsync(pack.Name, cmd.BuyerId))
+            {
+                Logger.LogWarning("Install REJECTED - premium pack {Key} requires a license for buyer {Buyer}", cmd.PackName + "@" + cmd.Version, cmd.BuyerId);
+                return;
+            }
+            Logger.LogInformation("Install entitlement verified for premium pack {Key}, buyer {Buyer}", cmd.PackName + "@" + cmd.Version, cmd.BuyerId);
+        }
+
         var commissionAmount = 1.0 * pack.CommissionRate;
         await FireAsync(new CommissionTaken(
             pack.Name,
@@ -132,7 +144,7 @@ public class MarketplaceNeuron : Neuron, IMarketplaceNeuron
             .OfType<PublishToMarketplace>()
             .GroupBy(p => $"{p.PackName}@{p.Version}")
             .Select(g => g.Last())
-            .Select(p => new NeuroPack(p.PackName, p.Version, p.OwnerId, p.IsPrivate, p.CommissionRate, p.Code, p.Description, p.AuthorPublicKeyBase64, p.SignatureBase64))
+            .Select(p => new NeuroPack(p.PackName, p.Version, p.OwnerId, p.IsPrivate, p.CommissionRate, p.Code, p.Description, p.AuthorPublicKeyBase64, p.SignatureBase64, p.Price))
             .ToList();
     }
 

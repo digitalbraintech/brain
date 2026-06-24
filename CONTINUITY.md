@@ -32,13 +32,18 @@ NOT regressions; everything else green.
 - Step 8 (Awesome): ProjectReview.Analyze ported near-verbatim from final + ReviewRequest/ReviewProjectRequest/
   ReviewResult + SoftwareEngineeringReviewerNeuron (real review, not string templating). 91/93 green.
 - Step 9 (Context): HybridScorer (cosine + keyword, zero-vector fallback, from IAW) + NoOpEmbeddingGenerator
-  (registered fail-soft in DigitalBrainChat) + ContextNeuron RememberAsync/RecallAsync + MemoryStored synapse.
-  In-grain hybrid memory works with zero deps (keyword when NoOp). 95/97 green.
+  + ContextNeuron RememberAsync/RecallAsync + MemoryStored synapse. Zero-dep hybrid memory. 95/97 green.
+- Economics (user: real money NOW): ECDSA LicenseNeuron (issue/verify/entitlement, reuses PackSignatureVerifier,
+  journal-persistent keypair) + NeuroPack.Price (Id9) + premium-gated install + IPaymentGateway with
+  SyntheticPaymentGateway (tested) and StripePaymentGateway (real Stripe.net 48.1.0, behind config, fail-fast).
+  99/101 green.
 
-## Working set (next)
-- Economics (user: real money NOW): IPaymentGateway (synthetic + Stripe) + ECDSA LicenseNeuron (issue/verify,
-  reuse PackSignatureVerifier) + premium-gated install. Google auth optional. Fail-fast secrets.
-- Deferred (plan): L9 UI streaming pipeline + Flutter client; WASM sandbox; external Qdrant + PDF ingestion (real embeddings).
+## CORE CONSOLIDATION COMPLETE — 11 commits on consolidation/best-of-breed. Remaining = explicitly deferred:
+- L9 UI: server-side streaming gRPC pipeline (uigateway.proto + HomeFeedBus + ConversationGrain + RfwCard) and
+  the 108-file Flutter client. XL; needs a canonical-SDUI-model decision (keep UiSurface + add RfwCard, vs migrate).
+- WASM/IWasm sandbox: net-new, zero prior art; only if untrusted third-party packs must run sandboxed.
+- Context phase 2: external Qdrant container + real embeddings (Ollama/OpenAI) + PdfIngestionSource/DocumentIngestor.
+- Google auth for marketplace (optional, pairs with economics).
 
 ## Open questions
 - Encryption keying for cloud (DPAPI/local vs Key Vault) — AES key via DigitalBrain:Checkpoint:Key; Key Vault wiring TBD.

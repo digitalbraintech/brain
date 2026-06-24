@@ -143,7 +143,9 @@ public record NeuroPack(
     // Trust chain: author's ECDSA public key (SPKI, base64) + signature over Name|Version|Hash(Code)|PubKey.
     // Empty = unsigned. Signed via PackSignatureVerifier.SignPack at publish, verified at install.
     [property: Id(7)] string AuthorPublicKeyBase64 = "",
-    [property: Id(8)] string SignatureBase64 = ""
+    [property: Id(8)] string SignatureBase64 = "",
+    // Economics: price in the marketplace currency. 0 = free. Premium (>0) packs require a license at install.
+    [property: Id(9)] decimal Price = 0m
 );
 
 // Richer publish/install commands that carry full pack data for real marketplace behavior.
@@ -158,7 +160,8 @@ public record PublishToMarketplace(
     double CommissionRate = 0.10,
     string Description = "",
     string AuthorPublicKeyBase64 = "",
-    string SignatureBase64 = ""
+    string SignatureBase64 = "",
+    decimal Price = 0m
 ) : Synapse(nameof(PublishToMarketplace), DateTimeOffset.UtcNow);
 
 [GenerateSerializer]
