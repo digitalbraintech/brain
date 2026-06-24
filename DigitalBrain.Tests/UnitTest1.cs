@@ -1,4 +1,5 @@
 ﻿using DigitalBrain.Protocol;
+using DigitalBrain.Silo.Foundry;
 using DigitalBrain.Tests.TestSupport;
 using Microsoft.Extensions.DependencyInjection;
 using Orleans.TestingHost;
@@ -12,7 +13,7 @@ public class NeuronTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         var builder = new TestClusterBuilder();
-        builder.AddSiloBuilderConfigurator<SiloConfigurator>();
+        builder.AddSiloBuilderConfigurator<NeuronTestSiloConfigurator>();
         _cluster = builder.Build();
         await _cluster.DeployAsync();
     }
@@ -68,7 +69,7 @@ public class NeuronTests : IAsyncLifetime
 
         // Hardened isolated sim: replay proper CreateCheckpoint snapshot into separate TestCluster.
         var simBuilder = new TestClusterBuilder();
-        simBuilder.AddSiloBuilderConfigurator<SiloConfigurator>();
+        simBuilder.AddSiloBuilderConfigurator<NeuronTestSiloConfigurator>();
         var simCluster = simBuilder.Build();
         await simCluster.DeployAsync();
         try
@@ -132,6 +133,27 @@ public class NeuronTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Synapse_Propagates_Correlation_And_Causation()
+    {
+        var market = _cluster!.GrainFactory.GetGrain<IMarketplaceNeuron>("market-causation");
+        await market.FireAsync(new PublishToMarketplace("CausPack", "1.0", Code: "x", OwnerId: "owner", IsPrivate: false, CommissionRate: 0.1));
+        await market.FireAsync(new InstallFromMarketplace("CausPack", "1.0", BuyerId: "buyer"));
+
+        var outTl = await market.GetOutgoingTimelineAsync();
+        var install = outTl.OfType<InstallFromMarketplace>().Last();
+        var commission = outTl.OfType<CommissionTaken>().Last();
+
+        // Every fired synapse has a stable id; a root synapse correlates to itself.
+        Assert.False(string.IsNullOrEmpty(install.SynapseId));
+        Assert.Equal(install.SynapseId, install.CorrelationId);
+        Assert.Null(install.CausationId);
+
+        // The commission was fired while handling the install, so it inherits the chain + points back at it.
+        Assert.Equal(install.SynapseId, commission.CausationId);
+        Assert.Equal(install.CorrelationId, commission.CorrelationId);
+    }
+
+    [Fact]
     public async Task Marketplace_Private_Blocks_NonOwner_Install()
     {
         var market = _cluster!.GrainFactory.GetGrain<IMarketplaceNeuron>("market-test-3");
@@ -171,21 +193,37 @@ public class NeuronTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Branch_And_TimeTravel_Isolates_Journals()
+    public async Task Branch_Forks_Same_Type_With_Replayed_History_And_Isolation()
     {
-        var src = _cluster!.GrainFactory.GetGrain<ISystemStatus>("branch-src");
-        await src.FireAsync(new SystemStatusChanged("test", "ok"));
+        var src = _cluster!.GrainFactory.GetGrain<IDemoNeuron>("branch-src");
+        await src.FireAsync(new DemoMessageSynapse("original"));
         var cp = await src.CreateCheckpointAsync();
         var bid = await src.BranchAsync(cp);
         Assert.NotEqual(src.GetPrimaryKeyString(), bid.Value);
 
+        // The branch is a grain of the SAME type, seeded with the checkpoint history.
         var branch = _cluster.GrainFactory.GetGrain<IDemoNeuron>(bid.Value);
-        await branch.FireAsync(new DemoMessageSynapse("from branch only"));
-        var bOut = await branch.GetOutgoingTimelineAsync();
+        var branchIn = await branch.GetIncomingTimelineAsync();
+        Assert.Contains(branchIn, s => s is DemoMessageSynapse d && d.Text == "original");
+
+        // Firing on the branch does not pollute the source (isolation).
+        await branch.FireAsync(new DemoMessageSynapse("branch only"));
         var mainOut = await src.GetOutgoingTimelineAsync();
-        Assert.Contains(bOut, s => s is DemoMessageSynapse);
-        // Main not polluted by branch fire (isolation)
-        Assert.DoesNotContain(mainOut, s => s is DemoMessageSynapse && ((DemoMessageSynapse)s).Text.Contains("branch only"));
+        Assert.DoesNotContain(mainOut, s => s is DemoMessageSynapse d && d.Text.Contains("branch only"));
+    }
+
+    [Fact]
+    public async Task Restore_Seeds_Journal_From_Checkpoint_Without_Redispatch()
+    {
+        var src = _cluster!.GrainFactory.GetGrain<IDemoNeuron>("restore-src");
+        await src.FireAsync(new DemoMessageSynapse("to-restore"));
+        var checkpoint = await src.CreateCheckpointAsync();
+
+        var target = _cluster.GrainFactory.GetGrain<IDemoNeuron>("restore-target");
+        await target.RestoreCheckpointAsync(checkpoint);
+
+        var restored = await target.GetIncomingTimelineAsync();
+        Assert.Contains(restored, s => s is DemoMessageSynapse d && d.Text == "to-restore");
     }
 
     [Fact]
@@ -224,19 +262,122 @@ public class NeuronTests : IAsyncLifetime
         Assert.True(generated.Surface.Props.ContainsKey(UiSurfaceKeys.ChartSpec));
     }
 
-    private class SiloConfigurator : ISiloConfigurator
+    [Fact]
+    public async Task Marketplace_Rejects_Invalid_Signature_And_Accepts_Valid()
     {
-        public void Configure(ISiloBuilder siloBuilder)
+        var (priv, pub) = PackSignatureVerifier.GenerateKeyPair();
+
+        // A validly-signed pack installs.
+        var marketOk = _cluster!.GrainFactory.GetGrain<IMarketplaceNeuron>("market-sign-ok");
+        var good = PackSignatureVerifier.SignPack(new NeuroPack("SignOk", "1.0", OwnerId: "dev", Code: "ok"), priv, pub);
+        await marketOk.FireAsync(new PublishToMarketplace(
+            good.Name, good.Version, good.Code, good.OwnerId, good.IsPrivate, good.CommissionRate,
+            good.Description, good.AuthorPublicKeyBase64, good.SignatureBase64));
+        await marketOk.FireAsync(new InstallFromMarketplace("SignOk", "1.0", BuyerId: "buyer"));
+        Assert.Contains(await marketOk.GetTimelineAsync(), s => s is NeuroPackInstalled);
+
+        // A pack whose code was tampered AFTER signing is rejected at install (signature no longer matches).
+        var marketBad = _cluster!.GrainFactory.GetGrain<IMarketplaceNeuron>("market-sign-bad");
+        var signed = PackSignatureVerifier.SignPack(new NeuroPack("SignBad", "1.0", OwnerId: "dev", Code: "original"), priv, pub);
+        var tampered = signed with { Code = "tampered" };
+        await marketBad.FireAsync(new PublishToMarketplace(
+            tampered.Name, tampered.Version, tampered.Code, tampered.OwnerId, tampered.IsPrivate, tampered.CommissionRate,
+            tampered.Description, tampered.AuthorPublicKeyBase64, tampered.SignatureBase64));
+        await marketBad.FireAsync(new InstallFromMarketplace("SignBad", "1.0", BuyerId: "buyer"));
+        Assert.DoesNotContain(await marketBad.GetTimelineAsync(), s => s is NeuroPackInstalled);
+    }
+
+    [Fact]
+    public async Task Install_Embodies_Signed_Pack_And_Runs_Real_Compiled_Code()
+    {
+        var (priv, pub) = PackSignatureVerifier.GenerateKeyPair();
+        var code = """
+            public sealed class EchoPack : DigitalBrain.Protocol.IPackBehavior
+            {
+                public string Respond(string input) => "ECHO:" + input;
+            }
+            """;
+        var pack = PackSignatureVerifier.SignPack(
+            new NeuroPack("EchoPack", "1.0", OwnerId: "dev", Code: code), priv, pub);
+
+        var market = _cluster!.GrainFactory.GetGrain<IMarketplaceNeuron>("market-embody");
+        await market.FireAsync(new PublishToMarketplace(
+            pack.Name, pack.Version, pack.Code, pack.OwnerId, pack.IsPrivate, pack.CommissionRate,
+            pack.Description, pack.AuthorPublicKeyBase64, pack.SignatureBase64));
+        await market.FireAsync(new InstallFromMarketplace("EchoPack", "1.0", BuyerId: "buyer"));
+
+        // The host neuron compiled pack.Code into a collectible ALC and dispatched to it for real.
+        var generated = _cluster!.GrainFactory.GetGrain<IGeneratedNeuron>("generated-echopack");
+        var emission = (await generated.GetTimelineAsync()).OfType<PackEmission>().LastOrDefault();
+
+        Assert.NotNull(emission);                         // proof the install->compile->ALC->dispatch chain ran
+        Assert.Equal("EchoPack", emission!.Pack);
+        Assert.StartsWith("ECHO:", emission.Output);      // ...the pack's REAL compiled output, not the LLM stub
+    }
+
+    [Fact]
+    public async Task GitNeuron_Commits_And_Derives_Metrics_From_Journal()
+    {
+        var repo = Path.Combine(Path.GetTempPath(), "dbgit-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(repo);
+        try
         {
-            siloBuilder
-                .AddMemoryGrainStorageAsDefault()
-                .AddMemoryStreams("Default")
-                .ConfigureServices(services =>
-                {
-                    services.AddKeyedScoped<Orleans.Journaling.IDurableList<DigitalBrain.Protocol.Synapse>>("in-journal", (_, _) => new InMemoryDurableList<DigitalBrain.Protocol.Synapse>());
-                    services.AddKeyedScoped<Orleans.Journaling.IDurableList<DigitalBrain.Protocol.Synapse>>("out-journal", (_, _) => new InMemoryDurableList<DigitalBrain.Protocol.Synapse>());
-                    services.AddSingleton<Orleans.Journaling.IJournaledStateManager, TestJournaledStateManager>();
-                });
+            RunGit("init -b main", repo);
+            RunGit("config user.email test@example.com", repo);
+            RunGit("config user.name Tester", repo);
+            RunGit("config commit.gpgsign false", repo);
+            await File.WriteAllTextAsync(Path.Combine(repo, "file.txt"), "hello");
+
+            var git = _cluster!.GrainFactory.GetGrain<IGitNeuron>("git-test");
+
+            var status = await git.StatusAsync(repo);
+            Assert.Contains("file.txt", status);
+
+            await git.CommitAsync(repo, "add file");
+
+            var log = await git.LogAsync(repo);
+            Assert.Single(log);
+            Assert.Contains("add file", log[0]);
+
+            var metrics = await git.GetMetricsAsync();
+            Assert.Equal(1, metrics.TotalCommits);
+            Assert.Equal(0, metrics.TotalReverts);
+            Assert.True(metrics.LastCommit > DateTimeOffset.MinValue);
+        }
+        finally
+        {
+            TryDeleteDir(repo);
         }
     }
+
+    private static void RunGit(string args, string cwd)
+    {
+        var psi = new System.Diagnostics.ProcessStartInfo("git", args)
+        {
+            WorkingDirectory = cwd,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        using var p = System.Diagnostics.Process.Start(psi)!;
+        p.WaitForExit();
+    }
+
+    private static void TryDeleteDir(string dir)
+    {
+        try
+        {
+            if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
+        }
+        catch (IOException)
+        {
+            // Best-effort temp cleanup: Windows can briefly lock .git pack files. Not a test failure.
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Same as above — read-only .git objects on some platforms.
+        }
+    }
+
 }

@@ -31,6 +31,10 @@ public static class DigitalBrainChat
                     .AsIChatClient());
         }
         // No provider → no IChatClient registered; neurons fall back deterministically.
+
+        // Embeddings for the Context neuron's hybrid recall. Registered fail-soft as a NoOp (zero vectors) so RAG
+        // is always wired and degrades to keyword scoring; a real Ollama/OpenAI embedding generator is a later phase.
+        services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(new NoOpEmbeddingGenerator());
         return services;
     }
 }

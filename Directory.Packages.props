@@ -48,6 +48,11 @@
     <PackageVersion Include="Azure.AI.OpenAI" Version="2.1.0" />
     <!-- MCP / LLM integration -->
     <PackageVersion Include="ModelContextProtocol" Version="1.4.0" />
+    <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="1.4.0" />
+    <!-- Marketplace economics -->
+    <PackageVersion Include="Stripe.net" Version="48.1.0" />
+    <!-- Context phase 2: vector store + document ingestion -->
+    <PackageVersion Include="Qdrant.Client" Version="1.17.0" />
     <!-- Observability -->
     <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.16.0" />
     <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.16.0" />

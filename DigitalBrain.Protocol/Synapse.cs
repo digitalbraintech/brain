@@ -10,8 +10,24 @@ public record Synapse(
     [property: Id(5)] string? CorrelationId = null
 )
 {
-    public Synapse Stamp(NeuronId sender) =>
-        this with { Sender = sender, Timestamp = DateTimeOffset.UtcNow };
+    // Stable per-synapse identity. Append-only Id, assigned at construction and preserved through `with`,
+    // so a fired synapse keeps the same id across journaling/replay. Enables causal lineage + robust dedup.
+    [Id(6)] public string SynapseId { get; init; } = Guid.NewGuid().ToString("N");
+
+    // The SynapseId of the synapse whose handling caused this one to fire. Null for a root synapse.
+    [Id(7)] public string? CausationId { get; init; }
+
+    // Sets sender + timestamp and propagates causal lineage from the synapse currently being handled (cause).
+    // CorrelationId flows down the whole reaction chain (root correlates to itself); CausationId points at
+    // the immediate predecessor. Explicitly-set CorrelationId on the payload always wins.
+    public Synapse Stamp(NeuronId sender, Synapse? cause = null) =>
+        this with
+        {
+            Sender = sender,
+            Timestamp = DateTimeOffset.UtcNow,
+            CorrelationId = CorrelationId ?? cause?.CorrelationId ?? cause?.SynapseId ?? SynapseId,
+            CausationId = cause?.SynapseId
+        };
 }
 
 [GenerateSerializer]
@@ -123,20 +139,29 @@ public record NeuroPack(
     [property: Id(3)] bool IsPrivate = false,
     [property: Id(4)] double CommissionRate = 0.10, // 10% default commission taken by marketplace
     [property: Id(5)] string Code = "",
-    [property: Id(6)] string Description = ""
+    [property: Id(6)] string Description = "",
+    // Trust chain: author's ECDSA public key (SPKI, base64) + signature over Name|Version|Hash(Code)|PubKey.
+    // Empty = unsigned. Signed via PackSignatureVerifier.SignPack at publish, verified at install.
+    [property: Id(7)] string AuthorPublicKeyBase64 = "",
+    [property: Id(8)] string SignatureBase64 = "",
+    // Economics: price in the marketplace currency. 0 = free. Premium (>0) packs require a license at install.
+    [property: Id(9)] decimal Price = 0m
 );
 
 // Richer publish/install commands that carry full pack data for real marketplace behavior.
 // Old simple constructors still work via defaults for minimal compat during transition.
 [GenerateSerializer]
 public record PublishToMarketplace(
-    string PackName, 
-    string Version, 
-    string Code = "", 
-    string OwnerId = "anonymous", 
-    bool IsPrivate = false, 
+    string PackName,
+    string Version,
+    string Code = "",
+    string OwnerId = "anonymous",
+    bool IsPrivate = false,
     double CommissionRate = 0.10,
-    string Description = ""
+    string Description = "",
+    string AuthorPublicKeyBase64 = "",
+    string SignatureBase64 = "",
+    decimal Price = 0m
 ) : Synapse(nameof(PublishToMarketplace), DateTimeOffset.UtcNow);
 
 [GenerateSerializer]
@@ -261,7 +286,16 @@ public record ContextUpdate(string ContextName, string Key, string Value) : Syna
 public interface IContextNeuron : INeuron, IHandle<ContextUpdate>
 {
     Task<string> GetContextAsync(string contextName);
+
+    // Semantic memory: store a memory (embedded) and recall the most relevant ones for a query.
+    // Recall uses an in-grain hybrid (cosine + keyword) scorer; with a NoOp embedder it degrades to keyword.
+    Task RememberAsync(string text);
+    Task<string[]> RecallAsync(string query, int top = 5);
 }
+
+// A stored semantic memory: the text plus its embedding (empty when no real embedder is configured).
+[GenerateSerializer]
+public record MemoryStored(string Text, float[] Embedding) : Synapse(nameof(MemoryStored), DateTimeOffset.UtcNow);
 
 // Dynamic DB support neuron with typed synapses (inspired by .NET 11 Preview 5 EF/file-based + runtime dynamic)
 [GenerateSerializer]

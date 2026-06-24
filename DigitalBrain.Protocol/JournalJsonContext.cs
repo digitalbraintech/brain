@@ -92,4 +92,20 @@ namespace DigitalBrain.Protocol;
 [JsonSerializable(typeof(AuthButtonSurface))]
 [JsonSerializable(typeof(ListSurface))]
 [JsonSerializable(typeof(IdeSurface))]
+// SDK integration-neuron synapses
+[JsonSerializable(typeof(GitCommitted))]
+[JsonSerializable(typeof(GitReverted))]
+// Distribution / embodiment
+[JsonSerializable(typeof(PackEmission))]
+// Awesome / software-engineering review
+[JsonSerializable(typeof(ReviewRequest))]
+[JsonSerializable(typeof(ReviewProjectRequest))]
+[JsonSerializable(typeof(ReviewResult))]
+// Context / semantic memory
+[JsonSerializable(typeof(MemoryStored))]
+// Economics / licensing
+[JsonSerializable(typeof(LicenseGranted))]
+[JsonSerializable(typeof(LicenseKeyPair))]
+// Server-driven UI
+[JsonSerializable(typeof(RfwCard))]
 public partial class JournalJsonContext : JsonSerializerContext;

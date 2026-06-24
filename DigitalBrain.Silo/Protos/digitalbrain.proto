@@ -9,6 +9,16 @@ service DigitalBrainGateway {
   rpc Ask(AskRequest) returns (AskReply);
   rpc Fire(FireRequest) returns (FireReply);
   rpc Timeline(TimelineRequest) returns (TimelineReply);
+  // Server-driven UI: stream Remote Flutter Widgets cards as neurons broadcast them to the Home feed.
+  rpc WatchHomeFeed(WatchHomeFeedRequest) returns (stream RfwCardEnvelope);
+}
+
+message WatchHomeFeedRequest {}
+message RfwCardEnvelope {
+  string library_name = 1;
+  string root_widget = 2;
+  string data_json = 3;
+  string correlation_id = 4;
 }
 
 message HealthRequest {}

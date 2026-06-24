@@ -1,5 +1,6 @@
 using DigitalBrain.Protocol;
 using DigitalBrain.Runtime.Grpc;
+using DigitalBrain.Silo;
 using Grpc.Core;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -9,8 +10,25 @@ namespace DigitalBrain.Silo.Gateway;
 public sealed class GatewayService(
     IGrainFactory grains,
     IConfiguration configuration,
+    HomeFeedBus homeFeedBus,
     ILogger<GatewayService> logger) : DigitalBrainGateway.DigitalBrainGatewayBase
 {
+    // Server-driven UI: stream RfwCards to the client as neurons broadcast them, until the client disconnects.
+    public override async Task WatchHomeFeed(WatchHomeFeedRequest request, IServerStreamWriter<RfwCardEnvelope> responseStream, ServerCallContext context)
+    {
+        using var subscription = homeFeedBus.Subscribe();
+        await foreach (var card in subscription.Reader.ReadAllAsync(context.CancellationToken))
+        {
+            await responseStream.WriteAsync(new RfwCardEnvelope
+            {
+                LibraryName = card.LibraryName,
+                RootWidget = card.RootWidget,
+                DataJson = card.DataJson,
+                CorrelationId = card.CorrelationId ?? string.Empty
+            });
+        }
+    }
+
     public override Task<HealthReply> Health(HealthRequest request, ServerCallContext context) =>
         Task.FromResult(new HealthReply
         {

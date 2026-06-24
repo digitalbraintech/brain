@@ -13,4 +13,5 @@ public interface INeuron : IGrainWithStringKey
     // OS kernel simulation/time-travel primitives.
     ValueTask<Checkpoint> CreateCheckpointAsync();
     Task<NeuronId> BranchAsync(Checkpoint checkpoint);
+    Task RestoreCheckpointAsync(Checkpoint checkpoint);
 }

@@ -10,6 +10,8 @@ public static class FoundryServices
         siloBuilder.ConfigureServices(services =>
         {
             services.AddSingleton<ICodeExecutor, InProcessAlcExecutor>();
+            services.AddSingleton<IPackEmbodiment, PackAlcEmbodier>();
+            services.AddSingleton<ISandboxedExecutor, OutOfProcessSandbox>();
             services.AddSingleton<IBuildRunner, ProcessBuildRunner>();
             var env = Environment.GetEnvironmentVariable("DIGITALBRAIN_ENV");
             if (string.Equals(env, "cloud", StringComparison.OrdinalIgnoreCase))
