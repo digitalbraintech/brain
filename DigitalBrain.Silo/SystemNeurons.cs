@@ -947,62 +947,6 @@ public class DbSupportNeuron : Neuron, IDbSupportNeuron
     }
 }
 
-// NuGet neuron: package/dependency mgmt, update, resolve, embed into generated neurons/packs via loops.
-// Uses dotnet CLI (no local NuGet cache access per rules). Invoked by SEClosedLoop.
-[GrainType("nuget.manager.v1")]
-public class NuGetManagerNeuron : Neuron
-{
-    public NuGetManagerNeuron(ILogger<NuGetManagerNeuron> logger) : base(logger) { }
-
-    public async Task HandleAsync(NuGetCommand cmd)
-    {
-        Logger.LogInformation("NuGet {Action} for {Target}", cmd.Action, cmd.Target);
-        // Execute via process for safety (latest packages encouraged).
-        var psi = new ProcessStartInfo("dotnet", $"{cmd.Action} {cmd.Target} {cmd.Args}")
-        {
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false
-        };
-        using var p = Process.Start(psi)!;
-        var output = await p.StandardOutput.ReadToEndAsync();
-        await p.WaitForExitAsync();
-        await FireAsync(new NuGetResult(cmd.Target, p.ExitCode == 0, output));
-    }
-}
-
-// Roslyn architect neuron (extends SEClosedLoop capabilities).
-// Loads solutions via official MSBuildWorkspace (verified via docs), syntax/semantic analysis, refactor suggestions, code gen.
-// Encapsulates layered, DI, SOLID, DDD, testing, security etc. Used by closed loops only.
-[GrainType("roslyn.architect.v1")]
-public class RoslynArchitectNeuron : Neuron
-{
-    public RoslynArchitectNeuron(ILogger<RoslynArchitectNeuron> logger) : base(logger) { }
-
-    public async Task<string> AnalyzeSolutionAsync(string relativeSolutionPath)
-    {
-        // Relative only, project dir.
-        var ws = MSBuildWorkspace.Create();
-        var solution = await ws.OpenSolutionAsync(relativeSolutionPath);
-        var projectCount = solution.Projects.Count();
-        var diagnostics = new List<string>();
-        foreach (var proj in solution.Projects.Take(5))
-        {
-            var compilation = await proj.GetCompilationAsync();
-            var errs = compilation!.GetDiagnostics().Where(d => d.Severity == DiagnosticSeverity.Error).Take(3);
-            diagnostics.AddRange(errs.Select(e => $"{proj.Name}:{e.Location} {e.GetMessage()}"));
-        }
-        var report = $"Solution {relativeSolutionPath}: {projectCount} projects. Sample issues: {string.Join("; ", diagnostics)}";
-        await FireAsync(new ArchitectReport(relativeSolutionPath, report));
-        return report;
-    }
-
-    public async Task HandleAsync(ArchitectRequest cmd)
-    {
-        Logger.LogInformation("Architect analyzing {Path} for {Task}", cmd.Path, cmd.Task);
-        var result = await AnalyzeSolutionAsync(cmd.Path);
-        await FireAsync(new ArchitectResult(cmd.Path, result, cmd.Task));
-    }
-}
-
-// Marketplace experience grains / handlers for new packs (RoslynArchitect, NuGetManagerLoop etc) are embodied via journals + publish/install via MCP/closed loops.
+// NOTE: the untyped NuGetManagerNeuron and RoslynArchitectNeuron were retired here in favor of the typed SDK
+// neurons INuGetNeuron/NuGetNeuron and IRoslynNeuron/RoslynNeuron (see DigitalBrain.Silo/Sdk). The latter
+// preserves the same MSBuildWorkspace analysis behind a typed contract.

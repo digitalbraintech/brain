@@ -38,14 +38,19 @@ is a stub (SystemNeurons.cs:58) that LLM-"embodies" instead of compiling.
   DigitalBrain.Mcp now references the shared lib + requires Orleans client (no degraded mode). Shared
   NeuronTestSiloConfigurator (DRY). 77/79 green (2 = env GrpcWire). Branch: consolidation/best-of-breed.
 
+- [2026-06-24] Step 6 (L4 SDK rest): shared ProcessRunner (timeout/kill-tree/block-list/base64-pwsh, DRY) +
+  typed RPC neurons Shell/FileSystem/DotNet/NuGet/Winget(net-new)/Roslyn (Protocol/Sdk + Silo/Sdk), all with
+  static-virtual metadata. GitNeuron refactored onto ProcessRunner. Retired untyped NuGetManagerNeuron +
+  RoslynArchitectNeuron (RoslynNeuron preserves the MSBuildWorkspace analysis). 83/85 green (2 env GrpcWire).
+
 ## Working set (next steps, from plan)
-- Step 6: rest of SDK neurons (Shell/FileSystem/DotNet/NuGet/Roslyn re-homed from IAW + build IWinget new on
-  ShellAgent mechanics). Retire untyped RoslynArchitectNeuron/NuGetManagerNeuron.
-- Step 7: kernel branch dedup (SynapseId now available) + encrypted checkpoint/restore (digitalbrain
-  INeuronStateProtector + Dpapi). Step 8: real SE review (final ProjectReview.Analyze). Step 9: Context in-grain
-  hybrid + embeddings (Qdrant later).
+- Step 7: kernel branch dedup (SynapseId now available; replace heuristic dedup in Neuron.CreateCheckpointAsync;
+  fix BranchAsync to target source grain type, not IDemoNeuron) + encrypted checkpoint/restore (port
+  digitalbrain INeuronStateProtector + Dpapi/InMemory; CheckpointStore with RESTORE).
+- Step 8: real SE review (final ProjectReview.Analyze -> Software20TeamNeuron). Step 9: Context in-grain hybrid
+  + embeddings (Qdrant later).
 - Economics (user: real money NOW): ECDSA LicenseNeuron + Stripe behind IPaymentGateway + Google auth, fail-fast secrets.
-- MCP remote/auth: internal-only confirmed by user; External+auth deferred.
+- MCP remote/auth: internal-only confirmed; External+auth deferred. Encryption keying (DPAPI local vs Key Vault) TBD for step 7.
 
 ## Open questions
 - Trust policy unsigned packs: warn-only during transition then strict (default, not yet ratified).
