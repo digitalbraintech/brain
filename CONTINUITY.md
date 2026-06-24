@@ -29,15 +29,16 @@ NOT regressions; everything else green.
   GitNeuron onto ProcessRunner; retired untyped NuGet/Roslyn neurons.
 - Step 7 (Kernel): checkpoint dedup by SynapseId; BranchAsync forks into SAME grain type; RestoreCheckpointAsync;
   INeuronStateProtector + AES-GCM/PassThrough + CheckpointProtector + AddKernelSecurity DI. 86/88 green.
-- Step 8 (Awesome): ProjectReview.Analyze ported near-verbatim from final (enum *.cs skip bin/obj, TODO count,
-  100-file/1MB caps, honest missing-path error, Markdown report) + ReviewRequest/ReviewProjectRequest/ReviewResult
-  + SoftwareEngineeringReviewerNeuron (real review, not string templating). 91/93 green.
+- Step 8 (Awesome): ProjectReview.Analyze ported near-verbatim from final + ReviewRequest/ReviewProjectRequest/
+  ReviewResult + SoftwareEngineeringReviewerNeuron (real review, not string templating). 91/93 green.
+- Step 9 (Context): HybridScorer (cosine + keyword, zero-vector fallback, from IAW) + NoOpEmbeddingGenerator
+  (registered fail-soft in DigitalBrainChat) + ContextNeuron RememberAsync/RecallAsync + MemoryStored synapse.
+  In-grain hybrid memory works with zero deps (keyword when NoOp). 95/97 green.
 
 ## Working set (next)
-- Step 9 (L7 Context): in-grain hybrid (cosine + keyword from IAW AgentRegistryGrain) + NoOp/embedding provider;
-  PdfIngestionSource + DocumentIngestor; Qdrant container deferred to a later phase.
-- Economics (user: real money NOW): ECDSA LicenseNeuron + Stripe behind IPaymentGateway + Google auth, fail-fast.
-- Deferred: L9 UI streaming pipeline + Flutter client; WASM sandbox; Qdrant.
+- Economics (user: real money NOW): IPaymentGateway (synthetic + Stripe) + ECDSA LicenseNeuron (issue/verify,
+  reuse PackSignatureVerifier) + premium-gated install. Google auth optional. Fail-fast secrets.
+- Deferred (plan): L9 UI streaming pipeline + Flutter client; WASM sandbox; external Qdrant + PDF ingestion (real embeddings).
 
 ## Open questions
 - Encryption keying for cloud (DPAPI/local vs Key Vault) — AES key via DigitalBrain:Checkpoint:Key; Key Vault wiring TBD.

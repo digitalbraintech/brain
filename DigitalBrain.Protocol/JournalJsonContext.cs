@@ -101,4 +101,6 @@ namespace DigitalBrain.Protocol;
 [JsonSerializable(typeof(ReviewRequest))]
 [JsonSerializable(typeof(ReviewProjectRequest))]
 [JsonSerializable(typeof(ReviewResult))]
+// Context / semantic memory
+[JsonSerializable(typeof(MemoryStored))]
 public partial class JournalJsonContext : JsonSerializerContext;

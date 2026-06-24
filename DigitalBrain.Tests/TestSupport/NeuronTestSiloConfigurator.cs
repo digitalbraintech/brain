@@ -1,5 +1,7 @@
 using DigitalBrain.Protocol;
 using DigitalBrain.Silo.Foundry;
+using DigitalBrain.Silo.Llm;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Orleans.Journaling;
 using Orleans.TestingHost;
@@ -21,6 +23,7 @@ public sealed class NeuronTestSiloConfigurator : ISiloConfigurator
                 services.AddKeyedScoped<IDurableList<Synapse>>("out-journal", (_, _) => new InMemoryDurableList<Synapse>());
                 services.AddSingleton<IJournaledStateManager, TestJournaledStateManager>();
                 services.AddSingleton<IPackEmbodiment, PackAlcEmbodier>();
+                services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(new NoOpEmbeddingGenerator());
             });
     }
 }

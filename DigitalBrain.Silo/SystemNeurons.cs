@@ -921,6 +921,34 @@ public class ContextNeuron : Neuron, IContextNeuron
             .Select(c => $"{c.Key}={c.Value}");
         return Task.FromResult(string.Join("; ", entries));
     }
+
+    public async Task RememberAsync(string text)
+    {
+        var embedding = await EmbedAsync(text);
+        await FireAsync(new MemoryStored(text, embedding));
+    }
+
+    public async Task<string[]> RecallAsync(string query, int top = 5)
+    {
+        var queryEmbedding = await EmbedAsync(query);
+        var memories = OutgoingJournal.Concat(IncomingJournal).OfType<MemoryStored>();
+        return memories
+            .Select(m => (m.Text, Score: HybridScorer.Score(query, m.Text, queryEmbedding, m.Embedding)))
+            .Where(x => x.Score > 0f)
+            .OrderByDescending(x => x.Score)
+            .Take(top)
+            .Select(x => x.Text)
+            .ToArray();
+    }
+
+    // Embeds text via the registered IEmbeddingGenerator (NoOp by default → empty vector → keyword-only recall).
+    private async Task<float[]> EmbedAsync(string text)
+    {
+        var generator = ServiceProvider.GetService<IEmbeddingGenerator<string, Embedding<float>>>();
+        if (generator is null) return [];
+        var generated = await generator.GenerateAsync([text]);
+        return generated.First().Vector.ToArray();
+    }
 }
 
 // Dynamic DB neuron - runtime DB support with typed synapses.
