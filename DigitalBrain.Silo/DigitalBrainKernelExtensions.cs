@@ -6,10 +6,6 @@ using Orleans;
 
 namespace DigitalBrain.Silo;
 
-/// <summary>
-/// Encapsulates the DigitalBrain "Kernel" (runtime host for neurons/synapses).
-/// This is the core integration point for client and host.
-/// </summary>
 public static class DigitalBrainKernelExtensions
 {
     public static IHostApplicationBuilder UseDigitalBrainKernel(this IHostApplicationBuilder builder)

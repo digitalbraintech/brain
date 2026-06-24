@@ -183,6 +183,35 @@ public class NeuronTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Full_Install_Embody_RealCompiledCode_Emits_PackEmission()
+    {
+        // E2E: signed/unsigned ok in transition -> marketplace install -> embody via ALC -> use fires real IPackBehavior.Respond (not LLM fallback) -> PackEmission in journal.
+        // Validates the keystone chain from the review gap.
+        const string packCode = """
+            public sealed class Uppercaser : DigitalBrain.Protocol.IPackBehavior
+            {
+                public string Respond(string input) => (input ?? string.Empty).ToUpperInvariant();
+            }
+            """;
+
+        var market = _cluster!.GrainFactory.GetGrain<IMarketplaceNeuron>("market-e2e-embody");
+        await market.FireAsync(new PublishToMarketplace("UpperPackE2E", "1.0", Code: packCode, OwnerId: "tester", IsPrivate: false, CommissionRate: 0.0));
+
+        await market.FireAsync(new InstallFromMarketplace("UpperPackE2E", "1.0", BuyerId: "e2e-user"));
+
+        // Trigger use which should now run the compiled behavior (GeneratedNeuron handles ExperienceUsed -> real Respond).
+        var gen = _cluster!.GrainFactory.GetGrain<IGeneratedNeuron>("generated-upperpacke2e");
+        await gen.FireAsync(new ExperienceUsed("UpperPackE2E", "hello test"));
+
+        var genTl = await gen.GetTimelineAsync();
+        var emission = genTl.OfType<PackEmission>().LastOrDefault();
+        Assert.NotNull(emission);
+        Assert.Equal("UpperPackE2E", emission.Pack);
+        Assert.Equal("hello test", emission.Input);
+        Assert.Equal("HELLO TEST", emission.Output);  // real compiled, not LLM text
+    }
+
+    [Fact]
     public async Task KernelTask_Runs_And_Recovers_Status()
     {
         var task = _cluster!.GrainFactory.GetGrain<IKernelTask>("task-test-1");

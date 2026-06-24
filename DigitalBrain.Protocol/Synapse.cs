@@ -186,7 +186,7 @@ public record CommissionTaken(
     string SellerId, 
     double CommissionRate, 
     double CommissionAmount
-) : Synapse(nameof(CommissionTaken), DateTimeOffset.UtcNow);
+) : Synapse(nameof(CommissionTaken), default);  // Timestamp set by Stamp() on Fire path for consistent lineage.
 
 // Kernel primitives: dual journal checkpoints + branching for simulation / time travel.
 [GenerateSerializer]

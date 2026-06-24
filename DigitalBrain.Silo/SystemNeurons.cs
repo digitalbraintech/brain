@@ -47,6 +47,10 @@ public class MarketplaceNeuron : Neuron, IMarketplaceNeuron
     // Transition policy: unsigned packs install with a warning. Flip to true before enabling remote/untrusted install.
     private const bool RejectUnsignedPacks = false;
 
+    // In-memory view over published packs (rebuilt from journals on first use / activate; updated incrementally on publish).
+    // Avoids O(n) full journal scan on every ListPublished / Find / Install.
+    private Dictionary<string, NeuroPack>? _publishedCache;
+
     public MarketplaceNeuron(ILogger<MarketplaceNeuron> logger)
         : base(logger)
     {
@@ -56,8 +60,17 @@ public class MarketplaceNeuron : Neuron, IMarketplaceNeuron
     {
         Logger.LogInformation("Marketplace PUBLISHED real pack {Name}@{Ver} owner={Owner} private={Private} commission={Rate:P0}",
             cmd.PackName, cmd.Version, cmd.OwnerId, cmd.IsPrivate, cmd.CommissionRate);
+
+        // Update view for fast subsequent queries. The Publish synapse itself is journaled by the caller Fire.
+        EnsureCache();
+        _publishedCache![KeyFor(cmd.PackName, cmd.Version)] = ToNeuroPack(cmd);
         return Task.CompletedTask;
     }
+
+    private static string KeyFor(string name, string version) => $"{name}@{version}";
+
+    private static NeuroPack ToNeuroPack(PublishToMarketplace p) =>
+        new(p.PackName, p.Version, p.OwnerId, p.IsPrivate, p.CommissionRate, p.Code, p.Description, p.AuthorPublicKeyBase64, p.SignatureBase64, p.Price);
 
     public async Task HandleAsync(InstallFromMarketplace cmd)
     {
@@ -109,7 +122,8 @@ public class MarketplaceNeuron : Neuron, IMarketplaceNeuron
             Logger.LogInformation("Install entitlement verified for premium pack {Key}, buyer {Buyer}", cmd.PackName + "@" + cmd.Version, cmd.BuyerId);
         }
 
-        var commissionAmount = 1.0 * pack.CommissionRate;
+        // Commission amount is 0 for now (free packs use Price only for gating). Real amount = Price * Rate when payment flow supplies tx value.
+        var commissionAmount = 0.0;
         await FireAsync(new CommissionTaken(
             pack.Name,
             pack.Version,
@@ -132,26 +146,35 @@ public class MarketplaceNeuron : Neuron, IMarketplaceNeuron
 
     public async Task HandleAsync(ListPublished _cmd)
     {
-        var packs = CollectPublishedFromJournals();
+        var packs = GetPublishedPacks();
         Logger.LogInformation("Marketplace listing {Count} real packs", packs.Count);
         await FireAsync(new PublishedList(packs));
     }
 
-    private IReadOnlyList<NeuroPack> CollectPublishedFromJournals()
+    private IReadOnlyList<NeuroPack> GetPublishedPacks()
     {
-        return OutgoingJournal
-            .Concat(IncomingJournal)
-            .OfType<PublishToMarketplace>()
-            .GroupBy(p => $"{p.PackName}@{p.Version}")
-            .Select(g => g.Last())
-            .Select(p => new NeuroPack(p.PackName, p.Version, p.OwnerId, p.IsPrivate, p.CommissionRate, p.Code, p.Description, p.AuthorPublicKeyBase64, p.SignatureBase64, p.Price))
-            .ToList();
+        EnsureCache();
+        return _publishedCache!.Values.ToList();
+    }
+
+    private void EnsureCache()
+    {
+        if (_publishedCache is not null) return;
+
+        _publishedCache = new Dictionary<string, NeuroPack>(StringComparer.OrdinalIgnoreCase);
+
+        // Seed once from journals (recovery path). Subsequent publishes update in place for O(1) List/Find.
+        foreach (var p in OutgoingJournal.Concat(IncomingJournal).OfType<PublishToMarketplace>())
+        {
+            _publishedCache[KeyFor(p.PackName, p.Version)] = ToNeuroPack(p);
+        }
     }
 
     private NeuroPack? FindPublishedPack(string name, string version)
     {
-        var key = $"{name}@{version}";
-        return CollectPublishedFromJournals().FirstOrDefault(p => $"{p.Name}@{p.Version}" == key);
+        EnsureCache();
+        _publishedCache!.TryGetValue(KeyFor(name, version), out var p);
+        return p;
     }
 }
 
@@ -293,8 +316,11 @@ public class GeneratedNeuron : Neuron, IGeneratedNeuron, IHandle<NeuronTelemetry
 
     public override Task OnDeactivateAsync(Orleans.DeactivationReason reason, CancellationToken cancellationToken)
     {
-        _embodied?.Dispose();   // unload the collectible ALC when the grain deactivates
+        // Unload the ALC (if any) on deactivation. This is necessary but not always sufficient for full collection:
+        // Orleans may retain type info / proxies. Use weak-ref verification in tests + explicit GC pressure for proof.
+        var toUnload = _embodied;
         _embodied = null;
+        toUnload?.Dispose();
         return base.OnDeactivateAsync(reason, cancellationToken);
     }
 
