@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DigitalBrain.Protocol\DigitalBrain.Protocol.csproj" />
+    <ProjectReference Include="..\DigitalBrain.Mcp.Tools\DigitalBrain.Mcp.Tools.csproj" />
   </ItemGroup>
 
   <ItemGroup>

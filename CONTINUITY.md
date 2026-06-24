@@ -31,13 +31,21 @@ is a stub (SystemNeurons.cs:58) that LLM-"embodies" instead of compiling.
   Acceptance test proves install->compile->ALC->dispatch->real emission, e2e, typed-C#. 75/77 green (2 = the
   pre-existing env socket-bind GatewayGrpcWireTests, verified on clean baseline; not regressions).
 
+- [2026-06-24] Step 5 (L6 MCP): extracted DigitalBrainTools into shared lib DigitalBrain.Mcp.Tools (3 partials
+  <300 LOC, ctor on IGrainFactory, deleted [SIMULATED]/[DEMO]/Ollama fabricating fallbacks -> fail-fast). Silo
+  co-hosts MCP over HTTP (ModelContextProtocol.AspNetCore) on a 2nd Kestrel endpoint 8081 Http1AndHttp2 via
+  MapMcp().RequireHost("*:8081"); in-process IGrainFactory, internal-only (no External ingress). stdio
+  DigitalBrain.Mcp now references the shared lib + requires Orleans client (no degraded mode). Shared
+  NeuronTestSiloConfigurator (DRY). 77/79 green (2 = env GrpcWire). Branch: consolidation/best-of-breed.
+
 ## Working set (next steps, from plan)
-- Step 5: L6 MCP HTTP co-hosted in silo's existing WebApplication (IAW WithHttpTransport+MapMcp; 2nd Kestrel
-  endpoint Http1AndHttp2; relocate DigitalBrainTools <300 LOC; delete dead [SIMULATED]/[DEMO] fallbacks).
-- Step 6: rest of SDK neurons (Shell/FileSystem/DotNet/NuGet/Roslyn + build IWinget new). Step 7: kernel branch
-  dedup (SynapseId now available) + encrypted checkpoint/restore. Step 8: real SE review (final ProjectReview).
-  Step 9: Context in-grain hybrid + embeddings (Qdrant later).
+- Step 6: rest of SDK neurons (Shell/FileSystem/DotNet/NuGet/Roslyn re-homed from IAW + build IWinget new on
+  ShellAgent mechanics). Retire untyped RoslynArchitectNeuron/NuGetManagerNeuron.
+- Step 7: kernel branch dedup (SynapseId now available) + encrypted checkpoint/restore (digitalbrain
+  INeuronStateProtector + Dpapi). Step 8: real SE review (final ProjectReview.Analyze). Step 9: Context in-grain
+  hybrid + embeddings (Qdrant later).
 - Economics (user: real money NOW): ECDSA LicenseNeuron + Stripe behind IPaymentGateway + Google auth, fail-fast secrets.
+- MCP remote/auth: internal-only confirmed by user; External+auth deferred.
 
 ## Open questions
 - Trust policy unsigned packs: warn-only during transition then strict (default, not yet ratified).

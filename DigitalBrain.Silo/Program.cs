@@ -20,9 +20,23 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
 
 builder.WebHost.ConfigureKestrel(options =>
-    options.ListenAnyIP(8080, listen => listen.Protocols = HttpProtocols.Http2));
+{
+    // gRPC gateway (prior-knowledge HTTP/2, no TLS).
+    options.ListenAnyIP(8080, listen => listen.Protocols = HttpProtocols.Http2);
+    // Co-hosted MCP server. Streamable-HTTP/SSE needs HTTP/1.1, so it gets its own endpoint (internal-only).
+    options.ListenAnyIP(8081, listen => listen.Protocols = HttpProtocols.Http1AndHttp2);
+});
 
 builder.Services.AddGrpc();
+
+// Co-host the MCP tool surface in-process: the tools resolve grains via the silo's own IGrainFactory,
+// eliminating the cross-process Orleans-client hop the standalone stdio server incurs. Internal-only — no
+// External ingress is wired (remote exposure awaits an auth decision before mutation tools go outside).
+builder.Services
+    .AddMcpServer()
+    .WithHttpTransport()
+    .WithTools<DigitalBrain.Mcp.Tools.DigitalBrainTools>();
+builder.Services.AddSingleton<DigitalBrain.Mcp.Tools.DigitalBrainTools>();
 
 var isAspireHosted = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ConnectionStrings__clustering"))
     || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ConnectionStrings__grainstate"))
@@ -86,6 +100,9 @@ builder.UseOrleans(siloBuilder =>
 var app = builder.Build();
 
 app.MapGrpcService<DigitalBrain.Silo.Gateway.GatewayService>();
+
+// MCP endpoints answer only on the HTTP/1.1-capable port (8081); gRPC keeps 8080 to itself.
+app.MapMcp().RequireHost("*:8081");
 
 // Bootstrap self-awareness (SystemStatusNeuron will connect MCP + fire Launched on activate)
 var grainFactory = app.Services.GetService<IGrainFactory>();

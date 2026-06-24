@@ -32,6 +32,7 @@
   <ItemGroup>
     <ProjectReference Include="..\DigitalBrain.Gateway\DigitalBrain.Gateway.csproj" Aliases="GatewayAssembly" />
     <ProjectReference Include="..\DigitalBrain.Protocol\DigitalBrain.Protocol.csproj" />
+    <ProjectReference Include="..\DigitalBrain.Mcp.Tools\DigitalBrain.Mcp.Tools.csproj" />
     <ProjectReference Include="..\DigitalBrain.Silo\DigitalBrain.Silo.csproj" />
   </ItemGroup>
 

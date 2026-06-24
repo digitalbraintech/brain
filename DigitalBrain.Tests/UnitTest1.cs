@@ -13,7 +13,7 @@ public class NeuronTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         var builder = new TestClusterBuilder();
-        builder.AddSiloBuilderConfigurator<SiloConfigurator>();
+        builder.AddSiloBuilderConfigurator<NeuronTestSiloConfigurator>();
         _cluster = builder.Build();
         await _cluster.DeployAsync();
     }
@@ -69,7 +69,7 @@ public class NeuronTests : IAsyncLifetime
 
         // Hardened isolated sim: replay proper CreateCheckpoint snapshot into separate TestCluster.
         var simBuilder = new TestClusterBuilder();
-        simBuilder.AddSiloBuilderConfigurator<SiloConfigurator>();
+        simBuilder.AddSiloBuilderConfigurator<NeuronTestSiloConfigurator>();
         var simCluster = simBuilder.Build();
         await simCluster.DeployAsync();
         try
@@ -364,20 +364,4 @@ public class NeuronTests : IAsyncLifetime
         }
     }
 
-    private class SiloConfigurator : ISiloConfigurator
-    {
-        public void Configure(ISiloBuilder siloBuilder)
-        {
-            siloBuilder
-                .AddMemoryGrainStorageAsDefault()
-                .AddMemoryStreams("Default")
-                .ConfigureServices(services =>
-                {
-                    services.AddKeyedScoped<Orleans.Journaling.IDurableList<DigitalBrain.Protocol.Synapse>>("in-journal", (_, _) => new InMemoryDurableList<DigitalBrain.Protocol.Synapse>());
-                    services.AddKeyedScoped<Orleans.Journaling.IDurableList<DigitalBrain.Protocol.Synapse>>("out-journal", (_, _) => new InMemoryDurableList<DigitalBrain.Protocol.Synapse>());
-                    services.AddSingleton<Orleans.Journaling.IJournaledStateManager, TestJournaledStateManager>();
-                    services.AddSingleton<IPackEmbodiment, PackAlcEmbodier>();
-                });
-        }
-    }
 }
