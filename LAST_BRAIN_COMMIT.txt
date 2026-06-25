@@ -32,3 +32,10 @@ Latest: explicit rolling with drain/verify phases per replica (3), checkpoint+ca
 Verifs: build 0 err, tests green, aspire doctor pass, coverage collected.
 
 Packaging step: bumped DigitalBrain.Core to 0.3.0, updated description to reflect manifest, causal, explicit rolling.
+
+[committed e769855] feat(kernel): explicit rolling drain/verify phases + packaging version bump + test scenario update
+
+Followed by verifications: build clean, 39 high-sev tests pass, aspire doctor pass.
+
+Continued: enhanced main kernel dashboard surface emission (richer declarative props for full UI from neuron: haReplicas, panels, status; kind=kernel-dashboard).
+Verifs post-change: build clean, tests pass, aspire doctor pass.

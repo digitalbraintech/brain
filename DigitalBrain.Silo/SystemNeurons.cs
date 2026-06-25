@@ -31,18 +31,21 @@ public class AspireOrchestratorNeuron : Neuron, IAspireNeuron
         await FireAsync(new DistributedAppStarted(cmd.AppName, Success: true, "started via neuro"));
         await FireAsync(new SystemStatusChanged("aspire", "started", cmd.AppName));
 
-        // Emit full declarative shell surface from neuron so client can render 100% from stream (no static shell logic).
-        var shellProps = new Dictionary<string, object?>
+        // Emit full declarative kernel dashboard surface from neuron (client = thin renderer only; no static shell/dashboard logic).
+        var dashboardProps = new Dictionary<string, object?>
         {
-            [UiSurfaceKeys.SurfaceId] = "main-shell-" + cmd.AppName,
+            [UiSurfaceKeys.SurfaceId] = "kernel-dashboard-" + cmd.AppName,
             [UiSurfaceKeys.Emitter] = Self.Value,
-            [UiSurfaceKeys.Title] = "DigitalBrain Live Shell",
+            [UiSurfaceKeys.Title] = "Kernel Dashboard",
             [UiSurfaceKeys.Priority] = 10,
             [UiSurfaceKeys.Layout] = UiSurfaceLayouts.Panel,
-            ["body"] = "Kernel surfaces + feeds drive all UI",
-            ["workbench"] = "tasks,graph,market,chat"
+            ["haReplicas"] = 3,
+            ["status"] = "healthy",
+            ["tasks"] = "active",
+            ["lastUpdate"] = "none",
+            ["workbenchPanels"] = new[] { "tasks", "graph", "market", "chat", "timeline" }
         };
-        await FireAsync(new UiSurface(UiSurfaceKinds.InstalledBundles, shellProps));
+        await FireAsync(new UiSurface("kernel-dashboard", dashboardProps));
     }
 
     public async Task HandleAsync(RestartResource cmd)
