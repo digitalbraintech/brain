@@ -67,7 +67,7 @@ public sealed class {{className}} : IPackBehavior
     }
 
     public PackManifest GetManifest() =>
-        new(new[] { nameof(ExperienceUsed), nameof(RefundRequested) });
+        new(new[] { new SynapseType(nameof(ExperienceUsed)), new SynapseType(nameof(RefundRequested)) });
 
     public bool CanHandle(Synapse synapse)
     {

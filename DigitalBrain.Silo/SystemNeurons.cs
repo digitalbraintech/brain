@@ -518,7 +518,7 @@ public class GeneratedNeuron : Neuron, IGeneratedNeuron, IHandle<NeuronTelemetry
             "GeneratedNeuron dispatched {SynapseType} to embodied pack '{Pack}' (manifest: {ManifestTypes}) and emitted {Count} synapse(s).",
             synapse.Type,
             _embodied.PackName,
-            string.Join(',', manifest.HandledSynapseTypes),
+            string.Join(',', manifest.HandledSynapseTypes.Select(t => t.Value)),
             outputs.Count);
         return true;
     }

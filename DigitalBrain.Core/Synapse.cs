@@ -1,6 +1,9 @@
 namespace DigitalBrain.Core;
 
 [GenerateSerializer]
+public readonly record struct SynapseType([property: Id(0)] string Value);
+
+[GenerateSerializer]
 public record Synapse(
     [property: Id(0)] string Type,
     [property: Id(1)] DateTimeOffset Timestamp,

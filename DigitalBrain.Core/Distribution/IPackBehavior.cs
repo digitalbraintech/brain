@@ -5,16 +5,16 @@ namespace DigitalBrain.Core;
 // CapabilityGate and dispatched to by the host GeneratedNeuron. This is the typed-C# replacement for the old
 // LLM "personality" stub — the pack IS C#, never .ino. A pack assembly references only this Protocol assembly.
 [GenerateSerializer]
-public record PackManifest(IReadOnlyList<string> HandledSynapseTypes);
+public record PackManifest(IReadOnlyList<SynapseType> HandledSynapseTypes);
 
 public interface IPackBehavior
 {
     string Respond(string input);
 
-    PackManifest GetManifest() => new(new[] { nameof(ExperienceUsed) });
+    PackManifest GetManifest() => new(new[] { new SynapseType(nameof(ExperienceUsed)) });
 
     bool CanHandle(Synapse synapse) =>
-        GetManifest().HandledSynapseTypes.Contains(synapse.Type) || synapse is ExperienceUsed;
+        GetManifest().HandledSynapseTypes.Any(t => t.Value == synapse.Type) || synapse is ExperienceUsed;
 
     IReadOnlyList<Synapse> Handle(Synapse synapse)
     {
