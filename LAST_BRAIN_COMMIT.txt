@@ -55,3 +55,7 @@ Verifs: build/tests/doctor green.
 
 Post-commit verifs (after 5944698): build clean, 39 high-sev tests pass, aspire doctor pass.
 Next: expand Reqnroll for rolling phases + UI surfaces, more declarative UI, use seeded kernel pack.
+
+Test expansion: added KernelDashboard to UiSurface samples and contract tests.
+Verifs: build, specific test pass (18+).
+Next per doc: more Reqnroll for phases, coverage report review, full Aspire demo.
