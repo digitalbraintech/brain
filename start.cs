@@ -191,10 +191,8 @@ while (true)
                 var version = KernelPack.DefaultVersion;
                 await market.FireAsync(new PublishToMarketplace(KernelPack.Name, version, "", "digitalbraintech", false, 0.0, KernelPack.Description));
                 await market.FireAsync(new InstallFromMarketplace(KernelPack.Name, version, "self"));
-
-                var aspire = grains.GetGrain<IAspireNeuron>("aspire-main");
-                await aspire.FireAsync(new PerformKernelSelfUpdate(version));
-                Console.WriteLine("Kernel pack installed + rolling update triggered.");
+                // Rolling is automatically triggered by the kernel pack install (see MarketplaceNeuron + PerformKernelSelfUpdate handler).
+                Console.WriteLine("Kernel pack installed (rolling update will be driven by the pack embodiment).");
                 break;
 
             case "edit":

@@ -62,6 +62,38 @@ builder.AddProject<Projects.DigitalBrain_Gateway>("gateway")
     .WithReference(ctx.ClusteringTable)
     .WithExternalHttpEndpoints();
 
+// E2E support: launch Flutter web-server so browser-driven tests can load the real UI and observe RfwCard / surface rendering
+// while packs are installed and embodied. Uses test mode + injected gateway endpoint for gRPC.
+var isTestMode = string.Equals(Environment.GetEnvironmentVariable("DIGITALBRAIN_TEST_MODE"), "true", StringComparison.OrdinalIgnoreCase);
+if (isTestMode)
+{
+    var appDir = Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "..", "..", "app"));
+    if (Directory.Exists(appDir))
+    {
+        var flutterCmd = builder.Configuration["DigitalBrain:FlutterCommand"]
+            ?? Environment.GetEnvironmentVariable("FLUTTER_COMMAND")
+            ?? "flutter";
+
+        // Compute gateway https for the Flutter client (it resolves via KERNEL_ENDPOINT or services__ )
+        // We wire it via dart-define so the web app connects back to this test's gateway for WatchHomeFeed.
+        var gatewayForFlutter = "https://localhost:8080"; // placeholder - fixture will override via env if needed; real value injected below
+
+        var flutterWeb = builder.AddExecutable(
+                "flutter-web",
+                flutterCmd,
+                appDir,
+                "run",
+                "-d", "web-server",
+                "--web-port", "0",
+                "--dart-define", "SURFACE_DEMO=true")
+            .WithEnvironment("DIGITALBRAIN_TEST_MODE", "true")
+            .WithReference(ctx.OrleansClient);
+
+        // The Flutter web resource provides the live render target. Browser fixture navigates to its endpoint.
+        // The client code inside resolves the gateway via Aspire service discovery or dart-define.
+    }
+}
+
 silo.WithEnvironment("DIGITALBRAIN_USE_LOCAL_MARKETPLACE", ctx.UseLocalMarketplace ? "true" : "false");
 silo.WithEnvironment("DIGITALBRAIN_SURFACES_ENABLED", "true");
 

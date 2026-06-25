@@ -524,7 +524,7 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
   await testRunner.GivenAsync("a marketplace neuron \"market-kupdate\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
 #line hidden
 #line 66
-  await testRunner.GivenAsync("an aspire orchestrator neuron \"aspire-kupdate\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
+  await testRunner.GivenAsync("an aspire orchestrator neuron \"aspire-main\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
 #line hidden
 #line 67
   await testRunner.WhenAsync("I publish pack \"kernel\" version \"rolling-2026.6\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");

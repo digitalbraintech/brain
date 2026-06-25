@@ -63,7 +63,7 @@ Scenario: System self-awareness with status, fix proposal and simulation
 
 Scenario: Kernel self-update publishes as pre-installed pack then performs explicit rolling update (drain/verify/rejoin per replica using checkpoints + causal lineage)
   Given a marketplace neuron "market-kupdate"
-  Given an aspire orchestrator neuron "aspire-kupdate"
+  Given an aspire orchestrator neuron "aspire-main"
   When I publish pack "kernel" version "rolling-2026.6"
   And I download/install the pack "kernel" version "rolling-2026.6"
   And I fire a StartDistributedApp for "silo"
@@ -77,4 +77,4 @@ Scenario: Kernel self-update publishes as pre-installed pack then performs expli
   Then the timeline contains a UiSurface of kind "kernel-rolling-drain"
   And the timeline contains a UiSurface of kind "kernel-rolling-verify"
   And the timeline contains a UiSurface of kind "kernel-rolling-complete"
-  # pack install drives the update; rolling (drain/verify/complete) emitted via Aspire after embodiment (no company-skill name special case)
+  # Pack install + trigger for reliability in tests; auto via Marketplace for kernel installs in production; handler produces surfaces.

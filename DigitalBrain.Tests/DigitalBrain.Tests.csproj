@@ -27,6 +27,9 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
+    <!-- Real E2E: boot full Aspire AppHost + Playwright Chromium to drive Flutter web while packs embody and stream RfwCards/surfaces -->
+    <PackageReference Include="Aspire.Hosting.Testing" />
+    <PackageReference Include="Microsoft.Playwright" />
   </ItemGroup>
 
   <ItemGroup>
@@ -34,11 +37,18 @@
     <ProjectReference Include="..\DigitalBrain.Core\DigitalBrain.Core.csproj" />
     <ProjectReference Include="..\DigitalBrain.Mcp.Tools\DigitalBrain.Mcp.Tools.csproj" />
     <ProjectReference Include="..\DigitalBrain.Silo\DigitalBrain.Silo.csproj" />
+    <!-- For E2E collection fixture: boot the real Aspire AppHost model (alias to avoid Program type clash with silo/gateway) -->
+    <ProjectReference Include="..\NeuroOSPrototype.AppHost\NeuroOSPrototype.AppHost.csproj" Aliases="AppHostProject" />
   </ItemGroup>
 
   <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
+
+  <!-- Automate: ensure Chromium for headed E2E (local watch) / headless CI. Browsers cached under user profile. -->
+  <Target Name="EnsurePlaywrightBrowsersInstalled" AfterTargets="Build">
+    <Exec Command="pwsh -NoProfile -File &quot;$(OutDir)playwright.ps1&quot; install chromium" ContinueOnError="true" IgnoreExitCode="true" />
+  </Target>
 
 </Project>
 
