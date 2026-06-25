@@ -544,6 +544,9 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
 #line 72
   await testRunner.AndAsync("the timeline contains a UiSurface", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
+#line 73
+  await testRunner.AndAsync("the timeline contains a UiSurface of kind \"kernel-dashboard\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
             }
             await this.ScenarioCleanupAsync();
         }

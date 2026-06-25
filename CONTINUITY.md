@@ -53,3 +53,11 @@ NOT regressions; everything else green.
 ## Open questions
 - Encryption keying for cloud (DPAPI/local vs Key Vault) — AES key via DigitalBrain:Checkpoint:Key; Key Vault wiring TBD.
 - Trust policy: flip RejectUnsignedPacks=true before any remote/untrusted install. MCP External+auth deferred.
+
+## Boundaries (2026-06-25 session)
+- DigitalBrain.Core is now strictly pure: removed KernelDashboard, KernelTasks, kernel rolling surfaces, kernel-specific LiveData builders. Only universal surfaces + core contracts remain.
+- Kernel UI surfaces (dashboard, rolling-*) owned via KernelUiSurfaceKinds in Silo (kernel as packable runtime).
+- Kernel modeled via seeded "kernel" pack (MarketplaceSeeds) + publish/install + rolling drain/verify in CompanySkillOrchestrator + Aspire restart.
+- Primitive string kinds reduced for kernel surfaces (centralized in Silo consts); core no longer leaks kernel kinds.
+- Tests updated; Reqnroll expanded for kernel-dashboard in self-update scenario. All verifications (build, high-sev tests, aspire doctor) green.
+- Next sessions: continue paste full prompt; split tests if needed for kernel vs core; further pack the kernel binary if desired.

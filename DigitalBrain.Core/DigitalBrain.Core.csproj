@@ -9,7 +9,7 @@
     <IsPackable>true</IsPackable>
     <PackageId>DigitalBrain.Core</PackageId>
     <Version>0.3.0</Version>
-    <Description>Core abstractions (INeuron, Synapse, IPackBehavior with PackManifest for typed dispatch, causal journal queries, UiSurfaces, distribution, trust) for DigitalBrain. The universal executable skills primitive. Kernel and core refactored for self-updatability via marketplace (pre-installed kernel pack with real payload + explicit rolling HA on replicas using drain/verify + checkpoints).</Description>
+    <Description>Core abstractions (INeuron, Synapse with full causal lineage, IPackBehavior with PackManifest, IHandle, basic universal contracts, UiSurface, journals, distribution, trust). Pure stable layer. Kernel-specific surfaces and runtime live in kernel package.</Description>
   </PropertyGroup>
 
   <ItemGroup>

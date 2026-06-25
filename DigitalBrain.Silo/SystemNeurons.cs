@@ -16,6 +16,17 @@ using Microsoft.CodeAnalysis.CSharp;
 
 namespace DigitalBrain.Silo;
 
+// Kernel-owned surface kinds for kernel status, dashboard, and rolling self-update phases.
+// These are intentionally not in Core; kernel is a versioned pack and owns its runtime surfaces.
+public static class KernelUiSurfaceKinds
+{
+    public const string Dashboard = "kernel-dashboard";
+    public const string Rolling = "kernel-rolling";
+    public const string RollingDrain = "kernel-rolling-drain";
+    public const string RollingVerify = "kernel-rolling-verify";
+    public const string RollingComplete = "kernel-rolling-complete";
+}
+
 // IAspire neuron (orchestrates distributed apps via Aspire model, fires completion synapses)
 [GrainType("digitalbrain.kernel.aspire.v1")]
 public class AspireOrchestratorNeuron : Neuron, IAspireNeuron
@@ -45,7 +56,7 @@ public class AspireOrchestratorNeuron : Neuron, IAspireNeuron
             ["lastUpdate"] = "none",
             ["workbenchPanels"] = new[] { "tasks", "graph", "market", "chat", "timeline" }
         };
-        await FireAsync(new UiSurface("kernel-dashboard", dashboardProps));
+        await FireAsync(new UiSurface(KernelUiSurfaceKinds.Dashboard, dashboardProps));
     }
 
     public async Task HandleAsync(RestartResource cmd)
@@ -69,7 +80,7 @@ public class AspireOrchestratorNeuron : Neuron, IAspireNeuron
                 ["status"] = "draining-replica",
                 ["haReplicas"] = 3
             };
-            await FireAsync(new UiSurface("kernel-rolling", rollingProps));
+            await FireAsync(new UiSurface(KernelUiSurfaceKinds.Rolling, rollingProps));
         }
         else
         {

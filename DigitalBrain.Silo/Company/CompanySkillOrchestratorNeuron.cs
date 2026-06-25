@@ -116,7 +116,7 @@ public sealed class CompanySkillOrchestratorNeuron : Neuron, ICompanySkillOrches
                 ["version"] = version,
                 ["checkpointId"] = preUpdateCheckpoint.SynapseId
             };
-            await FireAsync(new UiSurface("kernel-rolling-drain", drainProps));
+            await FireAsync(new UiSurface(KernelUiSurfaceKinds.RollingDrain, drainProps));
             if (bus is not null)
             {
                 bus.Broadcast(new RfwCard("digitalbrain", "KernelRollingDrainCard", System.Text.Json.JsonSerializer.Serialize(new { replica, phase = "draining", version })));
@@ -141,7 +141,7 @@ public sealed class CompanySkillOrchestratorNeuron : Neuron, ICompanySkillOrches
                 ["version"] = version,
                 ["lineageEvents"] = lineageCount
             };
-            await FireAsync(new UiSurface("kernel-rolling-verify", verifyProps));
+            await FireAsync(new UiSurface(KernelUiSurfaceKinds.RollingVerify, verifyProps));
             if (bus is not null)
             {
                 bus.Broadcast(new RfwCard("digitalbrain", "KernelRollingVerifyCard", System.Text.Json.JsonSerializer.Serialize(new { replica, phase = "verified", version, lineageEvents = lineageCount })));
@@ -170,7 +170,7 @@ public sealed class CompanySkillOrchestratorNeuron : Neuron, ICompanySkillOrches
                 ["replicasProcessed"] = 3,
                 ["lineageEvents"] = lineageCount
             };
-            await FireAsync(new UiSurface("kernel-rolling-complete", completeProps));
+            await FireAsync(new UiSurface(KernelUiSurfaceKinds.RollingComplete, completeProps));
         }
     }
 }

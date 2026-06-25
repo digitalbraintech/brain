@@ -242,6 +242,13 @@ public class NeuronSteps : IAsyncDisposable
         Assert.Contains(_timeline, s => s.Type == nameof(UiSurface));
     }
 
+    [Then(@"the timeline contains a UiSurface of kind ""(.*)""")]
+    public async Task ThenTheTimelineContainsAUiSurfaceOfKind(string kind)
+    {
+        _timeline = await _currentGrain!.GetTimelineAsync();
+        Assert.Contains(_timeline, s => s is UiSurface u && u.Kind == kind);
+    }
+
     [Then(@"the generated neuron for pack ""(.*)"" received an ExperienceUsed")]
     public async Task ThenGeneratedNeuronReceivedExperienceUsed(string pack)
     {

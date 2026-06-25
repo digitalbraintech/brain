@@ -7,8 +7,6 @@ public class UiSurfaceContractTests
 {
     public static TheoryData<UiSurface, string[]> PlannedSurfaces => new()
     {
-        { UiSurfaceSamples.KernelTasks(), new[] { "tasks", UiSurfaceKeys.Actions } },
-        { UiSurfaceSamples.KernelDashboard(), new[] { "haReplicas", "status", "tasks", "workbenchPanels" } },
         { UiSurfaceSamples.ActivityGraph(), new[] { "nodes", "edges", "events" } },
         { UiSurfaceSamples.TaskWindow(), new[] { "taskId", "state", "body", UiSurfaceKeys.Actions } },
         { UiSurfaceSamples.UserInput(), new[] { "prompt", "schema", "submitAction", "cancelAction" } },
@@ -39,7 +37,6 @@ public class UiSurfaceContractTests
     [Fact]
     public void Planned_Surface_Kinds_Use_Stable_Kebab_Case_Names()
     {
-        Assert.Equal("kernel-tasks", UiSurfaceKinds.KernelTasks);
         Assert.Equal("activity-graph", UiSurfaceKinds.ActivityGraph);
         Assert.Equal("task-window", UiSurfaceKinds.TaskWindow);
         Assert.Equal("user-input", UiSurfaceKinds.UserInput);
@@ -52,11 +49,6 @@ public class UiSurfaceContractTests
     [Fact]
     public void Action_Descriptors_Point_To_Existing_Synapse_Types()
     {
-        var kernelActions = Assert.IsAssignableFrom<IEnumerable<IReadOnlyDictionary<string, object?>>>(
-            UiSurfaceSamples.KernelTasks().Props[UiSurfaceKeys.Actions]);
-        Assert.Contains(kernelActions, a => Equals(a[UiSurfaceKeys.SynapseType], nameof(RunKernelTask)));
-        Assert.Contains(kernelActions, a => Equals(a[UiSurfaceKeys.SynapseType], nameof(CancelKernelTask)));
-
         var userInput = UiSurfaceSamples.UserInput();
         AssertSynapseAction(userInput.Props["submitAction"], nameof(InoRequest));
         AssertSynapseAction(userInput.Props["cancelAction"], nameof(CancelKernelTask));
@@ -72,31 +64,6 @@ public class UiSurfaceContractTests
         var experiences = Assert.IsAssignableFrom<IEnumerable<IReadOnlyDictionary<string, object?>>>(
             bundle["experiences"]);
         AssertSynapseAction(Assert.Single(experiences)["action"], nameof(InoRequest));
-    }
-
-    [Fact]
-    public void Live_Kernel_Task_Surface_Is_Derived_From_Task_Journals()
-    {
-        var surface = UiSurfaceLiveData.KernelTasksFromTimelines(new[]
-        {
-            (
-                "task-live-1",
-                (IReadOnlyList<Synapse>)new Synapse[]
-                {
-                    new KernelTaskCreated("task-live-1", "Summarize running kernel"),
-                    new KernelTaskStarted("task-live-1"),
-                    new KernelTaskProgress("task-live-1", "Reading journals")
-                })
-        });
-
-        var tasks = Assert.IsAssignableFrom<IEnumerable<IReadOnlyDictionary<string, object?>>>(surface.Props["tasks"]);
-        var task = Assert.Single(tasks);
-        Assert.Equal("task-live-1", task["taskId"]);
-        Assert.Equal("running", task["state"]);
-        Assert.Equal("Reading journals", task["detail"]);
-
-        var actions = Assert.IsAssignableFrom<IEnumerable<IReadOnlyDictionary<string, object?>>>(surface.Props[UiSurfaceKeys.Actions]);
-        Assert.Contains(actions, a => Equals(a[UiSurfaceKeys.SynapseType], nameof(CancelKernelTask)));
     }
 
     [Fact]

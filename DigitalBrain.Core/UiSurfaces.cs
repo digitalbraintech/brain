@@ -40,7 +40,6 @@ public static class UiSurfaceKinds
     public const string AuthButton = "auth-button";
     public const string List = "list";
     public const string Ide = "ide";
-    public const string KernelTasks = "kernel-tasks";
     public const string ActivityGraph = "activity-graph";
     public const string TaskWindow = "task-window";
     public const string UserInput = "user-input";
@@ -77,56 +76,6 @@ public static class UiSurfaceLayouts
 
 public static class UiSurfaceSamples
 {
-    public static UiSurface KernelTasks() => new(
-        UiSurfaceKinds.KernelTasks,
-        WithCommon(
-            surfaceId: "surface.kernel-tasks",
-            emitter: "digitalbrain.kernel",
-            title: "Kernel Tasks",
-            layout: UiSurfaceLayouts.Panel,
-            props: new Dictionary<string, object?>
-            {
-                ["tasks"] = new[]
-                {
-                    new Dictionary<string, object?>
-                    {
-                        ["taskId"] = "task-demo-1",
-                        ["title"] = "Generate status summary",
-                        ["state"] = "running",
-                        ["progress"] = 0.35,
-                        ["detail"] = "Reading recent neuron journals"
-                    }
-                },
-                [UiSurfaceKeys.Actions] = new[]
-                {
-                    SynapseAction("inspect-task", "Inspect", nameof(RunKernelTask), new Dictionary<string, object?>
-                    {
-                        ["taskId"] = "task-demo-1",
-                        ["description"] = "Inspect current task"
-                    }),
-                    SynapseAction("cancel-task", "Cancel", nameof(CancelKernelTask), new Dictionary<string, object?>
-                    {
-                        ["taskId"] = "task-demo-1"
-                    })
-                }
-            }));
-
-    public static UiSurface KernelDashboard() => new(
-        "kernel-dashboard",
-        WithCommon(
-            surfaceId: "surface.kernel-dashboard",
-            emitter: "digitalbrain.kernel",
-            title: "Kernel Dashboard",
-            layout: UiSurfaceLayouts.Panel,
-            props: new Dictionary<string, object?>
-            {
-                ["haReplicas"] = 3,
-                ["status"] = "healthy",
-                ["tasks"] = "active",
-                ["lastUpdate"] = "none",
-                ["workbenchPanels"] = new[] { "tasks", "graph", "market", "chat", "timeline" }
-            }));
-
     public static UiSurface ActivityGraph() => new(
         UiSurfaceKinds.ActivityGraph,
         WithCommon(
@@ -423,9 +372,9 @@ public static class UiSurfaceLiveData
         int maxEvents = 20,
         IReadOnlyList<Synapse>? chartTimeline = null)
     {
+        // Universal surfaces only. Kernel-specific surfaces (dashboard, tasks, rolling) are emitted by kernel-owned code.
         var surfaces = new List<UiSurface>
         {
-            KernelTasksFromTimelines(taskTimelines),
             InstalledBundlesFromPacks(publishedPacks, installedPacks),
             ActivityGraphFromTimeline(graphTimeline, maxEvents),
             MarketplaceListFromPacks(publishedPacks, installedPacks)
@@ -434,31 +383,6 @@ public static class UiSurfaceLiveData
         surfaces.AddRange(ChartSurfacesFromTimeline(chartTimeline ?? timelineEvents, maxEvents));
         surfaces.Add(TimelineFromSynapses(timelineEvents, maxEvents));
         return surfaces;
-    }
-
-    public static UiSurface KernelTasksFromTimelines(
-        IEnumerable<(string TaskId, IReadOnlyList<Synapse> Timeline)> taskTimelines)
-    {
-        var tasks = taskTimelines
-            .Select(task => BuildKernelTask(task.TaskId, task.Timeline))
-            .Where(task => task.Count > 0)
-            .ToArray();
-
-        return new UiSurface(
-            UiSurfaceKinds.KernelTasks,
-            WithCommon(
-                surfaceId: "surface.kernel-tasks.live",
-                emitter: "digitalbrain.kernel",
-                title: "Kernel Tasks",
-                layout: UiSurfaceLayouts.Panel,
-                priority: 10,
-                props: new Dictionary<string, object?>
-                {
-                    ["tasks"] = tasks,
-                    [UiSurfaceKeys.Actions] = tasks
-                        .SelectMany(task => TaskActions((string)task["taskId"]!, (string)task["title"]!))
-                        .ToArray()
-                }));
     }
 
     public static UiSurface ActivityGraphFromTimeline(IReadOnlyList<Synapse> timeline, int maxEvents = 20)
@@ -648,89 +572,6 @@ public static class UiSurfaceLiveData
             .ToArray();
     }
 
-    private static Dictionary<string, object?> BuildKernelTask(string taskId, IReadOnlyList<Synapse> timeline)
-    {
-        var taskEvents = timeline
-            .Where(s => IsTaskEventFor(s, taskId))
-            .OrderBy(s => s.Timestamp)
-            .ToList();
-
-        if (taskEvents.Count == 0)
-        {
-            return new Dictionary<string, object?>
-            {
-                ["taskId"] = taskId,
-                ["title"] = taskId,
-                ["state"] = "unknown",
-                ["progress"] = 0.0,
-                ["detail"] = "No task journal entries found."
-            };
-        }
-
-        var created = taskEvents.OfType<KernelTaskCreated>().LastOrDefault();
-        var latest = taskEvents.Last();
-        var state = latest switch
-        {
-            KernelTaskCompleted => "completed",
-            KernelTaskCancelled => "cancelled",
-            KernelTaskProgress => "running",
-            KernelTaskStarted => "running",
-            KernelTaskCreated => "created",
-            _ => "unknown"
-        };
-        var progress = latest switch
-        {
-            KernelTaskCompleted => 1.0,
-            KernelTaskCancelled => 0.0,
-            KernelTaskProgress => 0.65,
-            KernelTaskStarted => 0.35,
-            KernelTaskCreated => 0.1,
-            _ => 0.0
-        };
-        var detail = latest switch
-        {
-            KernelTaskCompleted completed => completed.Result ?? "Completed",
-            KernelTaskCancelled => "Cancelled",
-            KernelTaskProgress taskProgress => taskProgress.Detail,
-            KernelTaskStarted => "Started",
-            KernelTaskCreated taskCreated => taskCreated.Description,
-            _ => latest.Type
-        };
-
-        return new Dictionary<string, object?>
-        {
-            ["taskId"] = taskId,
-            ["title"] = created?.Description ?? taskId,
-            ["state"] = state,
-            ["progress"] = progress,
-            ["detail"] = detail,
-            ["updatedAt"] = latest.Timestamp,
-            [UiSurfaceKeys.Actions] = TaskActions(taskId, created?.Description ?? taskId)
-        };
-    }
-
-    private static IReadOnlyDictionary<string, object?>[] TaskActions(string taskId, string description) =>
-        new[]
-        {
-            UiSurfaceSamples.SynapseAction(
-                "inspect-" + taskId,
-                "Inspect",
-                nameof(RunKernelTask),
-                new Dictionary<string, object?>
-                {
-                    ["taskId"] = taskId,
-                    ["description"] = "Inspect task: " + description
-                }),
-            UiSurfaceSamples.SynapseAction(
-                "cancel-" + taskId,
-                "Cancel",
-                nameof(CancelKernelTask),
-                new Dictionary<string, object?>
-                {
-                    ["taskId"] = taskId
-                })
-        };
-
     private static Dictionary<string, object?> BundleRow(NeuroPack pack)
     {
         var experiences = ExperiencesForPack(pack).ToArray();
@@ -882,17 +723,6 @@ public static class UiSurfaceLiveData
             .Replace(".", "-")
             .Replace("@", "-")
             .Replace(" ", "-");
-
-    private static bool IsTaskEventFor(Synapse synapse, string taskId) =>
-        synapse switch
-        {
-            KernelTaskCreated task => task.TaskId == taskId,
-            KernelTaskStarted task => task.TaskId == taskId,
-            KernelTaskProgress task => task.TaskId == taskId,
-            KernelTaskCompleted task => task.TaskId == taskId,
-            KernelTaskCancelled task => task.TaskId == taskId,
-            _ => false
-        };
 
     private static Dictionary<string, object?> GraphEvent(Synapse synapse) =>
         synapse switch

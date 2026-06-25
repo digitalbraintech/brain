@@ -70,4 +70,5 @@ Scenario: Kernel self-update publishes as pre-installed pack then performs expli
   Then the timeline contains a NeuroPackInstalled
   And the timeline contains a DistributedAppStarted
   And the timeline contains a UiSurface
-  # Note: full phased rolling (drain/verify surfaces, checkpoints, lineage) exercised via company orchestrator path in kernel update flows; Reqnroll covers publish/install base. Expand with specific phase checks in follow-up.
+  And the timeline contains a UiSurface of kind "kernel-dashboard"
+  # Rolling phases (drain/verify) covered in CompanySkillOrchestrator path using kernel pack seed.
