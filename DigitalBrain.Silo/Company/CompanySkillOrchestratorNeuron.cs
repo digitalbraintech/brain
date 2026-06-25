@@ -21,7 +21,7 @@ public sealed class CompanySkillOrchestratorNeuron : Neuron, ICompanySkillOrches
 
         Logger.LogInformation("Orchestrator starting skill creation for {Process}", processName);
 
-        if (string.Equals(processName, "Kernel", StringComparison.OrdinalIgnoreCase) || string.Equals(processName, "kernel", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(processName, MarketplaceSeeds.KernelPackName, StringComparison.OrdinalIgnoreCase))
         {
             await HandleKernelSelfUpdateAsync();
             return;
@@ -87,9 +87,9 @@ public sealed class CompanySkillOrchestratorNeuron : Neuron, ICompanySkillOrches
         var seedDesc = kernelSeed?.Description ?? "Kernel runtime self-update via marketplace as pre-installed pack with explicit rolling HA.";
         // Carry real payload (metadata + signal) so kernel update is a proper typed pack embodiment opportunity.
         var kernelPackCode = "// kernel-update-signal version=" + version + "\npublic sealed class KernelUpdateBehavior : DigitalBrain.Core.IPackBehavior { public string Respond(string i) => \"kernel-rolling:\" + i; }";
-        await market.FireAsync(new PublishToMarketplace("kernel", version, kernelPackCode, "digitalbraintech", false, 0.0, seedDesc));
+        await market.FireAsync(new PublishToMarketplace(MarketplaceSeeds.KernelPackName, version, kernelPackCode, "digitalbraintech", false, 0.0, seedDesc));
 
-        await market.FireAsync(new InstallFromMarketplace("kernel", version, "self"));
+        await market.FireAsync(new InstallFromMarketplace(MarketplaceSeeds.KernelPackName, version, "self"));
 
         // Preserve state before rolling restart using checkpoint (seamless update primitive).
         var preUpdateCheckpoint = await CreateCheckpointAsync();
@@ -106,7 +106,7 @@ public sealed class CompanySkillOrchestratorNeuron : Neuron, ICompanySkillOrches
             // Drain phase: stop new work on this replica, preserve via checkpoint.
             var drainProps = new Dictionary<string, object?>
             {
-                [UiSurfaceKeys.SurfaceId] = $"kernel-rolling-drain-{replica}",
+                [UiSurfaceKeys.SurfaceId] = $"{KernelUiSurfaceKinds.RollingDrain}-{replica}",
                 [UiSurfaceKeys.Emitter] = Self.Value,
                 [UiSurfaceKeys.Title] = $"Drain Replica {replica}/3",
                 [UiSurfaceKeys.Priority] = 70 + replica,
@@ -131,7 +131,7 @@ public sealed class CompanySkillOrchestratorNeuron : Neuron, ICompanySkillOrches
 
             var verifyProps = new Dictionary<string, object?>
             {
-                [UiSurfaceKeys.SurfaceId] = $"kernel-rolling-verify-{replica}",
+                [UiSurfaceKeys.SurfaceId] = $"{KernelUiSurfaceKinds.RollingVerify}-{replica}",
                 [UiSurfaceKeys.Emitter] = Self.Value,
                 [UiSurfaceKeys.Title] = $"Verify Replica {replica}/3",
                 [UiSurfaceKeys.Priority] = 70 + replica,
@@ -148,17 +148,17 @@ public sealed class CompanySkillOrchestratorNeuron : Neuron, ICompanySkillOrches
             }
         }
 
-        await FireAsync(new CompanySkillCreationResult("Kernel", version, true, $"Kernel pack installed from marketplace. Rolling update complete (3 replicas, drain-verify-rejoin, checkpoint preserved, lineage events: {lineageCount})."));
+        await FireAsync(new CompanySkillCreationResult(MarketplaceSeeds.KernelPackName, version, true, $"Kernel pack installed from marketplace. Rolling update complete (3 replicas, drain-verify-rejoin, checkpoint preserved, lineage events: {lineageCount})."));
 
         // Final status surface (full declarative from neuron).
         if (bus is not null)
         {
-            var statusData = System.Text.Json.JsonSerializer.Serialize(new { process = "kernel", version, status = "complete", haReplicas = 3, checkpoint = preUpdateCheckpoint.SynapseId, lineageEvents = lineageCount });
+            var statusData = System.Text.Json.JsonSerializer.Serialize(new { process = MarketplaceSeeds.KernelPackName, version, status = "complete", haReplicas = 3, checkpoint = preUpdateCheckpoint.SynapseId, lineageEvents = lineageCount });
             bus.Broadcast(new RfwCard("digitalbrain", "KernelUpdateStatusCard", statusData));
 
             var completeProps = new Dictionary<string, object?>
             {
-                [UiSurfaceKeys.SurfaceId] = "kernel-update-" + version,
+                [UiSurfaceKeys.SurfaceId] = $"{KernelUiSurfaceKinds.RollingComplete}-{version}",
                 [UiSurfaceKeys.Emitter] = Self.Value,
                 [UiSurfaceKeys.Title] = "Kernel Rolling Update",
                 [UiSurfaceKeys.Priority] = 80,

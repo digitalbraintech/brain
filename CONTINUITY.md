@@ -57,7 +57,7 @@ NOT regressions; everything else green.
 ## Boundaries (2026-06-25 session)
 - DigitalBrain.Core is now strictly pure: removed KernelDashboard, KernelTasks, kernel rolling surfaces, kernel-specific LiveData builders. Only universal surfaces + core contracts remain.
 - Kernel UI surfaces (dashboard, rolling-*) owned via KernelUiSurfaceKinds in Silo (kernel as packable runtime).
-- Kernel modeled via seeded "kernel" pack (MarketplaceSeeds) + publish/install + rolling drain/verify in CompanySkillOrchestrator + Aspire restart.
+- Kernel modeled via seeded "kernel" pack (MarketplaceSeeds.KernelPackName) + publish/install + rolling drain/verify in CompanySkillOrchestrator + Aspire restart. All "kernel" pack name and rolling surface id literals centralized to kill primitive obsession.
 - Primitive string kinds reduced for kernel surfaces (centralized in Silo consts); core no longer leaks kernel kinds.
 - Tests updated; Reqnroll expanded for kernel-dashboard in self-update scenario. All verifications (build, high-sev tests, aspire doctor) green.
 - Next sessions: continue paste full prompt; split tests if needed for kernel vs core; further pack the kernel binary if desired.
