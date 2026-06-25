@@ -132,7 +132,7 @@ public static class UiSurfaceSamples
             {
                 ["taskId"] = "task-demo-1",
                 ["state"] = "running",
-                ["body"] = "Generate a concise status summary of the running kernel.",
+                ["body"] = "Generate a concise status summary of current work.",
                 [UiSurfaceKeys.Actions] = new[]
                 {
                     SynapseAction("cancel-task", "Cancel", nameof(DemoMessageSynapse), new Dictionary<string, object?>
