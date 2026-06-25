@@ -125,7 +125,7 @@ public static class UiSurfaceSamples
         UiSurfaceKinds.TaskWindow,
         WithCommon(
             surfaceId: "surface.task-window.demo",
-            emitter: "digitalbrain.kernel",
+            emitter: "demo",
             title: "Task Window",
             layout: UiSurfaceLayouts.Panel,
             props: new Dictionary<string, object?>
@@ -135,7 +135,7 @@ public static class UiSurfaceSamples
                 ["body"] = "Generate a concise status summary of the running kernel.",
                 [UiSurfaceKeys.Actions] = new[]
                 {
-                    SynapseAction("cancel-task", "Cancel", nameof(CancelKernelTask), new Dictionary<string, object?>
+                    SynapseAction("cancel-task", "Cancel", nameof(DemoMessageSynapse), new Dictionary<string, object?>
                     {
                         ["taskId"] = "task-demo-1"
                     })
@@ -170,7 +170,7 @@ public static class UiSurfaceSamples
                 {
                     ["sessionId"] = "workbench"
                 }),
-                ["cancelAction"] = SynapseAction("dismiss-input", "Dismiss", nameof(CancelKernelTask), new Dictionary<string, object?>
+                ["cancelAction"] = SynapseAction("dismiss-input", "Dismiss", nameof(DemoMessageSynapse), new Dictionary<string, object?>
                 {
                     ["taskId"] = "task-demo-1"
                 })
