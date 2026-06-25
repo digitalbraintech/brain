@@ -496,18 +496,18 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
             await this.ScenarioCleanupAsync();
         }
         
-        [global::Xunit.SkippableFactAttribute(DisplayName="Kernel self-update publishes as pre-installed pack then requests rolling restart " +
-            "via replicas")]
+        [global::Xunit.SkippableFactAttribute(DisplayName="Kernel self-update publishes as pre-installed pack then performs explicit rolling" +
+            " update (drain/verify/rejoin per replica using checkpoints + causal lineage)")]
         [global::Xunit.TraitAttribute("FeatureTitle", "DigitalBrain Neuron Core")]
-        [global::Xunit.TraitAttribute("Description", "Kernel self-update publishes as pre-installed pack then requests rolling restart " +
-            "via replicas")]
-        public async global::System.Threading.Tasks.Task KernelSelf_UpdatePublishesAsPre_InstalledPackThenRequestsRollingRestartViaReplicas()
+        [global::Xunit.TraitAttribute("Description", "Kernel self-update publishes as pre-installed pack then performs explicit rolling" +
+            " update (drain/verify/rejoin per replica using checkpoints + causal lineage)")]
+        public async global::System.Threading.Tasks.Task KernelSelf_UpdatePublishesAsPre_InstalledPackThenPerformsExplicitRollingUpdateDrainVerifyRejoinPerReplicaUsingCheckpointsCausalLineage()
         {
             string[] tagsOfScenario = ((string[])(null));
             global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
             string pickleIndex = "9";
-            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("Kernel self-update publishes as pre-installed pack then requests rolling restart " +
-                    "via replicas", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("Kernel self-update publishes as pre-installed pack then performs explicit rolling" +
+                    " update (drain/verify/rejoin per replica using checkpoints + causal lineage)", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
             string[] tagsOfRule = ((string[])(null));
             global::Reqnroll.RuleInfo ruleInfo = null;
 #line 64

@@ -27,3 +27,8 @@ Verification performed after edits:
 Relative paths, no vacuous summaries, self-explanatory names, Context7 for Orleans/Aspire, latest central packages.
 
 Refs: Projects/docs/continuation-core-kernel-best-impl.md
+
+Latest: explicit rolling with drain/verify phases per replica (3), checkpoint+causal per phase, phased UiSurfaces + RfwCards from neuron.
+Verifs: build 0 err, tests green, aspire doctor pass, coverage collected.
+
+Packaging step: bumped DigitalBrain.Core to 0.3.0, updated description to reflect manifest, causal, explicit rolling.

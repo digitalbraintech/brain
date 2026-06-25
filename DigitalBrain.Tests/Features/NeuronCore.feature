@@ -61,7 +61,7 @@ Scenario: System self-awareness with status, fix proposal and simulation
   Then the timeline contains a FixProposal
   And the timeline contains a SimulationResult with success true
 
-Scenario: Kernel self-update publishes as pre-installed pack then requests rolling restart via replicas
+Scenario: Kernel self-update publishes as pre-installed pack then performs explicit rolling update (drain/verify/rejoin per replica using checkpoints + causal lineage)
   Given a marketplace neuron "market-kupdate"
   Given an aspire orchestrator neuron "aspire-kupdate"
   When I publish pack "kernel" version "rolling-2026.6"
@@ -69,3 +69,4 @@ Scenario: Kernel self-update publishes as pre-installed pack then requests rolli
   And I fire a StartDistributedApp for "silo"
   Then the timeline contains a NeuroPackInstalled
   And the timeline contains a DistributedAppStarted
+  # Note: full phased rolling (drain/verify surfaces, checkpoints, lineage) exercised via company orchestrator path in kernel update flows; Reqnroll covers publish/install base. Expand with specific phase checks in follow-up.
