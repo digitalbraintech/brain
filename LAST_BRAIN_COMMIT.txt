@@ -59,3 +59,11 @@ Next: expand Reqnroll for rolling phases + UI surfaces, more declarative UI, use
 Test expansion: added KernelDashboard to UiSurface samples and contract tests.
 Verifs: build, specific test pass (18+).
 Next per doc: more Reqnroll for phases, coverage report review, full Aspire demo.
+
+Test: expanded Reqnroll with UiSurface for kernel update scenario.
+Verifs: 10 pass.
+
+[committed 8b6f72e] test: expand Reqnroll with UiSurface for kernel update
+
+Verifs: 10 pass, doctor pass.
+Expanded coverage for UI surfaces in update flows.
