@@ -51,7 +51,7 @@ public class UiSurfaceContractTests
     {
         var userInput = UiSurfaceSamples.UserInput();
         AssertSynapseAction(userInput.Props["submitAction"], nameof(InoRequest));
-        AssertSynapseAction(userInput.Props["cancelAction"], nameof(CancelKernelTask));
+        AssertSynapseAction(userInput.Props["cancelAction"], nameof(DemoMessageSynapse));
 
         var marketplace = UiSurfaceSamples.MarketplaceList();
         AssertSynapseAction(marketplace.Props["installAction"], nameof(InstallFromMarketplace));
