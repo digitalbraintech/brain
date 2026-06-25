@@ -188,7 +188,7 @@ while (true)
             case "update":
                 Console.WriteLine("Using orchestrator for kernel self-update (kernel is pre-installed in marketplace but remains updatable)...");
                 var kernelOrch = grains.GetGrain<ICompanySkillOrchestratorNeuron>("company-skill-main");
-                await kernelOrch.FireAsync(new CreateCompanySkill(MarketplaceSeeds.KernelPackName));
+                await kernelOrch.FireAsync(new CreateCompanySkill("kernel"));
                 var kTl = await kernelOrch.GetOutgoingTimelineAsync();
                 var kResult = kTl.OfType<CompanySkillCreationResult>().LastOrDefault();
                 Console.WriteLine(kResult != null ? $"Kernel update result: {kResult.Details}" : "Kernel update triggered via orchestrator for rolling/HA update.");
@@ -319,7 +319,7 @@ static async Task SeedPreExistingAsync(IMarketplaceNeuron market)
 
     // Kernel as pre-installed updatable item in marketplace. Supports get-update while pre-installed, using replicas for HA.
     await market.FireAsync(new PublishToMarketplace(
-        MarketplaceSeeds.KernelPackName, "2026.6", "", "digitalbraintech", false, 0.0,
+        "kernel", "2026.6", "", "digitalbraintech", false, 0.0,
         "Core kernel substrate. Pre-installed; updatable via orchestrator/marketplace with rolling replica support."));
 
     // One more marketplace experience added via closed loops

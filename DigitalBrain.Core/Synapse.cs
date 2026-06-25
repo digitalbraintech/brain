@@ -99,12 +99,6 @@ public interface ISoftware20Team : ISoftwareEngineeringTeam { }
 
 public interface ISoftware10Team : ISoftwareEngineeringTeam { }
 
-// Kernel task grain contract.
-public interface IKernelTask : INeuron, IHandle<RunKernelTask>, IHandle<CancelKernelTask>
-{
-    Task<KernelTaskInfo> GetInfoAsync();
-}
-
 public interface IInoNeuron : INeuron, IHandle<InoRequest>
 {
     Task<string> AskAsync(string prompt);
@@ -191,14 +185,14 @@ public record CommissionTaken(
     double CommissionAmount
 ) : Synapse(nameof(CommissionTaken), default);  // Timestamp set by Stamp() on Fire path for consistent lineage.
 
-// Kernel primitives: dual journal checkpoints + branching for simulation / time travel.
+// Dual journal checkpoints + branching for simulation / time travel.
 [GenerateSerializer]
 public record Checkpoint(NeuronId Source, IReadOnlyList<Synapse> Snapshot, DateTimeOffset TakenAt) : Synapse(nameof(Checkpoint), TakenAt);
 
 [GenerateSerializer]
 public record BranchCreated(NeuronId Source, string BranchId) : Synapse(nameof(BranchCreated), DateTimeOffset.UtcNow);
 
-// Kernel Tasks: first-class self-recoverable units (lifecycle via journal).
+// Kernel task protocol messages (synapses for recoverable task lifecycle). Grain contract IKernelTask lives in kernel layer.
 [GenerateSerializer]
 public record KernelTaskCreated(string TaskId, string Description) : Synapse(nameof(KernelTaskCreated), DateTimeOffset.UtcNow);
 
@@ -220,7 +214,7 @@ public record RunKernelTask(string TaskId, string Description) : Synapse(nameof(
 [GenerateSerializer]
 public record CancelKernelTask(string TaskId) : Synapse(nameof(CancelKernelTask), DateTimeOffset.UtcNow);
 
-// Rich task state for INO / kernel consumers (value result + status).
+// Rich task state returned by kernel task grain.
 [GenerateSerializer]
 public record KernelTaskInfo(
     [property: Id(0)] string TaskId,
@@ -228,7 +222,7 @@ public record KernelTaskInfo(
     [property: Id(2)] string? Result = null
 );
 
-// INO - the personal ultra-context assistant living in the kernel.
+// INO - the personal ultra-context assistant.
 [GenerateSerializer]
 public record InoRequest(string Prompt, string? SessionId = null) : Synapse(nameof(InoRequest), DateTimeOffset.UtcNow);
 

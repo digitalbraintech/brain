@@ -14,7 +14,7 @@ public interface INeuron : IGrainWithStringKey
     Task<IReadOnlyList<Synapse>> GetCausalLineageAsync(string correlationId);
     Task<IReadOnlyList<Synapse>> GetTimelineForCorrelationAsync(string correlationId);
 
-    // OS kernel simulation/time-travel primitives.
+    // Simulation and time-travel primitives (checkpoint, branch, restore).
     ValueTask<Checkpoint> CreateCheckpointAsync();
     Task<NeuronId> BranchAsync(Checkpoint checkpoint);
     Task RestoreCheckpointAsync(Checkpoint checkpoint);

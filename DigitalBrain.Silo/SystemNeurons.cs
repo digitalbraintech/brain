@@ -17,7 +17,7 @@ using Microsoft.CodeAnalysis.CSharp;
 namespace DigitalBrain.Silo;
 
 // Kernel-owned surface kinds for kernel status, dashboard, and rolling self-update phases.
-// These are intentionally not in Core; kernel is a versioned pack and owns its runtime surfaces.
+// Kernel is a versioned pack; its surfaces and pack identity live here (not Core).
 public static class KernelUiSurfaceKinds
 {
     public const string Dashboard = "kernel-dashboard";
@@ -25,6 +25,14 @@ public static class KernelUiSurfaceKinds
     public const string RollingDrain = "kernel-rolling-drain";
     public const string RollingVerify = "kernel-rolling-verify";
     public const string RollingComplete = "kernel-rolling-complete";
+}
+
+// Kernel pack identity (first-class pack for self-update via marketplace + rolling).
+public static class KernelPack
+{
+    public const string Name = "kernel";
+    public const string DefaultVersion = "0.3.0";
+    public const string Description = "Core kernel substrate. Pre-installed; updatable via marketplace with rolling replica support.";
 }
 
 // IAspire neuron (orchestrates distributed apps via Aspire model, fires completion synapses)

@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
+using DigitalBrain.Core;
 
-namespace DigitalBrain.Core;
+namespace DigitalBrain.Silo;
 
 [JsonSerializable(typeof(string))]
 [JsonSerializable(typeof(bool))]
@@ -39,13 +40,6 @@ namespace DigitalBrain.Core;
 [JsonSerializable(typeof(PublishedList))]
 [JsonSerializable(typeof(CommissionTaken))]
 [JsonSerializable(typeof(BranchCreated))]
-[JsonSerializable(typeof(KernelTaskCreated))]
-[JsonSerializable(typeof(KernelTaskStarted))]
-[JsonSerializable(typeof(KernelTaskProgress))]
-[JsonSerializable(typeof(KernelTaskCompleted))]
-[JsonSerializable(typeof(KernelTaskCancelled))]
-[JsonSerializable(typeof(RunKernelTask))]
-[JsonSerializable(typeof(CancelKernelTask))]
 [JsonSerializable(typeof(InoRequest))]
 [JsonSerializable(typeof(InoResponse))]
 [JsonSerializable(typeof(MemorySummary))]
@@ -120,4 +114,12 @@ namespace DigitalBrain.Core;
 [JsonSerializable(typeof(LicenseKeyPair))]
 // Server-driven UI
 [JsonSerializable(typeof(RfwCard))]
+// Kernel task records (listed here for Silo journaling; types defined in Core protocol)
+[JsonSerializable(typeof(DigitalBrain.Core.KernelTaskCreated))]
+[JsonSerializable(typeof(DigitalBrain.Core.KernelTaskStarted))]
+[JsonSerializable(typeof(DigitalBrain.Core.KernelTaskProgress))]
+[JsonSerializable(typeof(DigitalBrain.Core.KernelTaskCompleted))]
+[JsonSerializable(typeof(DigitalBrain.Core.KernelTaskCancelled))]
+[JsonSerializable(typeof(DigitalBrain.Core.RunKernelTask))]
+[JsonSerializable(typeof(DigitalBrain.Core.CancelKernelTask))]
 public partial class JournalJsonContext : JsonSerializerContext;

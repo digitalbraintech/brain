@@ -64,7 +64,7 @@ public partial class DigitalBrainTools(IGrainFactory grains)
     {
         if (neuronId.StartsWith("task-", StringComparison.OrdinalIgnoreCase))
         {
-            return grains.GetGrain<IKernelTask>(neuronId);
+            return grains.GetGrain<INeuron>(neuronId);
         }
 
         return neuronId switch

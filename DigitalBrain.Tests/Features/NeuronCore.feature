@@ -75,4 +75,5 @@ Scenario: Kernel self-update publishes as pre-installed pack then performs expli
   When I create company skill "kernel"
   Then the timeline contains a UiSurface of kind "kernel-rolling-drain"
   And the timeline contains a UiSurface of kind "kernel-rolling-verify"
-  # complete surface emitted after result in full run; verified in unit paths and when bus present
+  And the timeline contains a UiSurface of kind "kernel-rolling-complete"
+  # drain/verify/complete phases asserted for kernel pack rolling self-update (HA, checkpoints, lineage)

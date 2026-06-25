@@ -97,7 +97,7 @@ builder.UseOrleans(siloBuilder =>
             options.ConfigureBlobServiceClient(builder.Configuration.GetConnectionString("grainstate")!));
         siloBuilder.AddAzureBlobJournalStorage(options =>
             options.ConfigureBlobServiceClient(builder.Configuration.GetConnectionString("journal")!))
-            .UseJsonJournalFormat(DigitalBrain.Core.JournalJsonContext.Default);
+            .UseJsonJournalFormat(DigitalBrain.Silo.JournalJsonContext.Default);
     }
 
     siloBuilder.AddFoundry();

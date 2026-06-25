@@ -57,7 +57,9 @@ NOT regressions; everything else green.
 ## Boundaries (2026-06-25 session)
 - DigitalBrain.Core is now strictly pure: removed KernelDashboard, KernelTasks, kernel rolling surfaces, kernel-specific LiveData builders. Only universal surfaces + core contracts remain.
 - Kernel UI surfaces (dashboard, rolling-*) owned via KernelUiSurfaceKinds in Silo (kernel as packable runtime).
-- Kernel modeled via seeded "kernel" pack (MarketplaceSeeds.KernelPackName) + publish/install + rolling drain/verify in CompanySkillOrchestrator + Aspire restart. All "kernel" pack name and rolling surface id literals centralized to kill primitive obsession.
-- Primitive string kinds reduced for kernel surfaces (centralized in Silo consts); core no longer leaks kernel kinds.
-- Tests updated; Reqnroll expanded for kernel-dashboard in self-update scenario. All verifications (build, high-sev tests, aspire doctor) green.
-- Next sessions: continue paste full prompt; split tests if needed for kernel vs core; further pack the kernel binary if desired.
+- KernelTask* records kept in Core only as protocol Synapse messages (for journal/causal); IKernelTask grain contract moved to Silo (no kernel-branded grain iface in Core). JournalJsonContext moved to Silo (Core no longer owns full journal type list).
+- KernelPack centralized to Silo (KernelPack.Name etc); removed KernelPackName + kernel seed entry from Core MarketplaceSeeds (UI packs only in Core). Special casing for kernel update reduced (no dummy generated pack code; use empty + consts; seeded metadata consistently).
+- Primitive obsession: kinds via consts in owner (Silo for kernel), SynapseType used for manifests.
+- Reqnroll expanded: kernel self-update scenario now asserts drain + verify + complete phases.
+- All verifications (build 0 errors, 53+ high-sev focused tests incl. rolling, aspire doctor MCP) green.
+- Next: paste full prompt for continuation; consider further test seg or kernel pack binary isolation. Kernel treated as first-class pack.

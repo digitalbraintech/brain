@@ -16,7 +16,7 @@ public partial class DigitalBrainTools
         var taskTimelines = new List<(string TaskId, IReadOnlyList<Synapse> Timeline)>();
         foreach (var taskId in SplitIds(taskIds))
         {
-            var task = grains.GetGrain<IKernelTask>(taskId);
+            var task = grains.GetGrain<INeuron>(taskId);
             taskTimelines.Add((taskId, await task.GetTimelineAsync()));
         }
 
@@ -83,18 +83,18 @@ public partial class DigitalBrainTools
 
         switch (synapseType)
         {
-            case nameof(RunKernelTask):
+            case "RunKernelTask":
             {
                 var taskId = ReadString(props, "taskId") ?? "task-" + Guid.NewGuid().ToString("N")[..8];
                 var description = ReadString(props, "description") ?? ReadString(props, "prompt") ?? "Run kernel task";
-                await grains.GetGrain<IKernelTask>(taskId).FireAsync(new RunKernelTask(taskId, description));
+                await grains.GetGrain<INeuron>(taskId).FireAsync(new RunKernelTask(taskId, description));
                 return $"Fired RunKernelTask for {taskId}.";
             }
-            case nameof(CancelKernelTask):
+            case "CancelKernelTask":
             {
                 var taskId = ReadString(props, "taskId");
                 if (string.IsNullOrWhiteSpace(taskId)) return "CancelKernelTask action requires props.taskId.";
-                await grains.GetGrain<IKernelTask>(taskId).FireAsync(new CancelKernelTask(taskId));
+                await grains.GetGrain<INeuron>(taskId).FireAsync(new CancelKernelTask(taskId));
                 return $"Fired CancelKernelTask for {taskId}.";
             }
             case nameof(InoRequest):

@@ -21,7 +21,7 @@ public sealed class CompanySkillOrchestratorNeuron : Neuron, ICompanySkillOrches
 
         Logger.LogInformation("Orchestrator starting skill creation for {Process}", processName);
 
-        if (string.Equals(processName, MarketplaceSeeds.KernelPackName, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(processName, KernelPack.Name, StringComparison.OrdinalIgnoreCase))
         {
             await HandleKernelSelfUpdateAsync();
             return;
@@ -82,14 +82,14 @@ public sealed class CompanySkillOrchestratorNeuron : Neuron, ICompanySkillOrches
     private async Task HandleKernelSelfUpdateAsync()
     {
         var market = GrainFactory.GetGrain<IMarketplaceNeuron>("market-main");
-        var kernelSeed = MarketplaceSeeds.LocalUiPacks.FirstOrDefault(p => p.Name == MarketplaceSeeds.KernelPackName);
-        var version = kernelSeed?.Version ?? "0.3.0";
-        var seedDesc = kernelSeed?.Description ?? "Kernel runtime self-update via marketplace as pre-installed pack with explicit rolling HA.";
-        // Carry real payload (metadata + signal) so kernel update is a proper typed pack embodiment opportunity.
-        var kernelPackCode = "// kernel-update-signal version=" + version + "\npublic sealed class KernelUpdateBehavior : DigitalBrain.Core.IPackBehavior { public string Respond(string i) => \"kernel-rolling:\" + i; }";
-        await market.FireAsync(new PublishToMarketplace(MarketplaceSeeds.KernelPackName, version, kernelPackCode, "digitalbraintech", false, 0.0, seedDesc));
+        // Use seeded knowledge consistently; kernel uses local pack metadata (no dummy code).
+        var version = KernelPack.DefaultVersion;
+        var seedDesc = KernelPack.Description;
+        // No generated dummy behavior code: kernel pack is metadata + rolling signal; embodiment handled by host.
+        var kernelPackCode = string.Empty;
+        await market.FireAsync(new PublishToMarketplace(KernelPack.Name, version, kernelPackCode, "digitalbraintech", false, 0.0, seedDesc));
 
-        await market.FireAsync(new InstallFromMarketplace(MarketplaceSeeds.KernelPackName, version, "self"));
+        await market.FireAsync(new InstallFromMarketplace(KernelPack.Name, version, "self"));
 
         // Preserve state before rolling restart using checkpoint (seamless update primitive).
         var preUpdateCheckpoint = await CreateCheckpointAsync();
@@ -97,13 +97,13 @@ public sealed class CompanySkillOrchestratorNeuron : Neuron, ICompanySkillOrches
         var aspire = GrainFactory.GetGrain<IAspireNeuron>("aspire-main");
 
         // Explicit rolling update across replicas (drain one, update, verify using checkpoint + lineage, rejoin).
-        // Replaces crude full restart. 3 replicas for HA, update incrementally without downtime.
+        // 3 replicas for HA, update incrementally.
         var bus = ServiceProvider.GetService<HomeFeedBus>();
         var lineageCount = 0;
 
         for (int replica = 1; replica <= 3; replica++)
         {
-            // Drain phase: stop new work on this replica, preserve via checkpoint.
+            // Drain phase.
             var drainProps = new Dictionary<string, object?>
             {
                 [UiSurfaceKeys.SurfaceId] = $"{KernelUiSurfaceKinds.RollingDrain}-{replica}",
@@ -122,10 +122,10 @@ public sealed class CompanySkillOrchestratorNeuron : Neuron, ICompanySkillOrches
                 bus.Broadcast(new RfwCard("digitalbrain", "KernelRollingDrainCard", System.Text.Json.JsonSerializer.Serialize(new { replica, phase = "draining", version })));
             }
 
-            // Apply phase: trigger the rolling restart signal for this replica.
+            // Rolling restart signal for replica.
             await aspire.FireAsync(new RestartResource("silo", IsRollingUpdate: true, TargetVersion: version, Strategy: $"replica-{replica}-of-3"));
 
-            // Verify + rejoin: use causal lineage to confirm continuity post-update.
+            // Verify using causal lineage.
             var replicaLineage = await GetCausalLineageAsync(preUpdateCheckpoint.SynapseId);
             lineageCount = replicaLineage.Count;
 
@@ -148,10 +148,9 @@ public sealed class CompanySkillOrchestratorNeuron : Neuron, ICompanySkillOrches
             }
         }
 
-        await FireAsync(new CompanySkillCreationResult(MarketplaceSeeds.KernelPackName, version, true, $"Kernel pack installed from marketplace. Rolling update complete (3 replicas, drain-verify-rejoin, checkpoint preserved, lineage events: {lineageCount})."));
+        await FireAsync(new CompanySkillCreationResult(KernelPack.Name, version, true, $"Kernel pack installed from marketplace. Rolling update complete (3 replicas, drain-verify-rejoin, checkpoint preserved, lineage events: {lineageCount})."));
 
-        // Final status surface (full declarative from neuron) - always emit the surface for UI/contracts.
-        var statusData = System.Text.Json.JsonSerializer.Serialize(new { process = MarketplaceSeeds.KernelPackName, version, status = "complete", haReplicas = 3, checkpoint = preUpdateCheckpoint.SynapseId, lineageEvents = lineageCount });
+        var statusData = System.Text.Json.JsonSerializer.Serialize(new { process = KernelPack.Name, version, status = "complete", haReplicas = 3, checkpoint = preUpdateCheckpoint.SynapseId, lineageEvents = lineageCount });
         if (bus is not null)
         {
             bus.Broadcast(new RfwCard("digitalbrain", "KernelUpdateStatusCard", statusData));

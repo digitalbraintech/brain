@@ -215,7 +215,7 @@ public class NeuronTests : IAsyncLifetime
     [Fact]
     public async Task KernelTask_Runs_And_Recovers_Status()
     {
-        var task = _cluster!.GrainFactory.GetGrain<IKernelTask>("task-test-1");
+        var task = _cluster!.GrainFactory.GetGrain<DigitalBrain.Silo.IKernelTask>("task-test-1");
         await task.FireAsync(new RunKernelTask("task-test-1", "demo work"));
         var info = await task.GetInfoAsync();
         Assert.Equal("completed", info.Status);

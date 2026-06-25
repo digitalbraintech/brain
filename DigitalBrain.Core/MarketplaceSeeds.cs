@@ -2,8 +2,6 @@ namespace DigitalBrain.Core;
 
 public static class MarketplaceSeeds
 {
-    public const string KernelPackName = "kernel";
-
     public static IReadOnlyList<NeuroPack> LocalUiPacks { get; } =
     [
         new NeuroPack(
@@ -49,17 +47,7 @@ public static class MarketplaceSeeds
             false,
             0.0,
             "Aspire Flutter integration recipe: one default Flutter UI client resource, start/restart descriptors, and rebuild guidance for trusted primitive pack updates.",
-            "Local Flutter client integration pack. Keeps startup to one UI resource by default."),
-
-        // Kernel as first-class versioned distributable pack (per best-impl doc).
-        new NeuroPack(
-            KernelPackName,
-            "0.3.0",
-            "digitalbraintech",
-            false,
-            0.0,
-            "Core kernel substrate. Pre-installed; updatable via orchestrator/marketplace with rolling replica support. Carries real payload for behaviors or update scripts.",
-            "Kernel runtime self-update via marketplace as pre-installed pack with explicit rolling HA.")
+            "Local Flutter client integration pack. Keeps startup to one UI resource by default.")
     ];
 
     public static IEnumerable<PublishToMarketplace> LocalUiPackPublishCommands() =>

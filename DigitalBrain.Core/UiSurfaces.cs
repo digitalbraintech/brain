@@ -758,10 +758,6 @@ public static class UiSurfaceLiveData
     private static string TitleFor(Synapse synapse) =>
         synapse switch
         {
-            KernelTaskCreated task => task.Description,
-            KernelTaskProgress task => task.Detail,
-            KernelTaskCompleted task => task.Result ?? "Task completed",
-            KernelTaskCancelled task => "Task cancelled: " + task.TaskId,
             PublishedList list => $"{list.Packs.Count} published packs",
             NeuroPackInstalled installed => "Installed " + installed.Pack.Name,
             ClusterActivity activity => $"{activity.NodeId}: {activity.Activity}",

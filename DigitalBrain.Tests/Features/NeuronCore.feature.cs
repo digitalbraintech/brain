@@ -559,6 +559,9 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
 #line 77
   await testRunner.AndAsync("the timeline contains a UiSurface of kind \"kernel-rolling-verify\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
+#line 78
+  await testRunner.AndAsync("the timeline contains a UiSurface of kind \"kernel-rolling-complete\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
             }
             await this.ScenarioCleanupAsync();
         }
