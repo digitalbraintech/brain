@@ -4,14 +4,17 @@ namespace DigitalBrain.Core;
 // Pure and synchronous: the capability is Roslyn-compiled into a collectible AssemblyLoadContext under the
 // CapabilityGate and dispatched to by the host GeneratedNeuron. This is the typed-C# replacement for the old
 // LLM "personality" stub — the pack IS C#, never .ino. A pack assembly references only this Protocol assembly.
+[GenerateSerializer]
+public record PackManifest(IReadOnlyList<string> HandledSynapseTypes);
+
 public interface IPackBehavior
 {
-    // Handle an input and return the pack's response. No I/O — the pack runs sandboxed by the CapabilityGate.
     string Respond(string input);
 
-    // Typed-dispatch v2. Existing packs that only implement Respond still compile and are
-    // treated as ExperienceUsed handlers. New packs can opt into first-class typed synapses.
-    bool CanHandle(Synapse synapse) => synapse is ExperienceUsed;
+    PackManifest GetManifest() => new(new[] { nameof(ExperienceUsed) });
+
+    bool CanHandle(Synapse synapse) =>
+        GetManifest().HandledSynapseTypes.Contains(synapse.Type) || synapse is ExperienceUsed;
 
     IReadOnlyList<Synapse> Handle(Synapse synapse)
     {

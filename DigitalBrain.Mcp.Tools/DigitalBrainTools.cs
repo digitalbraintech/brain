@@ -73,6 +73,8 @@ public partial class DigitalBrainTools(IGrainFactory grains)
             "closedloop-main" => grains.GetGrain<IClosedLoopNeuron>(neuronId),
             "compiler-main" => grains.GetGrain<ICompiler>(neuronId),
             "context-main" => grains.GetGrain<IContextNeuron>(neuronId),
+            "company-main" => grains.GetGrain<ICompanyKnowledgeNeuron>(neuronId),
+            "company-skill-main" => grains.GetGrain<ICompanySkillOrchestratorNeuron>(neuronId),
             "chart-main" => grains.GetGrain<IDataVisualizationNeuron>(neuronId),
             "db-main" => grains.GetGrain<IDbSupportNeuron>(neuronId),
             "foundry-main" => grains.GetGrain<ICodeFoundryLoopNeuron>(neuronId),

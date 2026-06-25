@@ -8,8 +8,8 @@
     <!-- Core abstractions package. This is the stable primitive layer (INeuron, Synapse, packs as executable skills, surfaces, journals, distribution contracts) for the company brain. -->
     <IsPackable>true</IsPackable>
     <PackageId>DigitalBrain.Core</PackageId>
-    <Version>0.1.0-preview</Version>
-    <Description>Core abstractions (INeuron, Synapse, IPackBehavior + typed dispatch, UiSurfaces, distribution, trust) for DigitalBrain. The universal executable skills primitive.</Description>
+    <Version>0.2.0-preview-kernel-updatable</Version>
+    <Description>Core abstractions (INeuron, Synapse, IPackBehavior + typed dispatch, UiSurfaces, distribution, trust) for DigitalBrain. The universal executable skills primitive. Kernel and core refactored for self-updatability via marketplace (pre-installed kernel pack + rolling HA on replicas).</Description>
   </PropertyGroup>
 
   <ItemGroup>

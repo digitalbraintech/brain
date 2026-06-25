@@ -1,8 +1,10 @@
 using DigitalBrain.Core;
 using DigitalBrain.Silo;
+using DigitalBrain.Silo.Company;
 using DigitalBrain.Silo.Foundry;
 using DigitalBrain.Silo.Llm;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Orleans.Configuration;
 using Orleans.Journaling;
@@ -63,6 +65,8 @@ builder.Services.AddDigitalBrainChat(builder.Configuration);
 builder.Services.AddKernelSecurity(builder.Configuration);
 builder.Services.AddEconomics(builder.Configuration);
 builder.Services.AddContextStore(builder.Configuration);
+builder.Services.AddSingleton<ProcessCrystallizer>(sp => new ProcessCrystallizer(sp.GetService<IChatClient>()));
+builder.Services.AddSingleton<SkillPackSynthesizer>();
 
 builder.UseOrleans(siloBuilder =>
 {

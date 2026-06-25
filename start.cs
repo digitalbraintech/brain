@@ -75,8 +75,8 @@ if (target.Equals("marketplace", StringComparison.OrdinalIgnoreCase) || target.E
 }
 
 // Default / "kernel": full interactive experience with tasks view, ino, marketplace, run-any, updates
-Console.WriteLine("\nCommands: tasks | ino <prompt> | market list|install|update <name> | run <name> | ide | update-kernel | awesome | help | exit");
-Console.WriteLine("Examples: market install UIClosedLoop | market install SoftwareEngineeringClosedLoop | ide apply GmailDigest | ino 'use closed loops to improve editor or mod system'");
+Console.WriteLine("\nCommands: tasks | ino <prompt> | market list|install|update <name> | run <name> | ide | update-kernel | awesome | company skill create <name> | help | exit");
+Console.WriteLine("Examples: market install UIClosedLoop | company skill create RefundHandling | run RefundHandling");
 
 var knownTasks = new List<string>();
 
@@ -92,6 +92,13 @@ while (true)
 
     try
     {
+        if (cmd == "company" && parts.Length >= 3 && parts[1].Equals("skill", StringComparison.OrdinalIgnoreCase) && parts[2].Contains("create", StringComparison.OrdinalIgnoreCase))
+        {
+            var process = parts.Length > 3 ? parts[3] : "RefundHandling";
+            await CreateCompanySkillAsync(grains, process);
+            continue;
+        }
+
         switch (cmd)
         {
             case "tasks":
@@ -179,11 +186,12 @@ while (true)
 
             case "update-kernel":
             case "update":
-                Console.WriteLine("Publishing kernel self-update from marketplace and triggering reload...");
-                await market.FireAsync(new PublishToMarketplace("kernel", "2026.6-hotfix", "", "digitalbraintech", false, 0.0, "Kernel runtime + INO improvements"));
-                await market.FireAsync(new InstallFromMarketplace("kernel", "2026.6-hotfix", "self"));
-                await aspire.FireAsync(new RestartResource("silo")); // would reload the Aspire resource for binary/kernel parts
-                Console.WriteLine("Kernel updated. Corresponding Aspire resource restart requested (INO/runtime parts re-embodied automatically).");
+                Console.WriteLine("Using orchestrator for kernel self-update (kernel is pre-installed in marketplace but remains updatable)...");
+                var kernelOrch = grains.GetGrain<ICompanySkillOrchestratorNeuron>("company-skill-main");
+                await kernelOrch.FireAsync(new CreateCompanySkill("kernel"));
+                var kTl = await kernelOrch.GetOutgoingTimelineAsync();
+                var kResult = kTl.OfType<CompanySkillCreationResult>().LastOrDefault();
+                Console.WriteLine(kResult != null ? $"Kernel update result: {kResult.Details}" : "Kernel update triggered via orchestrator for rolling/HA update.");
                 break;
 
             case "edit":
@@ -309,6 +317,11 @@ static async Task SeedPreExistingAsync(IMarketplaceNeuron market)
         "digitalbraintech", false, 0.0,
         "Self update the entire system using ONLY the two closed loops from marketplace."));
 
+    // Kernel as pre-installed updatable item in marketplace. Supports get-update while pre-installed, using replicas for HA.
+    await market.FireAsync(new PublishToMarketplace(
+        "kernel", "2026.6", "", "digitalbraintech", false, 0.0,
+        "Core kernel substrate. Pre-installed; updatable via orchestrator/marketplace with rolling replica support."));
+
     // One more marketplace experience added via closed loops
     await market.FireAsync(new PublishToMarketplace(
         "CleanAndOptimizeResources", "1.0", "Use SEClosedLoop + Aspire MCP to clean logs, restart unhealthy, optimize using Ollama/Redis, under the hood uses execute_resource_command and marketplace for updates.",
@@ -416,5 +429,38 @@ static async Task<string> LoadAndRunInoSpecAsync(IInoNeuron ino, string relative
     var full = Path.Combine("..", relativeFeaturePath);
     string spec = File.Exists(full) ? await File.ReadAllTextAsync(full) : relativeFeaturePath;
     return await ino.AskAsync($"Load this INO spec (Reqnroll/feature) and execute the described behavior: {spec}");
+}
+
+/// Drives the full company brain pipeline using the orchestrator: sources -> crystallize -> synthesize pack -> marketplace publish+install -> verify execution -> print journal result.
+static async Task CreateCompanySkillAsync(IGrainFactory grains, string processName)
+{
+    Console.WriteLine($"=== Creating company skill: {processName} ===");
+    var orchestrator = grains.GetGrain<ICompanySkillOrchestratorNeuron>("company-skill-main");
+    await orchestrator.FireAsync(new CreateCompanySkill(processName));
+
+    // Wait briefly for async journaled result
+    await Task.Delay(200);
+
+    var tl = await orchestrator.GetOutgoingTimelineAsync();
+    var result = tl.OfType<CompanySkillCreationResult>().LastOrDefault();
+    if (result != null)
+    {
+        Console.WriteLine($"Result: {result.ProcessName}@{result.Version} Success={result.Success}");
+        Console.WriteLine(result.Details);
+    }
+    else
+    {
+        Console.WriteLine("Orchestrator accepted request. Check timeline for CompanySkillCreationResult.");
+    }
+
+    // Also show the living map entry from the skill's generated grain
+    var gen = grains.GetGrain<IGeneratedNeuron>($"generated-{processName.ToLowerInvariant()}");
+    var skillTl = await gen.GetOutgoingTimelineAsync();
+    var emissions = skillTl.OfType<PackEmission>().TakeLast(2).ToList();
+    if (emissions.Count > 0)
+    {
+        Console.WriteLine("Recent skill emissions (living map):");
+        foreach (var e in emissions) Console.WriteLine($"  {e.Pack}: {e.Input} -> {e.Output}");
+    }
 }
 

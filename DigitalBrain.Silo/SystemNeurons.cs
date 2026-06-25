@@ -30,11 +30,49 @@ public class AspireOrchestratorNeuron : Neuron, IAspireNeuron
         Logger.LogInformation("Aspire starting app: {App}", cmd.AppName);
         await FireAsync(new DistributedAppStarted(cmd.AppName, Success: true, "started via neuro"));
         await FireAsync(new SystemStatusChanged("aspire", "started", cmd.AppName));
+
+        // Emit full declarative shell surface from neuron so client can render 100% from stream (no static shell logic).
+        var shellProps = new Dictionary<string, object?>
+        {
+            [UiSurfaceKeys.SurfaceId] = "main-shell-" + cmd.AppName,
+            [UiSurfaceKeys.Emitter] = Self.Value,
+            [UiSurfaceKeys.Title] = "DigitalBrain Live Shell",
+            [UiSurfaceKeys.Priority] = 10,
+            [UiSurfaceKeys.Layout] = UiSurfaceLayouts.Panel,
+            ["body"] = "Kernel surfaces + feeds drive all UI",
+            ["workbench"] = "tasks,graph,market,chat"
+        };
+        await FireAsync(new UiSurface(UiSurfaceKinds.InstalledBundles, shellProps));
     }
 
     public async Task HandleAsync(RestartResource cmd)
     {
-        Logger.LogInformation("Aspire restarting resource: {Res}", cmd.ResourceName);
+        if (cmd.IsRollingUpdate)
+        {
+            Logger.LogInformation("Aspire rolling restart for {Res} target={Ver} strategy={Strategy}", cmd.ResourceName, cmd.TargetVersion, cmd.Strategy);
+            await FireAsync(new SystemStatusChanged("aspire", "rolling-restart-started", $"{cmd.ResourceName}@{cmd.TargetVersion}"));
+
+            // Full declarative rolling status surface emitted from neuron (client renders, no static logic).
+            var rollingProps = new Dictionary<string, object?>
+            {
+                [UiSurfaceKeys.SurfaceId] = "rolling-" + cmd.ResourceName,
+                [UiSurfaceKeys.Emitter] = Self.Value,
+                [UiSurfaceKeys.Title] = "Rolling Kernel Update",
+                [UiSurfaceKeys.Priority] = 50,
+                [UiSurfaceKeys.Layout] = UiSurfaceLayouts.Panel,
+                ["resource"] = cmd.ResourceName,
+                ["version"] = cmd.TargetVersion ?? "next",
+                ["strategy"] = cmd.Strategy,
+                ["status"] = "draining-replica",
+                ["haReplicas"] = 3
+            };
+            await FireAsync(new UiSurface("kernel-rolling", rollingProps));
+        }
+        else
+        {
+            Logger.LogInformation("Aspire restarting resource: {Res}", cmd.ResourceName);
+        }
+
         await FireAsync(new DistributedAppStarted(cmd.ResourceName, Success: true, "restarted"));
         await FireAsync(new SystemStatusChanged("aspire", "restarted", cmd.ResourceName));
     }
@@ -442,6 +480,7 @@ public class GeneratedNeuron : Neuron, IGeneratedNeuron, IHandle<NeuronTelemetry
             return false;
         }
 
+        var manifest = _embodied.GetManifest();
         IReadOnlyList<Synapse> outputs;
         try
         {
@@ -462,9 +501,10 @@ public class GeneratedNeuron : Neuron, IGeneratedNeuron, IHandle<NeuronTelemetry
         }
 
         Logger.LogInformation(
-            "GeneratedNeuron dispatched {SynapseType} to embodied pack '{Pack}' and emitted {Count} synapse(s).",
+            "GeneratedNeuron dispatched {SynapseType} to embodied pack '{Pack}' (manifest: {ManifestTypes}) and emitted {Count} synapse(s).",
             synapse.Type,
             _embodied.PackName,
+            string.Join(',', manifest.HandledSynapseTypes),
             outputs.Count);
         return true;
     }

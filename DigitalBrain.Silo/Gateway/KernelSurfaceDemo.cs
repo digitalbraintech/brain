@@ -15,6 +15,9 @@ public static class KernelSurfaceDemo
         {
             public string Respond(string input) => "surface-demo:" + input;
 
+            public DigitalBrain.Core.PackManifest GetManifest() =>
+                new(new[] { nameof(DigitalBrain.Core.DemoMessageSynapse) });
+
             public bool CanHandle(DigitalBrain.Core.Synapse synapse) =>
                 synapse is DigitalBrain.Core.DemoMessageSynapse;
 

@@ -326,6 +326,16 @@ public record VisualizeDataRequest(
     string? ChartHint = null,
     string? RequestId = null) : Synapse(nameof(VisualizeDataRequest), DateTimeOffset.UtcNow, CorrelationId: RequestId);
 
+// Company brain skill knowledge ingestion (narrow for process playbooks + transcripts).
+// Used to feed raw domain knowledge into context for crystallization.
+[GenerateSerializer]
+public record IngestCompanySource(string Collection, string SourceId, string Text) : Synapse(nameof(IngestCompanySource), DateTimeOffset.UtcNow);
+
+[GenerateSerializer]
+public record CompanySourceIngested(string Collection, string SourceId, int ChunkCount) : Synapse(nameof(CompanySourceIngested), DateTimeOffset.UtcNow);
+
+public interface ICompanyKnowledgeNeuron : INeuron, IHandle<IngestCompanySource> { }
+
 [GenerateSerializer]
 public record DataChartGenerated(string RequestId, UiSurface Surface) : Synapse(nameof(DataChartGenerated), DateTimeOffset.UtcNow);
 

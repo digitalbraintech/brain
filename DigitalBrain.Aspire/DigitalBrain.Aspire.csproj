@@ -5,6 +5,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsAspireProjectResource>false</IsAspireProjectResource>
+    <IsPackable>true</IsPackable>
+    <PackageId>DigitalBrain.Aspire</PackageId>
+    <Version>0.2.0-preview-kernel-updatable</Version>
+    <Description>Aspire hosting for DigitalBrain kernel (replicas for HA self-update, marketplace, embodiment). Core + kernel refactored for updatable pre-installed kernel package.</Description>
   </PropertyGroup>
 
   <ItemGroup>

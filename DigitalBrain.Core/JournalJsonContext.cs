@@ -97,6 +97,18 @@ namespace DigitalBrain.Core;
 [JsonSerializable(typeof(GitReverted))]
 // Distribution / embodiment
 [JsonSerializable(typeof(PackEmission))]
+// Company brain knowledge + skills (ingest, crystallize, refund vertical outcomes)
+[JsonSerializable(typeof(IngestCompanySource))]
+[JsonSerializable(typeof(CompanySourceIngested))]
+[JsonSerializable(typeof(CrystallizeProcess))]
+[JsonSerializable(typeof(ProcessSpecCrystallized))]
+[JsonSerializable(typeof(RefundRequested))]
+[JsonSerializable(typeof(RefundApproved))]
+[JsonSerializable(typeof(RefundDenied))]
+[JsonSerializable(typeof(ProcessSpec))]
+[JsonSerializable(typeof(DecisionPoint))]
+[JsonSerializable(typeof(CreateCompanySkill))]
+[JsonSerializable(typeof(CompanySkillCreationResult))]
 // Awesome / software-engineering review
 [JsonSerializable(typeof(ReviewRequest))]
 [JsonSerializable(typeof(ReviewProjectRequest))]

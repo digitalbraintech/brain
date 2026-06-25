@@ -1,0 +1,5 @@
+Transcript from support lead interview on refund process:
+
+"Basically, for refunds we always check the purchase date first. If it's over 30 days we tell them no unless it's a special case like warranty. We need the order number or they have to send proof. For defective items in first two weeks we just do it automatically to keep customers happy, including return shipping. Big refunds over 500 bucks or if the customer has lots of returns we flag for manual. Loyalty members get more leeway on the receipt requirement. We emit the decision in the system and then the finance team processes the credit. Always log the full reason in the journal so we can audit later why we approved or not."
+
+Key rules repeated: 30 day window, receipt or loyalty, auto for defective <14d, manual high value.

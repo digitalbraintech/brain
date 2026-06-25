@@ -10,6 +10,10 @@ public interface INeuron : IGrainWithStringKey
     Task<IReadOnlyList<Synapse>> GetIncomingTimelineAsync();
     Task<IReadOnlyList<Synapse>> GetOutgoingTimelineAsync();
 
+    // Causal query APIs for lineage traversal without reimplementing in callers (UI, debug, MCP).
+    Task<IReadOnlyList<Synapse>> GetCausalLineageAsync(string correlationId);
+    Task<IReadOnlyList<Synapse>> GetTimelineForCorrelationAsync(string correlationId);
+
     // OS kernel simulation/time-travel primitives.
     ValueTask<Checkpoint> CreateCheckpointAsync();
     Task<NeuronId> BranchAsync(Checkpoint checkpoint);

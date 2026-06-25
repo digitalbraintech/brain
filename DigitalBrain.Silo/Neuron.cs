@@ -122,6 +122,17 @@ public abstract class Neuron : DurableGrain, INeuron
     public Task<IReadOnlyList<Synapse>> GetOutgoingTimelineAsync() =>
         Task.FromResult<IReadOnlyList<Synapse>>(OutgoingJournal.ToList());
 
+    public Task<IReadOnlyList<Synapse>> GetCausalLineageAsync(string correlationId) =>
+        Task.FromResult<IReadOnlyList<Synapse>>(OutgoingJournal
+            .Where(s => s.CorrelationId == correlationId || s.SynapseId == correlationId)
+            .Concat(IncomingJournal.Where(s => s.CorrelationId == correlationId || s.SynapseId == correlationId))
+            .OrderBy(s => s.Timestamp)
+            .DistinctBy(s => s.SynapseId)
+            .ToList());
+
+    public Task<IReadOnlyList<Synapse>> GetTimelineForCorrelationAsync(string correlationId) =>
+        GetCausalLineageAsync(correlationId);
+
     public async ValueTask<Checkpoint> CreateCheckpointAsync()
     {
         // Dedup by the stable SynapseId (a synapse fired then self-delivered appears in both journals as the

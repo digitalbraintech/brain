@@ -105,7 +105,7 @@ namespace DigitalBrain.Tests.Features
         
         private static global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages InitializeCucumberMessages()
         {
-            return new global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages("Features/NeuronCore.feature.ndjson", 11);
+            return new global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages("Features/NeuronCore.feature.ndjson", 12);
         }
         
         async global::System.Threading.Tasks.Task global::Xunit.IAsyncLifetime.InitializeAsync()
@@ -491,6 +491,55 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
 #line hidden
 #line 62
   await testRunner.AndAsync("the timeline contains a SimulationResult with success true", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
+        
+        [global::Xunit.SkippableFactAttribute(DisplayName="Kernel self-update publishes as pre-installed pack then requests rolling restart " +
+            "via replicas")]
+        [global::Xunit.TraitAttribute("FeatureTitle", "DigitalBrain Neuron Core")]
+        [global::Xunit.TraitAttribute("Description", "Kernel self-update publishes as pre-installed pack then requests rolling restart " +
+            "via replicas")]
+        public async global::System.Threading.Tasks.Task KernelSelf_UpdatePublishesAsPre_InstalledPackThenRequestsRollingRestartViaReplicas()
+        {
+            string[] tagsOfScenario = ((string[])(null));
+            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
+            string pickleIndex = "9";
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("Kernel self-update publishes as pre-installed pack then requests rolling restart " +
+                    "via replicas", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            string[] tagsOfRule = ((string[])(null));
+            global::Reqnroll.RuleInfo ruleInfo = null;
+#line 64
+this.ScenarioInitialize(scenarioInfo, ruleInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                await testRunner.SkipScenarioAsync();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 65
+  await testRunner.GivenAsync("a marketplace neuron \"market-kupdate\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
+#line hidden
+#line 66
+  await testRunner.GivenAsync("an aspire orchestrator neuron \"aspire-kupdate\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
+#line hidden
+#line 67
+  await testRunner.WhenAsync("I publish pack \"kernel\" version \"rolling-2026.6\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+#line 68
+  await testRunner.AndAsync("I download/install the pack \"kernel\" version \"rolling-2026.6\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 69
+  await testRunner.AndAsync("I fire a StartDistributedApp for \"silo\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 70
+  await testRunner.ThenAsync("the timeline contains a NeuroPackInstalled", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+#line 71
+  await testRunner.AndAsync("the timeline contains a DistributedAppStarted", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
             }
             await this.ScenarioCleanupAsync();

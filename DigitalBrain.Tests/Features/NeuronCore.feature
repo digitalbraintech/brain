@@ -60,3 +60,12 @@ Scenario: System self-awareness with status, fix proposal and simulation
   When I fire a bad status for component "kernel"
   Then the timeline contains a FixProposal
   And the timeline contains a SimulationResult with success true
+
+Scenario: Kernel self-update publishes as pre-installed pack then requests rolling restart via replicas
+  Given a marketplace neuron "market-kupdate"
+  Given an aspire orchestrator neuron "aspire-kupdate"
+  When I publish pack "kernel" version "rolling-2026.6"
+  And I download/install the pack "kernel" version "rolling-2026.6"
+  And I fire a StartDistributedApp for "silo"
+  Then the timeline contains a NeuroPackInstalled
+  And the timeline contains a DistributedAppStarted

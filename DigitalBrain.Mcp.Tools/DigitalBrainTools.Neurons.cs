@@ -126,5 +126,44 @@ public partial class DigitalBrainTools
             s.Type == nameof(FoundryCompleted) || s.Type == nameof(FoundryRolledBack));
         return terminal?.Type ?? "FoundryRequest accepted (no terminal synapse yet).";
     }
+
+    [McpServerTool(Name = "ingest_company_source"), Description("Ingest company process playbook or transcript into the company brain context (for skill crystallization).")]
+    public async Task<string> IngestCompanySource(
+        [Description("Collection e.g. refunds")] string collection,
+        [Description("Source identifier")] string sourceId,
+        [Description("Raw text content of policy or transcript")] string text)
+    {
+        var ck = grains.GetGrain<ICompanyKnowledgeNeuron>("company-main");
+        await ck.FireAsync(new IngestCompanySource(collection, sourceId, text));
+        return $"Ingested {sourceId} into {collection}. Ready for crystallize/skill creation.";
+    }
+
+    [McpServerTool(Name = "invoke_company_skill"), Description("Fire a trigger to an embodied company skill (e.g. RefundRequested) and return the audit emissions from the journal.")]
+    public async Task<string> InvokeCompanySkill(
+        [Description("Skill name e.g. RefundHandling")] string skillName,
+        [Description("Trigger type e.g. RefundRequested")] string triggerType,
+        [Description("Simple payload key=value;key2=value2 for the trigger")] string payload)
+    {
+        var gen = grains.GetGrain<IGeneratedNeuron>($"skill-{skillName.ToLowerInvariant()}");
+        // For demo use ExperienceUsed path which always works; typed would need full deserialze.
+        await gen.FireAsync(new ExperienceUsed(skillName, $"{triggerType}:{payload}"));
+        var tl = await gen.GetOutgoingTimelineAsync();
+        var lastEmission = tl.OfType<PackEmission>().LastOrDefault();
+        return lastEmission is not null
+            ? $"Skill {skillName} emitted: {lastEmission.Output} (pack {lastEmission.Pack})"
+            : "Skill invoked; check journal for PackEmission.";
+    }
+
+    [McpServerTool(Name = "create_company_skill"), Description("Run the full automated pipeline: ingest sources, crystallize process spec, synthesize IPackBehavior, publish+install via marketplace, verify execution and return result.")]
+    public async Task<string> CreateCompanySkill([Description("Process name e.g. RefundHandling")] string processName)
+    {
+        var orchestrator = grains.GetGrain<ICompanySkillOrchestratorNeuron>("company-skill-main");
+        await orchestrator.FireAsync(new CreateCompanySkill(processName));
+        var tl = await orchestrator.GetOutgoingTimelineAsync();
+        var result = tl.OfType<CompanySkillCreationResult>().LastOrDefault();
+        return result is not null
+            ? $"Create {result.ProcessName}@{result.Version}: Success={result.Success}. {result.Details}"
+            : $"Create request for {processName} accepted. Check orchestrator timeline.";
+    }
 }
 

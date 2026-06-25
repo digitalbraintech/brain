@@ -1,5 +1,7 @@
+using DigitalBrain.Silo.Company;
 using DigitalBrain.Silo.Foundry;
 using DigitalBrain.Silo.Llm;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Orleans;
@@ -23,6 +25,8 @@ public static class DigitalBrainKernelExtensions
         });
 
         builder.Services.AddDigitalBrainChat(builder.Configuration);
+        builder.Services.AddSingleton<ProcessCrystallizer>(sp => new ProcessCrystallizer(sp.GetService<IChatClient>()));
+        builder.Services.AddSingleton<SkillPackSynthesizer>();
 
         return builder;
     }

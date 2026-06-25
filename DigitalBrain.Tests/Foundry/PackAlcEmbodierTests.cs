@@ -50,6 +50,9 @@ public class PackAlcEmbodierTests
             {
                 public string Respond(string input) => "fallback:" + input;
 
+                public DigitalBrain.Core.PackManifest GetManifest() =>
+                    new(new[] { nameof(DigitalBrain.Core.DemoMessageSynapse) });
+
                 public bool CanHandle(DigitalBrain.Core.Synapse synapse) =>
                     synapse is DigitalBrain.Core.DemoMessageSynapse;
 
@@ -66,6 +69,7 @@ public class PackAlcEmbodierTests
 
         var pack = _embodier.Embody("TypedPack", code);
 
+        Assert.Contains(nameof(DemoMessageSynapse), pack.GetManifest().HandledSynapseTypes);
         Assert.True(pack.CanHandle(new DemoMessageSynapse("hello")));
         var emission = Assert.IsType<PackEmission>(Assert.Single(pack.Handle(new DemoMessageSynapse("hello"))));
         Assert.Equal("hello", emission.Input);

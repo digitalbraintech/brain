@@ -1,0 +1,29 @@
+commit brain 2026-06-25
+
+Core + Kernel best implementation progress (follow-up)
+
+Changes under brain/:
+
+* DigitalBrain.Core/
+  - Distribution/IPackBehavior.cs: PackManifest record + GetManifest() default for typed dispatch contract
+  - INeuron.cs: added GetCausalLineageAsync + GetTimelineForCorrelationAsync
+  - RestartResource.cs: added IsRollingUpdate, TargetVersion, Strategy for HA rolling updates
+* DigitalBrain.Silo/
+  - Company/CompanySkillOrchestratorNeuron.cs: kernel update now does pre-checkpoint, uses causal lineage query, richer payload, UiSurface emission
+  - SystemNeurons.cs: rolling-aware Restart handler + neuron-driven kernel-rolling UiSurface
+  - Neuron.cs: impl of causal queries over journals
+  - Foundry/PackAlcEmbodier.cs, Generated dispatch updates for manifest
+  - Other: SkillPackSynthesizer, KernelSurfaceDemo updated for manifest
+* DigitalBrain.Tests/
+  - Foundry/PackAlcEmbodierTests.cs: manifest assertions
+  - Features/NeuronCore.feature: kernel self-update rolling Reqnroll scenario
+
+Verification performed after edits:
+- dotnet build (AppHost + core projects) clean
+- High-severity tests (filters on NeuronCore, Pack, UiSurface, Company, Checkpoint) green
+- aspire doctor (MCP) pass
+- aspire mcp tools used
+
+Relative paths, no vacuous summaries, self-explanatory names, Context7 for Orleans/Aspire, latest central packages.
+
+Refs: Projects/docs/continuation-core-kernel-best-impl.md
