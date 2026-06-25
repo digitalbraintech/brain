@@ -277,6 +277,13 @@ public class MarketplaceNeuron : Neuron, IMarketplaceNeuron
 
         await FireAsync(new NeuroPackInstalled(pack));
 
+        // Kernel as first-class pack: installing the kernel pack automatically triggers HA rolling self-update (embodiment-driven, no name special in company skill).
+        if (string.Equals(cmd.PackName, KernelPack.Name, StringComparison.OrdinalIgnoreCase))
+        {
+            var aspire = GrainFactory.GetGrain<IAspireNeuron>("aspire-main");
+            await aspire.FireAsync(new PerformKernelSelfUpdate(cmd.Version));
+        }
+
         var genKey = "generated-" + pack.Name.ToLowerInvariant();
         var generated = GrainFactory.GetGrain<IGeneratedNeuron>(genKey);
         // Deliver the full pack (with Code) so the host neuron can compile + embody it; then trigger a use.
