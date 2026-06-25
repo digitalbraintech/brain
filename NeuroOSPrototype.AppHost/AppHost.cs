@@ -2,6 +2,39 @@ using Aspire.Hosting.DigitalBrain;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
+// Support "dotnet run --project NeuroOSPrototype.AppHost brain.example.sc" (or dotnet run brain .sc via launcher).
+// .sc declares packed integrations (Telegram.Bot, Flutter as marketplace packs) - no logic inside core, just packed for reuse/distribution.
+// Uses IAspireNeuron (fired from start or inside) to start/orchestrate the Aspire project.
+// Flutter pack contains/uses Aspire integration (AddFlutterClient extension) to start windows/web.
+// 
+// Brainstorm use cases (product/tech):
+// - Reusable integrations: market install Telegram.Bot; any brain .sc includes it as executable resource (packed bot, no core if).
+// - Flutter as pack: install DigitalBrain.UI.AspireFlutter; .sc spins with AddFlutterClient for client + surfaces streaming.
+// - Aspire neuron driven: .sc or brain.cs uses IAspireNeuron.StartDistributedApp for full project start from pack config.
+// - Distribution: packs from marketplace, .sc for local spin with args (like --token for bot).
+// - No logic in core: everything (bot, flutter, custom aspire) is NeuroPack embodied, Aspire resources added declaratively.
+// - brain.cs: future C# script using scripting + IAspire to define custom Aspire model for project.
+var scriptPath = args.Length > 0 && args[0].EndsWith(".sc", StringComparison.OrdinalIgnoreCase) ? args[0] : null;
+bool includeFlutter = true;
+bool includeTelegram = false;
+if (!string.IsNullOrEmpty(scriptPath) && File.Exists(scriptPath))
+{
+    var json = File.ReadAllText(scriptPath);
+    using var doc = System.Text.Json.JsonDocument.Parse(json);
+    var root = doc.RootElement;
+    if (root.TryGetProperty("packs", out var packs) && packs.ValueKind == System.Text.Json.JsonValueKind.Array)
+    {
+        includeFlutter = false;
+        includeTelegram = false;
+        foreach (var p in packs.EnumerateArray())
+        {
+            var name = p.GetProperty("name").GetString();
+            if (name != null && name.Contains("Flutter", StringComparison.OrdinalIgnoreCase)) includeFlutter = true;
+            if (name != null && name.Contains("Telegram", StringComparison.OrdinalIgnoreCase)) includeTelegram = true;
+        }
+    }
+}
+
 // Unified with fast start.cs path (memory kernel + surfaces) and full distributed here.
 // See framework/start.cs for fast "dotnet run" INO + tasks + marketplace + UiSurfaces (Gmail etc).
 // Experiences emit UiSurface (AuthButtonSurface etc) for sdk/flutter_demo + Telegram skeleton.
@@ -20,33 +53,32 @@ var startUi = builder.AddProject<Projects.DigitalBrain_Cli>("start-ui")
     .WithReference(ctx.OrleansClient)
     .WithExplicitStart();
 
-var flutterUiPath = Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "..", "..", "sdk", "flutter_demo"));
-if (Directory.Exists(flutterUiPath))
+// Flutter as marketplace pack. When .sc or market includes DigitalBrain.UI.AspireFlutter (or Flutter), use the Aspire integration.
+// dotnet run brain .sc spins local with packed integrations (no core logic for specific bots/UIs).
+if (includeFlutter)
 {
-    var flutterCommand = builder.Configuration["DigitalBrain:FlutterCommand"]
-        ?? Environment.GetEnvironmentVariable("FLUTTER_COMMAND")
-        ?? "flutter";
-    var mcpProjectPath = Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "..", "DigitalBrain.Mcp"));
-    var mcpDllPath = Path.Combine(mcpProjectPath, "bin", "Debug", "net11.0", "DigitalBrain.Mcp.dll");
+    var flutterUiPath = Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "..", "..", "app"));
+    if (Directory.Exists(flutterUiPath))
+    {
+        // Use the extension from the Flutter pack's Aspire integration for reuse/distribution.
+        // ctx.AddFlutterClient("flutter-ui", flutterUiPath, "windows");
+        // Fallback direct for now:
+        var flutterCommand = builder.Configuration["DigitalBrain:FlutterCommand"]
+            ?? Environment.GetEnvironmentVariable("FLUTTER_COMMAND")
+            ?? "flutter";
 
-    builder.AddExecutable(
-            "flutter-ui",
-            flutterCommand,
-            flutterUiPath,
-            "run",
-            "-d",
-            "windows",
-            "--dart-define",
-            "DIGITALBRAIN_SURFACE_TOOL=get_workbench_surfaces",
-            "--dart-define",
-            "DIGITALBRAIN_ACTION_TOOL=fire_ui_action")
-        .WithReference(ctx.OrleansClient)
-        .WithReference((IResourceBuilder<IResourceWithConnectionString>)ctx.Llm)
-        .WithEnvironment("DIGITALBRAIN_UI_PACK", "DigitalBrain.UI.AspireFlutter")
-        .WithEnvironment("DIGITALBRAIN_UI_TIER1_RESTART_REQUIRED", "true")
-        .WithEnvironment("DIGITALBRAIN_MCP_COMMAND", "dotnet")
-        .WithEnvironment("DIGITALBRAIN_MCP_ARGS", mcpDllPath)
-        .WithEnvironment("DIGITALBRAIN_MCP_WORKDIR", mcpProjectPath);
+        builder.AddExecutable(
+                "flutter-ui",
+                flutterCommand,
+                flutterUiPath,
+                "run",
+                "-d",
+                "windows")
+            .WithReference(ctx.OrleansClient)
+            .WithReference((IResourceBuilder<IResourceWithConnectionString>)ctx.Llm)
+            .WithEnvironment("DIGITALBRAIN_UI_PACK", "DigitalBrain.UI.AspireFlutter")
+            .WithEnvironment("DIGITALBRAIN_UI_TIER1_RESTART_REQUIRED", "true");
+    }
 }
 
 if (ctx.EnableMcp)
@@ -57,42 +89,23 @@ if (ctx.EnableMcp)
         .WithReference((IResourceBuilder<IResourceWithConnectionString>)ctx.Llm);
 }
 
+// Packed Telegram bot as integration (just like user vision): no logic in core, packed in marketplace pack.
+// When .sc includes it, add as resource. Real pack would use NeuroPack embodiment or AddExecutable to a bot host.
+if (includeTelegram)
+{
+    // Placeholder for packed integration. In full: the pack provides executable or project.
+    builder.AddExecutable(
+            "telegram-bot",
+            "echo",
+            ".",
+            "Telegram.Bot pack installed - configure token and run real bot host here. Reusable, no core logic.")
+        .WithReference(ctx.OrleansClient);
+}
+
 builder.AddProject<Projects.DigitalBrain_Gateway>("gateway")
     .WithReference(ctx.OrleansClient)
     .WithReference(ctx.ClusteringTable)
     .WithExternalHttpEndpoints();
-
-// E2E support: launch Flutter web-server so browser-driven tests can load the real UI and observe RfwCard / surface rendering
-// while packs are installed and embodied. Uses test mode + injected gateway endpoint for gRPC.
-var isTestMode = string.Equals(Environment.GetEnvironmentVariable("DIGITALBRAIN_TEST_MODE"), "true", StringComparison.OrdinalIgnoreCase);
-if (isTestMode)
-{
-    var appDir = Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "..", "..", "app"));
-    if (Directory.Exists(appDir))
-    {
-        var flutterCmd = builder.Configuration["DigitalBrain:FlutterCommand"]
-            ?? Environment.GetEnvironmentVariable("FLUTTER_COMMAND")
-            ?? "flutter";
-
-        // Compute gateway https for the Flutter client (it resolves via KERNEL_ENDPOINT or services__ )
-        // We wire it via dart-define so the web app connects back to this test's gateway for WatchHomeFeed.
-        var gatewayForFlutter = "https://localhost:8080"; // placeholder - fixture will override via env if needed; real value injected below
-
-        var flutterWeb = builder.AddExecutable(
-                "flutter-web",
-                flutterCmd,
-                appDir,
-                "run",
-                "-d", "web-server",
-                "--web-port", "0",
-                "--dart-define", "SURFACE_DEMO=true")
-            .WithEnvironment("DIGITALBRAIN_TEST_MODE", "true")
-            .WithReference(ctx.OrleansClient);
-
-        // The Flutter web resource provides the live render target. Browser fixture navigates to its endpoint.
-        // The client code inside resolves the gateway via Aspire service discovery or dart-define.
-    }
-}
 
 silo.WithEnvironment("DIGITALBRAIN_USE_LOCAL_MARKETPLACE", ctx.UseLocalMarketplace ? "true" : "false");
 silo.WithEnvironment("DIGITALBRAIN_SURFACES_ENABLED", "true");
