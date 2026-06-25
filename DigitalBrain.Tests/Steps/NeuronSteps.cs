@@ -47,6 +47,13 @@ public class NeuronSteps : IAsyncDisposable
         await _currentGrain.GetTimelineAsync();
     }
 
+    [Given(@"a company skill orchestrator neuron ""(.*)""")]
+    public async Task GivenACompanySkillOrchestratorNeuron(string id)
+    {
+        _currentGrain = _cluster.GrainFactory.GetGrain<ICompanySkillOrchestratorNeuron>(id);
+        await _currentGrain.GetTimelineAsync();
+    }
+
     [Given(@"a compiler neuron ""(.*)""")]
     public async Task GivenACompilerNeuron(string id)
     {
@@ -157,6 +164,14 @@ public class NeuronSteps : IAsyncDisposable
         var targetMarket = _cluster.GrainFactory.GetGrain<IMarketplaceNeuron>("market-main");
         await targetMarket!.FireAsync(new InstallFromMarketplace(pack, ver));
         // activation fire to gen skipped in test to avoid timeout/hang; TUI and real use demonstrates it
+    }
+
+    [When(@"I create company skill ""(.*)""")]
+    public async Task WhenICreateCompanySkill(string name)
+    {
+        var orch = _cluster.GrainFactory.GetGrain<ICompanySkillOrchestratorNeuron>("company-skill-main");
+        await orch.FireAsync(new CreateCompanySkill(name));
+        _currentGrain = orch;
     }
 
     [When(@"I request published list")]

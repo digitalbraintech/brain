@@ -547,6 +547,18 @@ this.ScenarioInitialize(scenarioInfo, ruleInfo);
 #line 73
   await testRunner.AndAsync("the timeline contains a UiSurface of kind \"kernel-dashboard\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
+#line 74
+  await testRunner.GivenAsync("a company skill orchestrator neuron \"company-skill-kupdate\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
+#line hidden
+#line 75
+  await testRunner.WhenAsync("I create company skill \"kernel\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+#line 76
+  await testRunner.ThenAsync("the timeline contains a UiSurface of kind \"kernel-rolling-drain\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+#line 77
+  await testRunner.AndAsync("the timeline contains a UiSurface of kind \"kernel-rolling-verify\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
             }
             await this.ScenarioCleanupAsync();
         }

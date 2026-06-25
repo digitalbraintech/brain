@@ -71,4 +71,8 @@ Scenario: Kernel self-update publishes as pre-installed pack then performs expli
   And the timeline contains a DistributedAppStarted
   And the timeline contains a UiSurface
   And the timeline contains a UiSurface of kind "kernel-dashboard"
-  # Rolling phases (drain/verify) covered in CompanySkillOrchestrator path using kernel pack seed.
+  Given a company skill orchestrator neuron "company-skill-kupdate"
+  When I create company skill "kernel"
+  Then the timeline contains a UiSurface of kind "kernel-rolling-drain"
+  And the timeline contains a UiSurface of kind "kernel-rolling-verify"
+  # complete surface emitted after result in full run; verified in unit paths and when bus present

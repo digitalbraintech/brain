@@ -150,27 +150,27 @@ public sealed class CompanySkillOrchestratorNeuron : Neuron, ICompanySkillOrches
 
         await FireAsync(new CompanySkillCreationResult(MarketplaceSeeds.KernelPackName, version, true, $"Kernel pack installed from marketplace. Rolling update complete (3 replicas, drain-verify-rejoin, checkpoint preserved, lineage events: {lineageCount})."));
 
-        // Final status surface (full declarative from neuron).
+        // Final status surface (full declarative from neuron) - always emit the surface for UI/contracts.
+        var statusData = System.Text.Json.JsonSerializer.Serialize(new { process = MarketplaceSeeds.KernelPackName, version, status = "complete", haReplicas = 3, checkpoint = preUpdateCheckpoint.SynapseId, lineageEvents = lineageCount });
         if (bus is not null)
         {
-            var statusData = System.Text.Json.JsonSerializer.Serialize(new { process = MarketplaceSeeds.KernelPackName, version, status = "complete", haReplicas = 3, checkpoint = preUpdateCheckpoint.SynapseId, lineageEvents = lineageCount });
             bus.Broadcast(new RfwCard("digitalbrain", "KernelUpdateStatusCard", statusData));
-
-            var completeProps = new Dictionary<string, object?>
-            {
-                [UiSurfaceKeys.SurfaceId] = $"{KernelUiSurfaceKinds.RollingComplete}-{version}",
-                [UiSurfaceKeys.Emitter] = Self.Value,
-                [UiSurfaceKeys.Title] = "Kernel Rolling Update",
-                [UiSurfaceKeys.Priority] = 80,
-                [UiSurfaceKeys.Layout] = UiSurfaceLayouts.Panel,
-                ["version"] = version,
-                ["strategy"] = "one-replica-at-a-time",
-                ["checkpointId"] = preUpdateCheckpoint.SynapseId,
-                ["status"] = "complete",
-                ["replicasProcessed"] = 3,
-                ["lineageEvents"] = lineageCount
-            };
-            await FireAsync(new UiSurface(KernelUiSurfaceKinds.RollingComplete, completeProps));
         }
+
+        var completeProps = new Dictionary<string, object?>
+        {
+            [UiSurfaceKeys.SurfaceId] = $"{KernelUiSurfaceKinds.RollingComplete}-{version}",
+            [UiSurfaceKeys.Emitter] = Self.Value,
+            [UiSurfaceKeys.Title] = "Kernel Rolling Update",
+            [UiSurfaceKeys.Priority] = 80,
+            [UiSurfaceKeys.Layout] = UiSurfaceLayouts.Panel,
+            ["version"] = version,
+            ["strategy"] = "one-replica-at-a-time",
+            ["checkpointId"] = preUpdateCheckpoint.SynapseId,
+            ["status"] = "complete",
+            ["replicasProcessed"] = 3,
+            ["lineageEvents"] = lineageCount
+        };
+        await FireAsync(new UiSurface(KernelUiSurfaceKinds.RollingComplete, completeProps));
     }
 }

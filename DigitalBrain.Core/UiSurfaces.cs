@@ -276,14 +276,14 @@ public static class UiSurfaceSamples
                 {
                     new Dictionary<string, object?>
                     {
-                        ["type"] = nameof(KernelTaskStarted),
-                        ["title"] = "Task started",
+                        ["type"] = nameof(DemoMessageSynapse),
+                        ["title"] = "Demo message",
                         ["at"] = DateTimeOffset.UtcNow
                     }
                 },
                 ["filters"] = new Dictionary<string, object?>
                 {
-                    ["types"] = new[] { nameof(KernelTaskStarted), nameof(KernelTaskProgress), nameof(KernelTaskCompleted) }
+                    ["types"] = new[] { nameof(DemoMessageSynapse), nameof(InoResponse), nameof(PublishedList) }
                 }
             }));
 
