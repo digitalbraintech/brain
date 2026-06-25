@@ -6,7 +6,7 @@ namespace DigitalBrain.Silo.Foundry;
 [GrainType("digitalbrain.coderun.v1")]
 public class CodeRunNeuron : Neuron, ICodeRunNeuron
 {
-    public CodeRunNeuron(ILogger<CodeRunNeuron> logger) : base(logger) { }
+    public CodeRunNeuron(ILogger<CodeRunNeuron> logger, NeuronJournals journals) : base(logger, journals) { }
 
     public async Task HandleAsync(RunGeneratedCode cmd)
     {

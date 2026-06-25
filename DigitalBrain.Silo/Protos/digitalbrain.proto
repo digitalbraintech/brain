@@ -5,6 +5,7 @@ option csharp_namespace = "DigitalBrain.Runtime.Grpc";
 package digitalbrain;
 
 service DigitalBrainGateway {
+  rpc Send(SynapseEnvelope) returns (SynapseEnvelope);
   rpc Health(HealthRequest) returns (HealthReply);
   rpc Ask(AskRequest) returns (AskReply);
   rpc Fire(FireRequest) returns (FireReply);
@@ -13,12 +14,20 @@ service DigitalBrainGateway {
   rpc WatchHomeFeed(WatchHomeFeedRequest) returns (stream RfwCardEnvelope);
 }
 
+message SynapseEnvelope {
+  string correlation_id = 1;
+  string type_name = 2;
+  bytes payload = 3;
+}
+
 message WatchHomeFeedRequest {}
 message RfwCardEnvelope {
-  string library_name = 1;
-  string root_widget = 2;
-  string data_json = 3;
-  string correlation_id = 4;
+  string correlation_id = 1;
+  string library_name = 2;
+  string root_widget = 3;
+  string data_json = 4;
+  string timestamp = 5;
+  string caller_neuron_type = 6;
 }
 
 message HealthRequest {}

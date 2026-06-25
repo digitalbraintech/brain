@@ -8,7 +8,7 @@ namespace DigitalBrain.Silo;
 [GrainType("awesome.se.reviewer.v1")]
 public class SoftwareEngineeringReviewerNeuron : Neuron, ISoftwareEngineeringReviewer
 {
-    public SoftwareEngineeringReviewerNeuron(ILogger<SoftwareEngineeringReviewerNeuron> logger) : base(logger) { }
+    public SoftwareEngineeringReviewerNeuron(ILogger<SoftwareEngineeringReviewerNeuron> logger, NeuronJournals journals) : base(logger, journals) { }
 
     public async Task HandleAsync(ReviewProjectRequest request)
     {

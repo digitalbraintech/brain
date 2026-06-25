@@ -10,7 +10,7 @@ namespace DigitalBrain.Silo;
 [GrainType("digitalbrain.license.v1")]
 public class LicenseNeuron : Neuron, ILicenseNeuron
 {
-    public LicenseNeuron(ILogger<LicenseNeuron> logger) : base(logger) { }
+    public LicenseNeuron(ILogger<LicenseNeuron> logger, NeuronJournals journals) : base(logger, journals) { }
 
     public async Task<string> IssueLicenseAsync(string bundleId, string userId)
     {

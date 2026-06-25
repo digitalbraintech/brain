@@ -7,7 +7,7 @@ namespace DigitalBrain.Silo.Foundry;
 [GrainType("digitalbrain.foundry.loop.v1")]
 public class CodeFoundryClosedLoopNeuron : Neuron, ICodeFoundryLoopNeuron
 {
-    public CodeFoundryClosedLoopNeuron(ILogger<CodeFoundryClosedLoopNeuron> logger) : base(logger) { }
+    public CodeFoundryClosedLoopNeuron(ILogger<CodeFoundryClosedLoopNeuron> logger, NeuronJournals journals) : base(logger, journals) { }
 
     public async Task HandleAsync(FoundryRequest request)
     {

@@ -1,11 +1,9 @@
-using Azure.Storage.Blobs;
 using DigitalBrain.Core;
 using DigitalBrain.Silo;
 using DigitalBrain.Silo.Foundry;
 using DigitalBrain.Silo.Llm;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 using Orleans.Configuration;
 using Orleans.Journaling;
 using Orleans.Journaling.Json;
@@ -17,14 +15,21 @@ using Orleans.Journaling.Json;
 #pragma warning disable ORLEANSEXP005
 
 var builder = WebApplication.CreateBuilder(args);
+var isAspireHosted = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ConnectionStrings__clustering"))
+    || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ConnectionStrings__grainstate"))
+    || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ConnectionStrings__journal"));
 
 builder.AddServiceDefaults();
 
 builder.WebHost.ConfigureKestrel(options =>
 {
-    // gRPC gateway (prior-knowledge HTTP/2, no TLS).
+    if (isAspireHosted)
+    {
+        options.ConfigureEndpointDefaults(listen => listen.Protocols = HttpProtocols.Http2);
+        return;
+    }
+
     options.ListenAnyIP(8080, listen => listen.Protocols = HttpProtocols.Http2);
-    // Co-hosted MCP server. Streamable-HTTP/SSE needs HTTP/1.1, so it gets its own endpoint (internal-only).
     options.ListenAnyIP(8081, listen => listen.Protocols = HttpProtocols.Http1AndHttp2);
 });
 
@@ -42,10 +47,6 @@ builder.Services
     .WithTools<DigitalBrain.Mcp.Tools.DigitalBrainTools>();
 builder.Services.AddSingleton<DigitalBrain.Mcp.Tools.DigitalBrainTools>();
 
-var isAspireHosted = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ConnectionStrings__clustering"))
-    || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ConnectionStrings__grainstate"))
-    || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ConnectionStrings__journal"));
-
 if (isAspireHosted)
 {
     // Cloud host (standalone ACA): bind the journal BlobServiceClient from ConnectionStrings__journal here;
@@ -53,16 +54,9 @@ if (isAspireHosted)
     // Aspire AppHost those would be wired by WithClustering/WithGrainStorage; in ACA the silo configures Orleans itself.)
     var clusteringServiceKey = Environment.GetEnvironmentVariable("Orleans__Clustering__ServiceKey") ?? "clustering";
     var grainStorageServiceKey = Environment.GetEnvironmentVariable("Orleans__GrainStorage__Default__ServiceKey") ?? "grainstate";
-    const string journalServiceKey = "journal";
 
     builder.AddKeyedAzureTableServiceClient(clusteringServiceKey);
     builder.AddKeyedAzureBlobServiceClient(grainStorageServiceKey);
-    builder.AddKeyedAzureBlobServiceClient(journalServiceKey);
-
-    builder.Services.AddSingleton<IConfigureOptions<AzureBlobJournalStorageOptions>>(sp =>
-        new ConfigureNamedOptions<AzureBlobJournalStorageOptions>(
-            Options.DefaultName,
-            options => options.BlobServiceClient = sp.GetRequiredKeyedService<BlobServiceClient>(journalServiceKey)));
 }
 
 builder.Services.AddDigitalBrainChat(builder.Configuration);
@@ -72,6 +66,8 @@ builder.Services.AddContextStore(builder.Configuration);
 
 builder.UseOrleans(siloBuilder =>
 {
+    siloBuilder.ConfigureServices(services => services.AddScoped<NeuronJournals>());
+
     if (!isAspireHosted)
     {
         // Fast path: localhost clustering + in-memory grain storage + in-memory journals.
@@ -95,7 +91,8 @@ builder.UseOrleans(siloBuilder =>
             options.ConfigureTableServiceClient(builder.Configuration.GetConnectionString("clustering")!));
         siloBuilder.AddAzureBlobGrainStorage("Default", options =>
             options.ConfigureBlobServiceClient(builder.Configuration.GetConnectionString("grainstate")!));
-        siloBuilder.AddAzureBlobJournalStorage()
+        siloBuilder.AddAzureBlobJournalStorage(options =>
+            options.ConfigureBlobServiceClient(builder.Configuration.GetConnectionString("journal")!))
             .UseJsonJournalFormat(DigitalBrain.Core.JournalJsonContext.Default);
     }
 
@@ -108,8 +105,10 @@ var app = builder.Build();
 
 app.MapGrpcService<DigitalBrain.Silo.Gateway.GatewayService>();
 
-// MCP endpoints answer only on the HTTP/1.1-capable port (8081); gRPC keeps 8080 to itself.
-app.MapMcp().RequireHost("*:8081");
+if (!isAspireHosted)
+{
+    app.MapMcp().RequireHost("*:8081");
+}
 
 // Bootstrap self-awareness (SystemStatusNeuron will connect MCP + fire Launched on activate)
 var grainFactory = app.Services.GetService<IGrainFactory>();

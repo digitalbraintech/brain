@@ -317,6 +317,8 @@ public record ClusterActivity(string NodeId, string Activity, double Value) : Sy
 [GenerateSerializer]
 public record ThreeDGraphUpdate(string GraphId, string DataJson) : Synapse(nameof(ThreeDGraphUpdate), DateTimeOffset.UtcNow);
 
+public interface IObservabilityNeuron : INeuron, IHandle<UiSurface>, IHandle<ClusterActivity>, IHandle<ThreeDGraphUpdate> { }
+
 [GenerateSerializer]
 public record VisualizeDataRequest(
     string Prompt,

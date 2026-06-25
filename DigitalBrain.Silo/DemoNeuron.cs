@@ -6,8 +6,8 @@ namespace DigitalBrain.Silo;
 
 public class DemoNeuron : Neuron, IDemoNeuron, IHandle<DemoMessageSynapse>
 {
-    public DemoNeuron(ILogger<DemoNeuron> logger)
-        : base(logger)
+    public DemoNeuron(ILogger<DemoNeuron> logger, NeuronJournals journals)
+        : base(logger, journals)
     {
     }
 

@@ -6,7 +6,7 @@ namespace DigitalBrain.Silo.Foundry;
 [GrainType("digitalbrain.codedeploy.v1")]
 public class CodeDeployNeuron : Neuron, ICodeDeployNeuron
 {
-    public CodeDeployNeuron(ILogger<CodeDeployNeuron> logger) : base(logger) { }
+    public CodeDeployNeuron(ILogger<CodeDeployNeuron> logger, NeuronJournals journals) : base(logger, journals) { }
 
     public async Task HandleAsync(DeployGeneratedCode cmd)
     {

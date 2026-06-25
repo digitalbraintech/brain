@@ -20,8 +20,8 @@ namespace DigitalBrain.Silo;
 [GrainType("digitalbrain.kernel.aspire.v1")]
 public class AspireOrchestratorNeuron : Neuron, IAspireNeuron
 {
-    public AspireOrchestratorNeuron(ILogger<AspireOrchestratorNeuron> logger)
-        : base(logger)
+    public AspireOrchestratorNeuron(ILogger<AspireOrchestratorNeuron> logger, NeuronJournals journals)
+        : base(logger, journals)
     {
     }
 
@@ -49,8 +49,8 @@ public class MarketplaceNeuron : Neuron, IMarketplaceNeuron
     // Avoids O(n) full journal scan on every ListPublished / Find / Install.
     private Dictionary<string, NeuroPack>? _publishedCache;
 
-    public MarketplaceNeuron(ILogger<MarketplaceNeuron> logger)
-        : base(logger)
+    public MarketplaceNeuron(ILogger<MarketplaceNeuron> logger, NeuronJournals journals)
+        : base(logger, journals)
     {
     }
 
@@ -178,11 +178,57 @@ public class MarketplaceNeuron : Neuron, IMarketplaceNeuron
         ServiceProvider.GetService<IConfiguration>()?.GetValue<bool>("DigitalBrain:Marketplace:RejectUnsignedPacks") ?? false;
 }
 
+[GrainType("digitalbrain.observability.v1")]
+public class ObservabilityNeuron : Neuron, IObservabilityNeuron
+{
+    public ObservabilityNeuron(ILogger<ObservabilityNeuron> logger, NeuronJournals journals)
+        : base(logger, journals)
+    {
+    }
+
+    public Task HandleAsync(UiSurface surface)
+    {
+        Logger.LogInformation("Observability surface {Kind} correlation={CorrelationId}", surface.Kind, surface.CorrelationId);
+
+        var bus = ServiceProvider.GetService<HomeFeedBus>();
+        bus?.Broadcast(UiSurfaceRfwBridge.FromUiSurface(surface, Self.Value));
+        return Task.CompletedTask;
+    }
+
+    public async Task HandleAsync(ClusterActivity activity)
+    {
+        await PublishGraphFromJournalAsync(activity);
+    }
+
+    public async Task HandleAsync(ThreeDGraphUpdate update)
+    {
+        await PublishGraphFromJournalAsync(update);
+    }
+
+    private async Task PublishGraphFromJournalAsync(Synapse cause)
+    {
+        var graphTimeline = OutgoingJournal
+            .Concat(IncomingJournal)
+            .Where(s => s is ClusterActivity or ThreeDGraphUpdate)
+            .DistinctBy(s => s.SynapseId)
+            .OrderBy(s => s.Timestamp)
+            .TakeLast(40)
+            .ToList();
+
+        var surface = UiSurfaceLiveData.ActivityGraphFromTimeline(graphTimeline) with
+        {
+            CorrelationId = cause.CorrelationId ?? cause.SynapseId
+        };
+
+        await FireAsync(surface);
+    }
+}
+
 [GrainType("digitalbrain.compiler.v1")]
 public class CompilerNeuron : Neuron, ICompiler
 {
-    public CompilerNeuron(ILogger<CompilerNeuron> logger)
-        : base(logger)
+    public CompilerNeuron(ILogger<CompilerNeuron> logger, NeuronJournals journals)
+        : base(logger, journals)
     {
     }
 
@@ -260,8 +306,8 @@ public class {pack}
 [GrainType("digitalbrain.optimizer.v1")]
 public class MetaOptimizerNeuron : Neuron, IMetaOptimizerNeuron
 {
-    public MetaOptimizerNeuron(ILogger<MetaOptimizerNeuron> logger)
-        : base(logger)
+    public MetaOptimizerNeuron(ILogger<MetaOptimizerNeuron> logger, NeuronJournals journals)
+        : base(logger, journals)
     {
     }
 
@@ -307,8 +353,8 @@ public class GeneratedNeuron : Neuron, IGeneratedNeuron, IHandle<NeuronTelemetry
 {
     private EmbodiedPack? _embodied;
 
-    public GeneratedNeuron(ILogger<GeneratedNeuron> logger)
-        : base(logger)
+    public GeneratedNeuron(ILogger<GeneratedNeuron> logger, NeuronJournals journals)
+        : base(logger, journals)
     {
     }
 
@@ -410,7 +456,9 @@ public class GeneratedNeuron : Neuron, IGeneratedNeuron, IHandle<NeuronTelemetry
 
         foreach (var output in outputs)
         {
-            await FireAsync(NormalizePackOutput(_embodied.PackName, output));
+            var normalized = NormalizePackOutput(_embodied.PackName, output);
+            await FireAsync(normalized);
+            BroadcastPackSurface(normalized, _embodied.PackName);
         }
 
         Logger.LogInformation(
@@ -433,6 +481,21 @@ public class GeneratedNeuron : Neuron, IGeneratedNeuron, IHandle<NeuronTelemetry
             CausationId = null,
             SynapseId = Guid.NewGuid().ToString("N")
         };
+    }
+
+    private void BroadcastPackSurface(Synapse output, string packName)
+    {
+        var bus = ServiceProvider.GetService<HomeFeedBus>();
+        if (bus is null) return;
+
+        if (output is UiSurface surface)
+        {
+            bus.Broadcast(UiSurfaceRfwBridge.FromUiSurface(surface, packName));
+        }
+        else if (output is RfwCard card)
+        {
+            bus.Broadcast(card);
+        }
     }
 
     private async Task UseExperienceAsync(ExperienceUsed used)
@@ -487,8 +550,8 @@ public class GeneratedNeuron : Neuron, IGeneratedNeuron, IHandle<NeuronTelemetry
 [GrainType("digitalbrain.llm.qwen.v1")]
 public class LlmNeuron : Neuron, ILlmNeuron
 {
-    public LlmNeuron(ILogger<LlmNeuron> logger)
-        : base(logger)
+    public LlmNeuron(ILogger<LlmNeuron> logger, NeuronJournals journals)
+        : base(logger, journals)
     {
     }
 
@@ -512,7 +575,7 @@ public class LlmNeuron : Neuron, ILlmNeuron
 [GrainType("awesome.se.team10.v1")]
 public class Software10TeamNeuron : Neuron, ISoftware10Team
 {
-    public Software10TeamNeuron(ILogger<Software10TeamNeuron> logger) : base(logger) { }
+    public Software10TeamNeuron(ILogger<Software10TeamNeuron> logger, NeuronJournals journals) : base(logger, journals) { }
 
     public async Task HandleAsync(CreateSimpleApp cmd)
     {
@@ -526,7 +589,7 @@ public class Software10TeamNeuron : Neuron, ISoftware10Team
 [GrainType("awesome.se.team20.v1")]
 public class Software20TeamNeuron : Neuron, ISoftware20Team
 {
-    public Software20TeamNeuron(ILogger<Software20TeamNeuron> logger) : base(logger) { }
+    public Software20TeamNeuron(ILogger<Software20TeamNeuron> logger, NeuronJournals journals) : base(logger, journals) { }
 
     public async Task HandleAsync(CreateSimpleApp cmd)
     {
@@ -561,7 +624,7 @@ public class SoftwareEngineeringClosedLoopNeuron : Neuron, IClosedLoopNeuron
 {
     private McpClient? _aspireMcp;
 
-    public SoftwareEngineeringClosedLoopNeuron(ILogger<SoftwareEngineeringClosedLoopNeuron> logger) : base(logger) { }
+    public SoftwareEngineeringClosedLoopNeuron(ILogger<SoftwareEngineeringClosedLoopNeuron> logger, NeuronJournals journals) : base(logger, journals) { }
 
     public async Task HandleAsync(ClosedLoopRequest req)
     {
@@ -673,7 +736,7 @@ public class SystemStatusNeuron : Neuron, ISystemStatus
 {
     private McpClient? _mcp;
 
-    public SystemStatusNeuron(ILogger<SystemStatusNeuron> logger) : base(logger) { }
+    public SystemStatusNeuron(ILogger<SystemStatusNeuron> logger, NeuronJournals journals) : base(logger, journals) { }
 
     public override async Task OnActivateAsync(CancellationToken ct)
     {
@@ -886,7 +949,7 @@ public class SystemStatusNeuron : Neuron, ISystemStatus
 [GrainType("kernel.task.v1")]
 public class KernelTaskNeuron : Neuron, IKernelTask
 {
-    public KernelTaskNeuron(ILogger<KernelTaskNeuron> logger) : base(logger) { }
+    public KernelTaskNeuron(ILogger<KernelTaskNeuron> logger, NeuronJournals journals) : base(logger, journals) { }
 
     public async Task HandleAsync(RunKernelTask cmd)
     {
@@ -943,7 +1006,7 @@ public class KernelTaskNeuron : Neuron, IKernelTask
 [GrainType("ino.code.editor.v1")]
 public class InoCodeEditorNeuron : Neuron, IInoCodeEditor
 {
-    public InoCodeEditorNeuron(ILogger<InoCodeEditorNeuron> logger) : base(logger) { }
+    public InoCodeEditorNeuron(ILogger<InoCodeEditorNeuron> logger, NeuronJournals journals) : base(logger, journals) { }
 
     public async Task HandleAsync(InoCodeEdit cmd)
     {
@@ -1004,7 +1067,7 @@ public class InoCodeEditorNeuron : Neuron, IInoCodeEditor
 [GrainType("context.manager.v1")]
 public class ContextNeuron : Neuron, IContextNeuron
 {
-    public ContextNeuron(ILogger<ContextNeuron> logger) : base(logger) { }
+    public ContextNeuron(ILogger<ContextNeuron> logger, NeuronJournals journals) : base(logger, journals) { }
 
     public async Task HandleAsync(ContextUpdate cmd)
     {
@@ -1056,7 +1119,7 @@ public class ContextNeuron : Neuron, IContextNeuron
 [GrainType("db.support.v1")]
 public class DbSupportNeuron : Neuron, IDbSupportNeuron
 {
-    public DbSupportNeuron(ILogger<DbSupportNeuron> logger) : base(logger) { }
+    public DbSupportNeuron(ILogger<DbSupportNeuron> logger, NeuronJournals journals) : base(logger, journals) { }
 
     public async Task HandleAsync(DbConnect cmd)
     {

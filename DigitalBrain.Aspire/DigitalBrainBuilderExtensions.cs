@@ -105,6 +105,7 @@ public static class DigitalBrainBuilderExtensions
             .WithReference(ctx.GrainBlobs)
             .WithReference(ctx.JournalBlobs)
             .WithReference((IResourceBuilder<IResourceWithConnectionString>)ctx.Llm)
+            .WithEndpoint(name: "grpc", scheme: "http", env: "ASPNETCORE_HTTP_PORTS", isProxied: true)
             .WithReplicas(ctx.KernelReplicas);
 
         silo.WithEnvironment("DIGITALBRAIN_USE_LOCAL_MARKETPLACE", ctx.UseLocalMarketplace ? "true" : "false");
@@ -118,7 +119,7 @@ public static class DigitalBrainBuilderExtensions
 
         if (ctx.EnableOrleansDashboard && ctx.OrleansDashboardPort.HasValue)
         {
-            silo.WithEndpoint(name: "orleans-dashboard", port: ctx.OrleansDashboardPort.Value, isProxied: ctx.KernelReplicas == 1);
+            silo.WithEnvironment("ORLEANS_DASHBOARD_PORT", ctx.OrleansDashboardPort.Value.ToString());
         }
 
         return silo;

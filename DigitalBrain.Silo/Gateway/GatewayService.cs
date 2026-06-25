@@ -13,6 +13,29 @@ public sealed class GatewayService(
     HomeFeedBus homeFeedBus,
     ILogger<GatewayService> logger) : DigitalBrainGateway.DigitalBrainGatewayBase
 {
+    public override async Task<SynapseEnvelope> Send(SynapseEnvelope request, ServerCallContext context)
+    {
+        try
+        {
+            if (request.TypeName == KernelSurfaceDemo.RequestType)
+            {
+                await InstallAndRunSurfaceDemoAsync(request.CorrelationId);
+                return request;
+            }
+
+            throw new RpcException(new Status(StatusCode.InvalidArgument, "Unsupported synapse envelope type: " + request.TypeName));
+        }
+        catch (RpcException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Send failed for {TypeName}", request.TypeName);
+            throw new RpcException(new Status(StatusCode.Internal, ex.GetBaseException().Message));
+        }
+    }
+
     // Server-driven UI: stream RfwCards to the client as neurons broadcast them, until the client disconnects.
     public override async Task WatchHomeFeed(WatchHomeFeedRequest request, IServerStreamWriter<RfwCardEnvelope> responseStream, ServerCallContext context)
     {
@@ -24,7 +47,9 @@ public sealed class GatewayService(
                 LibraryName = card.LibraryName,
                 RootWidget = card.RootWidget,
                 DataJson = card.DataJson,
-                CorrelationId = card.CorrelationId ?? string.Empty
+                CorrelationId = card.CorrelationId ?? string.Empty,
+                Timestamp = card.Timestamp.ToString("O"),
+                CallerNeuronType = card.Sender?.Value ?? string.Empty
             });
         }
     }
@@ -106,5 +131,74 @@ public sealed class GatewayService(
             throw new RpcException(new Status(StatusCode.Internal, ex.GetBaseException().Message));
         }
     }
+
+    private async Task InstallAndRunSurfaceDemoAsync(string correlationId)
+    {
+        var requestCorrelationId = string.IsNullOrWhiteSpace(correlationId)
+            ? Guid.NewGuid().ToString("N")
+            : correlationId;
+
+        var pack = KernelSurfaceDemo.SignedPack();
+        var marketplace = grains.GetGrain<IMarketplaceNeuron>("market-ui-demo");
+        var generated = grains.GetGrain<IGeneratedNeuron>(KernelSurfaceDemo.GeneratedNeuronKey);
+
+        await PublishSurfaceDemoGraphAsync(requestCorrelationId, "request accepted");
+
+        await marketplace.FireAsync(new PublishToMarketplace(
+            pack.Name,
+            pack.Version,
+            pack.Code,
+            pack.OwnerId,
+            pack.IsPrivate,
+            pack.CommissionRate,
+            pack.Description,
+            pack.AuthorPublicKeyBase64,
+            pack.SignatureBase64)
+        {
+            CorrelationId = requestCorrelationId
+        });
+
+        await PublishSurfaceDemoGraphAsync(requestCorrelationId, "signed pack published to marketplace");
+
+        await marketplace.FireAsync(new InstallFromMarketplace(pack.Name, pack.Version, BuyerId: "flutter-demo")
+        {
+            CorrelationId = requestCorrelationId
+        });
+
+        await PublishSurfaceDemoGraphAsync(requestCorrelationId, "pack installed into generated neuron");
+
+        var demoText = string.IsNullOrWhiteSpace(correlationId)
+            ? "flutter-live-demo"
+            : correlationId;
+        await generated.FireAsync(new DemoMessageSynapse(demoText)
+        {
+            CorrelationId = requestCorrelationId
+        });
+
+        var generatedTimeline = await generated.GetOutgoingTimelineAsync();
+        await PublishSurfaceDemoGraphAsync(requestCorrelationId, "journaled response and surface update observed", generatedTimeline);
+    }
+
+    private async Task PublishSurfaceDemoGraphAsync(
+        string correlationId,
+        string phase,
+        IReadOnlyList<Synapse>? generatedTimeline = null)
+    {
+        var surface = KernelSurfaceDemo.ActivityGraphSurface(correlationId, phase, generatedTimeline);
+        var observability = grains.GetGrain<IObservabilityNeuron>(KernelSurfaceDemo.ObservabilityNeuronKey);
+        try
+        {
+            await observability.FireAsync(surface);
+            logger.LogInformation("Published journaled surface demo graph phase={Phase} correlation={CorrelationId}", phase, correlationId);
+        }
+        catch (Exception ex) when (IsObservabilityJournalUnavailable(ex))
+        {
+            logger.LogWarning(ex, "Observability neuron unavailable; streaming graph surface without blocking phase={Phase} correlation={CorrelationId}", phase, correlationId);
+            homeFeedBus.Broadcast(UiSurfaceRfwBridge.FromUiSurface(surface, "digitalbrain.gateway"));
+        }
+    }
+
+    private static bool IsObservabilityJournalUnavailable(Exception exception) =>
+        exception.GetBaseException().Message.Contains("state journal stream writer is not initialized", StringComparison.OrdinalIgnoreCase);
 }
 

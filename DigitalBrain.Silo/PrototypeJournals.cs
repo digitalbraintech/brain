@@ -26,6 +26,7 @@ internal static class DigitalBrainJournalConfig
     {
         siloBuilder.ConfigureServices(services =>
         {
+            services.AddScoped<DigitalBrain.Silo.NeuronJournals>();
             services.AddKeyedScoped<IDurableList<DigitalBrain.Core.Synapse>>("in-journal",
                 (_, _) => new InMemoryJournalForPrototype<DigitalBrain.Core.Synapse>());
             services.AddKeyedScoped<IDurableList<DigitalBrain.Core.Synapse>>("out-journal",

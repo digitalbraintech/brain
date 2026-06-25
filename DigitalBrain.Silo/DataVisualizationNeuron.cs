@@ -9,8 +9,8 @@ namespace DigitalBrain.Silo;
 [GrainType("digitalbrain.data-visualization.v1")]
 public class DataVisualizationNeuron : Neuron, IDataVisualizationNeuron
 {
-    public DataVisualizationNeuron(ILogger<DataVisualizationNeuron> logger)
-        : base(logger)
+    public DataVisualizationNeuron(ILogger<DataVisualizationNeuron> logger, NeuronJournals journals)
+        : base(logger, journals)
     {
     }
 

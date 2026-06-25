@@ -285,6 +285,7 @@ public class NeuronSteps : IAsyncDisposable
                 {
                     services.AddKeyedScoped<Orleans.Journaling.IDurableList<DigitalBrain.Core.Synapse>>("in-journal", (_, _) => new InMemoryDurableList<DigitalBrain.Core.Synapse>());
                     services.AddKeyedScoped<Orleans.Journaling.IDurableList<DigitalBrain.Core.Synapse>>("out-journal", (_, _) => new InMemoryDurableList<DigitalBrain.Core.Synapse>());
+                    services.AddScoped<DigitalBrain.Silo.NeuronJournals>();
                     services.AddSingleton<Orleans.Journaling.IJournaledStateManager, TestJournaledStateManager>();
                 });
         }

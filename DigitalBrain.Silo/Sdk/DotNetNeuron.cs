@@ -5,7 +5,7 @@ namespace DigitalBrain.Silo;
 [GrainType("digitalbrain.sdk.dotnet.v1")]
 public class DotNetNeuron : Neuron, IDotNetNeuron
 {
-    public DotNetNeuron(ILogger<DotNetNeuron> logger) : base(logger) { }
+    public DotNetNeuron(ILogger<DotNetNeuron> logger, NeuronJournals journals) : base(logger, journals) { }
 
     public Task<CommandResult> BuildAsync(string projectOrSolution, CancellationToken ct = default)
         => ProcessRunner.RunAsync("dotnet", $"build \"{projectOrSolution}\" --nologo", ct: ct);

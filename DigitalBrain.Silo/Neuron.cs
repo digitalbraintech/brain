@@ -1,10 +1,19 @@
 using DigitalBrain.Core;
+using Microsoft.Extensions.DependencyInjection;
 using Orleans.Journaling;
 using Orleans.Runtime;
 
 #pragma warning disable ORLEANSEXP005 // Alpha/experimental journalling APIs
 
 namespace DigitalBrain.Silo;
+
+public sealed class NeuronJournals(
+    [FromKeyedServices("in-journal")] IDurableList<Synapse> incoming,
+    [FromKeyedServices("out-journal")] IDurableList<Synapse> outgoing)
+{
+    public IDurableList<Synapse> Incoming { get; } = incoming;
+    public IDurableList<Synapse> Outgoing { get; } = outgoing;
+}
 
 [GrainType("digitalbrain.base.v2")]
 public abstract class Neuron : DurableGrain, INeuron
@@ -19,9 +28,11 @@ public abstract class Neuron : DurableGrain, INeuron
 
     protected NeuronId Self => new(this.GetPrimaryKeyString() ?? this.GetGrainId().ToString());
 
-    protected Neuron(ILogger logger)
+    protected Neuron(ILogger logger, NeuronJournals journals)
     {
         Logger = logger;
+        _incomingSynapses = journals.Incoming;
+        _outgoingSynapses = journals.Outgoing;
     }
 
     // Dual journals (self-explanatory names): incoming received via Deliver, outgoing from our Fire calls.
@@ -57,6 +68,9 @@ public abstract class Neuron : DurableGrain, INeuron
 
     public override async Task OnActivateAsync(CancellationToken ct)
     {
+        _incomingSynapses ??= ResolveRequiredJournal("in-journal");
+        _outgoingSynapses ??= ResolveRequiredJournal("out-journal");
+
         try
         {
             await base.OnActivateAsync(ct);
@@ -67,7 +81,14 @@ public abstract class Neuron : DurableGrain, INeuron
             throw new InvalidOperationException($"Journal not ready on activation for {Self}.", ex);
         }
 
-        await FireAsync(new NeuronActivated(Self));
+        try
+        {
+            await FireAsync(new NeuronActivated(Self));
+        }
+        catch (Exception ex) when (IsJournalWriterUninitialized(ex))
+        {
+            Logger.LogWarning(ex, "Activation marker was not journaled for {Neuron}; continuing so the first real synapse can initialize the journal.", Self);
+        }
     }
 
     public async ValueTask FireAsync<T>(T payload) where T : Synapse

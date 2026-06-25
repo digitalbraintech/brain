@@ -6,7 +6,7 @@ namespace DigitalBrain.Silo;
 [GrainType("digitalbrain.sdk.winget.v1")]
 public class WingetNeuron : Neuron, IWingetNeuron
 {
-    public WingetNeuron(ILogger<WingetNeuron> logger) : base(logger) { }
+    public WingetNeuron(ILogger<WingetNeuron> logger, NeuronJournals journals) : base(logger, journals) { }
 
     public Task<CommandResult> ListAsync(CancellationToken ct = default)
         => ProcessRunner.RunAsync("winget", "list --disable-interactivity", ct: ct);

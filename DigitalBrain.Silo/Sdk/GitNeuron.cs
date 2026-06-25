@@ -7,7 +7,7 @@ namespace DigitalBrain.Silo;
 [GrainType("digitalbrain.sdk.git.v1")]
 public class GitNeuron : Neuron, IGitNeuron
 {
-    public GitNeuron(ILogger<GitNeuron> logger) : base(logger) { }
+    public GitNeuron(ILogger<GitNeuron> logger, NeuronJournals journals) : base(logger, journals) { }
 
     public async Task<string> StatusAsync(string repoPath, CancellationToken ct = default)
         => (await ProcessRunner.RunAsync("git", "status", repoPath, ct: ct)).Output;

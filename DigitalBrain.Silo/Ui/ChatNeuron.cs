@@ -8,7 +8,7 @@ namespace DigitalBrain.Silo;
 [GrainType("digitalbrain.chat.v1")]
 public class ChatNeuron : Neuron, IChatNeuron
 {
-    public ChatNeuron(ILogger<ChatNeuron> logger) : base(logger) { }
+    public ChatNeuron(ILogger<ChatNeuron> logger, NeuronJournals journals) : base(logger, journals) { }
 
     public async Task HandleAsync(VisualizeDataRequest request)
     {

@@ -7,7 +7,7 @@ public class FileSystemNeuron : Neuron, IFileSystemNeuron
 {
     private const int MaxReadChars = 50 * 1024;
 
-    public FileSystemNeuron(ILogger<FileSystemNeuron> logger) : base(logger) { }
+    public FileSystemNeuron(ILogger<FileSystemNeuron> logger, NeuronJournals journals) : base(logger, journals) { }
 
     public async Task<string> ReadFileAsync(string path, CancellationToken ct = default)
     {

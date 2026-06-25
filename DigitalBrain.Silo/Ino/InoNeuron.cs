@@ -10,7 +10,7 @@ namespace DigitalBrain.Silo.Ino;
 [GrainType("ino.personal.v1")]
 public class InoNeuron : Neuron, IInoNeuron
 {
-    public InoNeuron(ILogger<InoNeuron> logger) : base(logger) { }
+    public InoNeuron(ILogger<InoNeuron> logger, NeuronJournals journals) : base(logger, journals) { }
 
     public override async Task OnActivateAsync(CancellationToken ct)
     {

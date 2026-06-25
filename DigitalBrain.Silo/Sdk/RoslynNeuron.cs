@@ -9,7 +9,7 @@ namespace DigitalBrain.Silo;
 [GrainType("digitalbrain.sdk.roslyn.v1")]
 public class RoslynNeuron : Neuron, IRoslynNeuron
 {
-    public RoslynNeuron(ILogger<RoslynNeuron> logger) : base(logger) { }
+    public RoslynNeuron(ILogger<RoslynNeuron> logger, NeuronJournals journals) : base(logger, journals) { }
 
     public async Task<string> AnalyzeSolutionAsync(string solutionPath, CancellationToken ct = default)
     {
