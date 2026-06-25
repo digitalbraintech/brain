@@ -21,7 +21,7 @@ public static class MarketplaceSeeds
             "digitalbraintech",
             false,
             0.0,
-            "Startup workbench experience: one canvas with panels for kernel tasks, activity graph, marketplace, INO input, task windows, and timeline.",
+            "Startup workbench experience: one canvas with panels for tasks, activity graph, marketplace, INO input, task windows, and timeline.",
             "Preinstalled dynamic Flutter workbench. Layout and surface props stream at runtime."),
 
         new NeuroPack(
