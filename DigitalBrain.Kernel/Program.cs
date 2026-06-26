@@ -107,6 +107,9 @@ builder.UseOrleans(siloBuilder =>
 
 var app = builder.Build();
 
+app.UseRouting();
+app.UseGrpcWeb(new GrpcWebOptions { DefaultEnabled = true });
+
 var webRoot = builder.Configuration["DIGITALBRAIN_WEBROOT"];
 var serveWebBundle = !string.IsNullOrWhiteSpace(webRoot) && Directory.Exists(webRoot);
 if (serveWebBundle)

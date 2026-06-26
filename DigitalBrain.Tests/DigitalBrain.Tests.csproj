@@ -30,6 +30,7 @@
     <!-- Real E2E: boot full Aspire AppHost + Playwright Chromium to drive Flutter web while packs embody and stream RfwCards/surfaces -->
     <PackageReference Include="Aspire.Hosting.Testing" />
     <PackageReference Include="Microsoft.Playwright" />
+    <PackageReference Include="Grpc.Net.Client.Web" />
   </ItemGroup>
 
   <ItemGroup>
