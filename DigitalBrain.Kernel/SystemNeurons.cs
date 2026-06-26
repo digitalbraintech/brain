@@ -141,9 +141,13 @@ public class AspireOrchestratorNeuron : Neuron, IAspireNeuron, IHandle<PerformKe
             // Rolling restart signal for replica.
             await FireAsync(new RestartResource("silo", IsRollingUpdate: true, TargetVersion: version, Strategy: $"replica-{replica}-of-3"));
 
-            // Verify using causal lineage.
+            // Verify using causal lineage. The verify surface reflects the outcome so a failing replica reads
+            // "verify-failed" (not a misleading "verified" immediately followed by a rollback).
             var replicaLineage = await GetCausalLineageAsync(preUpdateCheckpoint.SynapseId);
             lineageCount = replicaLineage.Count;
+
+            var verifyFailed = cmd.FailAtReplica == replica;
+            var verifyPhase = verifyFailed ? "verify-failed" : "verified";
 
             var verifyProps = new Dictionary<string, object?>
             {
@@ -153,17 +157,17 @@ public class AspireOrchestratorNeuron : Neuron, IAspireNeuron, IHandle<PerformKe
                 [UiSurfaceKeys.Priority] = 70 + replica,
                 [UiSurfaceKeys.Layout] = UiSurfaceLayouts.Panel,
                 ["replica"] = replica,
-                ["phase"] = "verified",
+                ["phase"] = verifyPhase,
                 ["version"] = version,
                 ["lineageEvents"] = lineageCount
             };
             await FireAsync(new UiSurface(KernelUiSurfaceKinds.RollingVerify, verifyProps));
             if (bus is not null)
             {
-                bus.Broadcast(new RfwCard("digitalbrain", "KernelRollingVerifyCard", System.Text.Json.JsonSerializer.Serialize(new { replica, phase = "verified", version, lineageEvents = lineageCount })));
+                bus.Broadcast(new RfwCard("digitalbrain", "KernelRollingVerifyCard", System.Text.Json.JsonSerializer.Serialize(new { replica, phase = verifyPhase, version, lineageEvents = lineageCount })));
             }
 
-            if (cmd.FailAtReplica == replica)
+            if (verifyFailed)
             {
                 await RestoreCheckpointAsync(preUpdateCheckpoint);
                 var rollbackProps = new Dictionary<string, object?>
@@ -262,6 +266,10 @@ public class MarketplaceNeuron : Neuron, IMarketplaceNeuron
         var isSigned = !string.IsNullOrEmpty(pack.AuthorPublicKeyBase64) && !string.IsNullOrEmpty(pack.SignatureBase64);
         if (isSigned)
         {
+            // VerifyPack checks integrity against the pack's OWN embedded public key — it proves the pack was not
+            // tampered with after signing, NOT that the publisher is trusted (a self-signed pack passes). A
+            // trusted-publisher allowlist (verify AuthorPublicKeyBase64 against registered keys) is deferred and
+            // pairs with the Key Vault work; until then keep RejectUnsignedPacks=true only for trusted install paths.
             if (!PackSignatureVerifier.VerifyPack(pack))
             {
                 Logger.LogWarning("Install REJECTED - invalid signature on pack {Key}", cmd.PackName + "@" + cmd.Version);

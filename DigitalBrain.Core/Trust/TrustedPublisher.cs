@@ -9,9 +9,6 @@ public static class TrustedPublisher
     private const string PrivateKeyBase64 = "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgIClVkj1jM5gq7zh8lWJjhUolM/iqXfYFOwzKpASZTtyhRANCAASYPKi1tTyPiqa458/f7QEj2QQ9GzLsf2h4lzPmhzTWWFTkBXsivTDQ2C7oml//OZjtbUgaLul0Sbr4pmpDpwo2";
     public const string PublicKeyBase64 = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEmDyotbU8j4qmuOfP3+0BI9kEPRsy7H9oeJcz5oc01lhU5AV7Ir0w0Ngu6Jpf/zmY7W1IGi7pdEm6+KZqQ6cKNg==";
 
-    public static NeuroPack Sign(NeuroPack pack) =>
-        PackSignatureVerifier.SignPack(pack, PrivateKeyBase64, PublicKeyBase64);
-
     public static PublishToMarketplace SignPublishCommand(PublishToMarketplace command)
     {
         var content = PackSignatureVerifier.CanonicalContent(
