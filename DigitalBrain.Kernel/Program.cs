@@ -61,7 +61,7 @@ if (isAspireHosted)
 }
 
 builder.Services.AddDigitalBrainChat(builder.Configuration);
-builder.Services.AddKernelSecurity(builder.Configuration);
+builder.Services.AddKernelSecurity(builder.Configuration, builder.Environment);
 builder.Services.AddEconomics(builder.Configuration);
 builder.Services.AddContextStore(builder.Configuration);
 builder.Services.AddSingleton<ProcessCrystallizer>(sp => new ProcessCrystallizer(sp.GetService<IChatClient>()));
