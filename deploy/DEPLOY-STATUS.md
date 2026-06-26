@@ -61,6 +61,13 @@ pulumi destroy --stack dev --cwd framework/deploy     # tear down
 ```
 
 ## Follow-ups
+
+### (2026-06-26) SP1 CI standardization
+- **Ingress:** The silo now serves gRPC-Web externally on the public ingress (ACA Http2 endpoint). The gateway is gone; all traffic flows through the silo's co-hosted gRPC Gateway.
+- **CI state backend:** CI (`deploy.yml`) now explicitly declares `cloud-url: azblob://pulumi-state`. Stack state must be migrated from the local file backend to Azure Blob Storage; this is a runbook step (Task 5).
+- **Secret requirement:** `DigitalBrain:Checkpoint:Key` (ECDSA signing key for pack trust) is now required in the Container App secrets, added in Task 3.
+
+### Pre-SP1 (2026-06-23)
 - **DNS:** remove the dangling `api` / `asuid.api` records at the registrar — the gateway they pointed to is deleted.
 - **CI (`deploy.yml`):** flipped to `push:[main]` → `pulumi up`, but it targets `azblob://pulumi-state`
   while the live stack is on the **local file backend**. Migrate the stack state to azblob (or point CI at

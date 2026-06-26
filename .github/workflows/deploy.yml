@@ -38,9 +38,9 @@ jobs:
           username: ${{ vars.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Publish silo image
+      - name: Publish kernel image
         run: |
-          dotnet publish DigitalBrain.Silo/DigitalBrain.Silo.csproj -c Release /t:PublishContainer \
+          dotnet publish DigitalBrain.Kernel/DigitalBrain.Kernel.csproj -c Release /t:PublishContainer \
             -p:ContainerRegistry=docker.io \
             -p:ContainerRepository=vhorbachov/digitalbrain-silo \
             -p:ContainerImageTag="${TAG}"
