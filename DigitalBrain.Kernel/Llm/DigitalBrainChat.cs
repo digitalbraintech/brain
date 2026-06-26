@@ -17,7 +17,9 @@ public static class DigitalBrainChat
         if (string.Equals(provider, "ollama", StringComparison.OrdinalIgnoreCase))
         {
             var endpoint = config["DigitalBrain:Llm:OllamaEndpoint"] ?? "http://localhost:11434";
-            services.AddChatClient(new OllamaApiClient(new Uri(endpoint), model));
+            var ollamaClient = new OllamaApiClient(new Uri(endpoint), model);
+            var chatClient = new ChatClientBuilder(ollamaClient).UseOpenTelemetry(sourceName: "DigitalBrain.Neuron").Build();
+            services.AddChatClient(chatClient);
         }
         else if (string.Equals(provider, "azureopenai", StringComparison.OrdinalIgnoreCase))
         {
@@ -25,15 +27,14 @@ public static class DigitalBrainChat
                 ?? throw new InvalidOperationException("DigitalBrain:Llm:AzureOpenAIEndpoint is required for azureopenai provider.");
             var key = config["DigitalBrain:Llm:AzureOpenAIKey"]
                 ?? throw new InvalidOperationException("DigitalBrain:Llm:AzureOpenAIKey is required for azureopenai provider.");
-            services.AddChatClient(
-                new AzureOpenAIClient(new Uri(endpoint), new AzureKeyCredential(key))
-                    .GetChatClient(model)
-                    .AsIChatClient());
+            var azureClient = new AzureOpenAIClient(new Uri(endpoint), new AzureKeyCredential(key))
+                .GetChatClient(model)
+                .AsIChatClient();
+            var chatClient = new ChatClientBuilder(azureClient).UseOpenTelemetry(sourceName: "DigitalBrain.Neuron").Build();
+            services.AddChatClient(chatClient);
         }
         // No provider → no IChatClient registered; neurons fall back deterministically.
 
-        // Embeddings for the Context neuron's hybrid recall. Registered fail-soft as a NoOp (zero vectors) so RAG
-        // is always wired and degrades to keyword scoring; a real Ollama/OpenAI embedding generator is a later phase.
         services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(new NoOpEmbeddingGenerator());
         return services;
     }

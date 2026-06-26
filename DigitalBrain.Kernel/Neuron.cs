@@ -2,6 +2,8 @@ using DigitalBrain.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Orleans.Journaling;
 using Orleans.Runtime;
+using System.Diagnostics;
+using System.Diagnostics.Metrics;
 
 #pragma warning disable ORLEANSEXP005 // Alpha/experimental journalling APIs
 
@@ -110,6 +112,7 @@ public abstract class Neuron : DurableGrain, INeuron
             await DeliverAsync(stamped);
         }
 
+        NeuronInstrumentation.SynapsesOut.Add(1);
         Logger.LogInformation("Fired {Type} from {Self}", typeof(T).Name, Self);
     }
 
@@ -174,18 +177,28 @@ public abstract class Neuron : DurableGrain, INeuron
         AddToJournal(ref _incomingSynapses, "in-journal", synapse);
         await WriteJournalStateAsync();
 
-        // Synapses fired while handling this one inherit its correlation and are caused by it.
         var previousCause = _currentCause;
         _currentCause = synapse;
         try
         {
-            // Reflection-based IHandle<T> lookup kept for flexibility with dynamic/embodied synapses.
-            // Prefer explicit interface impls (e.g. : IHandle<SpecificSynapse>) + Orleans grain dispatch for perf/AOT.
-            // Logs (Debug) when hit to surface reliance on prototype path.
+            var synapseType = synapse.GetType().Name;
+            var neuronType = GetType().Name;
+            using var activity = NeuronInstrumentation.Source.StartActivity($"{synapseType} \u2192 {neuronType}");
+            if (activity is not null)
+            {
+                activity.SetTag("neuron.id", Self.Value);
+                activity.SetTag("synapse.type", synapseType);
+            }
+
+            var handleStopwatch = Stopwatch.StartNew();
             if (!await TryHandleViaDeclaredInterfaceAsync(synapse))
             {
                 await DispatchSynapse(synapse);
             }
+            handleStopwatch.Stop();
+
+            NeuronInstrumentation.HandleDuration.Record(handleStopwatch.Elapsed.TotalMilliseconds);
+            NeuronInstrumentation.SynapsesIn.Add(1);
         }
         finally
         {
@@ -238,5 +251,14 @@ public abstract class Neuron : DurableGrain, INeuron
 
     private static bool IsJournalWriterUninitialized(Exception exception) =>
         exception.GetBaseException().Message.Contains("state journal stream writer is not initialized", StringComparison.OrdinalIgnoreCase);
+
+    public static class NeuronInstrumentation
+    {
+        public static readonly ActivitySource Source = new("DigitalBrain.Neuron");
+        public static readonly Meter Meter = new("DigitalBrain.Neuron");
+        public static readonly Counter<long> SynapsesIn = Meter.CreateCounter<long>("db.synapses.in");
+        public static readonly Counter<long> SynapsesOut = Meter.CreateCounter<long>("db.synapses.out");
+        public static readonly Histogram<double> HandleDuration = Meter.CreateHistogram<double>("db.handle.duration");
+    }
 }
 
