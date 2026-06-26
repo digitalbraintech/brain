@@ -115,3 +115,18 @@ Changes:
 Success: Core pure; kernel packable/self-updatable via marketplace; primitive reduced; Reqnroll expanded; tests segregated by concern (Kernel/ sub in tests + Silo refs); all green.
 
 Next session: paste full user prompt again. Paste this CONTINUITY too if needed.
+
+## 2026-06-26 — Bucket A: Runtime Hardening (branch hardening/bucket-a, off main)
+SDD/superpowers flow (spec + plan + per-task brief/report under .superpowers/sdd/). Five independent, secure-by-default hardening changes, each its own commit + clean per-task review:
+- A4 (04467e9): explicit N+1 handler-growth proof — installing a pack adds exactly one responder to a previously-unhandled synapse (characterization test; guards the embody chain).
+- A2 (e6d5585): split MCP tools into DigitalBrainReadTools (read-only) + DigitalBrainMutationTools over a shared DigitalBrainToolsBase. HTTP transport (remotely reachable) now exposes read-only tools only; stdio (local/trusted) keeps all. Tools moved verbatim, no behavior change.
+- A5 (63f67e7): pluggable ICheckpointKeyProvider (Core) + ConfigCheckpointKeyProvider; AddKernelSecurity fails fast in Production when DigitalBrain:Checkpoint:Key is absent, dev falls back to PassThrough with a loud warning. Key Vault drops in later without touching the call site.
+- A3 (8f5c5aa): rolling self-update rollback/abort — failed replica restores the pre-update checkpoint, emits kernel-rolling-rollback, and skips kernel-rolling-complete. KEY FIND: AspireOrchestratorNeuron was missing IHandle<PerformKernelSelfUpdate> — the self-update handler was effectively dead; now declared and dispatched. FailAtReplica is a deterministic test seam (0 = never).
+- A1 (d010827): reject-unsigned-packs is now the secure default (RejectUnsignedPacks defaults true; ?? true covers absent IConfiguration). First-party UI seeds + the kernel pack are signed by a built-in TrustedPublisher (ECDSA-nistP256, local dev trust anchor — NOT a prod secret). TestCluster set explicitly permissive so existing unsigned-install scenarios stay green; new strict tests prove the default.
+
+Verification (Task 6):
+- High-sev suite (filter Category!=E2E & !~Browser & !~E2E): **134 passed, 0 failed, 0 skipped, 37s**; blame-hang collector confirms all tests finished. The 2 previously env-flaky GatewayGrpcWireTests passed this run.
+- aspire doctor: 4/4 pass (CLI 13.5.0-preview, .NET 11 SDK, dev-certs trusted, Docker running).
+- Boot smoke: the full AppHost booted inside the test run — gateway healthy, all 3 kernel HA replicas registered in Orleans silo instances, Ollama + Azurite (storage) containers up — confirming secure-default + MCP-split don't break boot.
+
+Filter note (not a Bucket A regression): the briefing's `Category!=E2E` does NOT exclude the E2E tests — they live in namespace DigitalBrain.Tests.E2E but are not [Trait("Category","E2E")]-tagged, so the (skipped) E2E test is still *selected*, which instantiates the DigitalBrainBrowserFixture→DigitalBrainAppHostFixture collection fixture and boots the AppHost. That fixture hangs at DigitalBrainAppHostFixture.InitializeAsync line 44 `WaitForResourceHealthyAsync("silo")` — stale resource name from the Silo→Kernel rename (now "kernel"); it waits forever → 5-min hang dump → testhost abort. Pre-existing E2E infra bug, deferred-Bucket-D territory; worked around here by excluding the E2E namespace from the high-sev filter. Recommend either tagging the E2E collection with [Trait("Category","E2E")] and/or fixing the resource name "silo"→"kernel" when Bucket D un-skips E2E.
