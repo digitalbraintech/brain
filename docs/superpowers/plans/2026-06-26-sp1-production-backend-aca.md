@@ -47,19 +47,14 @@
 - Consumes: nothing.
 - Produces: a CI workflow that publishes `DigitalBrain.Kernel` (not the deleted `DigitalBrain.Silo`) and targets the agreed Pulumi state backend (`azblob`). Image repository string `vhorbachov/digitalbrain-silo` is kept verbatim (must match `deploy/Program.cs` `SiloImageRepository`).
 
-- [ ] **Step 1: Create the SP1 branch from a clean base**
+- [ ] **Step 1: Branch already prepared (done by controller)**
 
-The current branch `hardening/bucket-d` carries unrelated uncommitted E2E work. Isolate SP1.
-
-Run:
+The branch `prod/sp1-public-backend` is already created off `hardening/bucket-d` (NOT `main` — `main` lacks the gRPC-Web + `DIGITALBRAIN_WEB_PORT` foundation this plan depends on). It carries the SP1 spec + plan commits and a clean working tree. Verify before editing:
 ```bash
 cd brain
-git stash push -u -m "wip-bucket-d-e2e" --quiet || true
-git fetch origin
-git switch -c prod/sp1-public-backend origin/main 2>/dev/null || git switch -c prod/sp1-public-backend main
-git cherry-pick 8f6194f   # the SP1 spec commit (docs only)
+git rev-parse --abbrev-ref HEAD   # must print: prod/sp1-public-backend
+git status -s                     # must be clean
 ```
-Expected: new branch `prod/sp1-public-backend` with the spec doc present, no E2E changes.
 
 - [ ] **Step 2: Fix the stale project path and image repo in `deploy.yml`**
 
