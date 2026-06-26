@@ -25,6 +25,7 @@ public static class KernelUiSurfaceKinds
     public const string RollingDrain = "kernel-rolling-drain";
     public const string RollingVerify = "kernel-rolling-verify";
     public const string RollingComplete = "kernel-rolling-complete";
+    public const string RollingRollback = "kernel-rolling-rollback";
 }
 
 // Kernel pack identity (first-class pack for self-update via marketplace + rolling).
@@ -36,12 +37,13 @@ public static class KernelPack
 }
 
 // Command to drive kernel self-update after the pack has been published/installed (pack-embodiment driven, no name special in company skill).
+// FailAtReplica is a deterministic test/verification seam: 0 = never fail; N = the rollout aborts when replica N fails verify.
 [GenerateSerializer]
-public record PerformKernelSelfUpdate(string Version = "") : Synapse(nameof(PerformKernelSelfUpdate), DateTimeOffset.UtcNow);
+public record PerformKernelSelfUpdate(string Version = "", int FailAtReplica = 0) : Synapse(nameof(PerformKernelSelfUpdate), DateTimeOffset.UtcNow);
 
 // IAspire neuron (orchestrates distributed apps via Aspire model, fires completion synapses)
 [GrainType("digitalbrain.kernel.aspire.v1")]
-public class AspireOrchestratorNeuron : Neuron, IAspireNeuron
+public class AspireOrchestratorNeuron : Neuron, IAspireNeuron, IHandle<PerformKernelSelfUpdate>
 {
     public AspireOrchestratorNeuron(ILogger<AspireOrchestratorNeuron> logger, NeuronJournals journals)
         : base(logger, journals)
@@ -159,6 +161,30 @@ public class AspireOrchestratorNeuron : Neuron, IAspireNeuron
             if (bus is not null)
             {
                 bus.Broadcast(new RfwCard("digitalbrain", "KernelRollingVerifyCard", System.Text.Json.JsonSerializer.Serialize(new { replica, phase = "verified", version, lineageEvents = lineageCount })));
+            }
+
+            if (cmd.FailAtReplica == replica)
+            {
+                await RestoreCheckpointAsync(preUpdateCheckpoint);
+                var rollbackProps = new Dictionary<string, object?>
+                {
+                    [UiSurfaceKeys.SurfaceId] = $"{KernelUiSurfaceKinds.RollingRollback}-{replica}",
+                    [UiSurfaceKeys.Emitter] = Self.Value,
+                    [UiSurfaceKeys.Title] = $"Rollback at Replica {replica}/3",
+                    [UiSurfaceKeys.Priority] = 90,
+                    [UiSurfaceKeys.Layout] = UiSurfaceLayouts.Panel,
+                    ["replica"] = replica,
+                    ["phase"] = "rolledback",
+                    ["version"] = version,
+                    ["checkpointId"] = preUpdateCheckpoint.SynapseId,
+                    ["reason"] = "verify-failed"
+                };
+                await FireAsync(new UiSurface(KernelUiSurfaceKinds.RollingRollback, rollbackProps));
+                if (bus is not null)
+                {
+                    bus.Broadcast(new RfwCard("digitalbrain", "KernelRollingRollbackCard", System.Text.Json.JsonSerializer.Serialize(new { replica, phase = "rolledback", version })));
+                }
+                return; // Abort: do not process further replicas, do not emit RollingComplete.
             }
         }
 
