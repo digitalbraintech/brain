@@ -63,13 +63,10 @@ pulumi destroy --stack dev --cwd framework/deploy     # tear down
 ## Follow-ups
 
 ### (2026-06-26) SP1 CI standardization
-- **Ingress:** The silo now serves gRPC-Web externally on the public ingress (ACA Http2 endpoint). The gateway is gone; all traffic flows through the silo's co-hosted gRPC Gateway.
+- **Ingress:** The kernel container app (`digitalbrain-jobs`) now serves the public interaction path: an **external** ingress with `Transport="Auto"` (HTTP/1.1 + HTTP/2 on port 8080) carrying browser gRPC-Web and native gRPC through the kernel's co-hosted `DigitalBrainGateway`/`UiGateway`. This supersedes the Pre-SP1 "no interaction path is live" state below.
 - **CI state backend:** CI (`deploy.yml`) now explicitly declares `cloud-url: azblob://pulumi-state`. Stack state must be migrated from the local file backend to Azure Blob Storage; this is a runbook step (Task 5).
-- **Secret requirement:** `DigitalBrain:Checkpoint:Key` (ECDSA signing key for pack trust) is now required in the Container App secrets, added in Task 3.
+- **Secret requirement:** `DigitalBrain:Checkpoint:Key` (base64 AES key for checkpoint encryption — `AddKernelSecurity` fail-fasts without it in Production) is now required in the Container App secrets, injected from Pulumi secret config `digitalbrain-deploy:checkpointKey` (Task 3).
 
-### Pre-SP1 (2026-06-23)
-- **DNS:** remove the dangling `api` / `asuid.api` records at the registrar — the gateway they pointed to is deleted.
-- **CI (`deploy.yml`):** flipped to `push:[main]` → `pulumi up`, but it targets `azblob://pulumi-state`
-  while the live stack is on the **local file backend**. Migrate the stack state to azblob (or point CI at
-  the same backend) and add repo `DOCKERHUB_USERNAME` (var) + `DOCKERHUB_TOKEN` (secret) before enabling auto-deploy.
-- No interaction path is live yet (silo is a worker; the gateway is gone) — journal entries require neuron activity.
+### Pre-SP1 (2026-06-23) — superseded where noted by the SP1 entry above
+- **DNS:** remove the dangling `api` / `asuid.api` records at the registrar — they pointed to the old deleted gateway. SP2 attaches a fresh `api.digitalbrain.tech` custom domain to the now-public kernel ingress.
+- **CI (`deploy.yml`):** auto-deploy on `push:[main]` → `pulumi up`. Requires the azblob state migration above plus repo `DOCKERHUB_USERNAME` (var) + `DOCKERHUB_TOKEN` (secret) before enabling.
