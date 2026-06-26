@@ -29,6 +29,11 @@ builder.WebHost.ConfigureKestrel(options =>
     if (isAspireHosted)
     {
         options.ConfigureEndpointDefaults(listen => listen.Protocols = HttpProtocols.Http2);
+        var webPort = Environment.GetEnvironmentVariable("DIGITALBRAIN_WEB_PORT");
+        if (int.TryParse(webPort, out var port))
+        {
+            options.ListenAnyIP(port, listen => listen.Protocols = HttpProtocols.Http1AndHttp2);
+        }
         return;
     }
 

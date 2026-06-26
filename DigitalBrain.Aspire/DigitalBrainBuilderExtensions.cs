@@ -39,6 +39,10 @@ public static class DigitalBrainBuilderExtensions
     {
         var options = new DigitalBrainOptions();
         configure?.Invoke(options);
+        if (int.TryParse(Environment.GetEnvironmentVariable("DIGITALBRAIN_KERNEL_REPLICAS"), out var replicaOverride) && replicaOverride > 0)
+        {
+            options.KernelReplicas = replicaOverride;
+        }
 
         var resource = new DigitalBrainResource(name);
         var db = builder.AddResource(resource);
@@ -106,6 +110,8 @@ public static class DigitalBrainBuilderExtensions
             .WithReference(ctx.JournalBlobs)
             .WithReference((IResourceBuilder<IResourceWithConnectionString>)ctx.Llm)
             .WithEndpoint(name: "grpc", scheme: "http", env: "ASPNETCORE_HTTP_PORTS", isProxied: true)
+            .WithEndpoint(name: "web", scheme: "http", env: "DIGITALBRAIN_WEB_PORT", isProxied: true)
+            .WithExternalHttpEndpoints()
             .WithReplicas(ctx.KernelReplicas);
 
         kernel.WithEnvironment("DIGITALBRAIN_USE_LOCAL_MARKETPLACE", ctx.UseLocalMarketplace ? "true" : "false");
