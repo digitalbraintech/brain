@@ -1,3 +1,4 @@
+using System.IO;
 using DigitalBrain.Core;
 using DigitalBrain.Kernel;
 using DigitalBrain.Kernel.Company;
@@ -106,12 +107,31 @@ builder.UseOrleans(siloBuilder =>
 
 var app = builder.Build();
 
+var webRoot = builder.Configuration["DIGITALBRAIN_WEBROOT"];
+var serveWebBundle = !string.IsNullOrWhiteSpace(webRoot) && Directory.Exists(webRoot);
+if (serveWebBundle)
+{
+    var fileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(Path.GetFullPath(webRoot!));
+    app.UseDefaultFiles(new DefaultFilesOptions { FileProvider = fileProvider });
+    app.UseStaticFiles(new StaticFileOptions { FileProvider = fileProvider });
+}
+
 app.MapGrpcService<DigitalBrain.Kernel.Gateway.GatewayService>();
 app.MapGrpcService<DigitalBrain.Kernel.Gateway.UiGatewayService>();
 
 if (!isAspireHosted)
 {
     app.MapMcp().RequireHost("*:8081");
+}
+
+if (serveWebBundle)
+{
+    var indexPath = Path.Combine(Path.GetFullPath(webRoot!), "index.html");
+    app.MapFallback(async context =>
+    {
+        context.Response.ContentType = "text/html";
+        await context.Response.SendFileAsync(indexPath);
+    });
 }
 
 // Bootstrap self-awareness (SystemStatusNeuron will connect MCP + fire Launched on activate)
