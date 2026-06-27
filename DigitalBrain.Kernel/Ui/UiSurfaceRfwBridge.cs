@@ -46,7 +46,10 @@ public static class UiSurfaceRfwBridge
             var root = ValueOrDefault(surface, "rootWidget", "root");
             var dataJson = surface.Props.TryGetValue("dataJson", out var dj) && dj is string s ? s
                 : JsonSerializer.Serialize(surface.Props);
-            return new RfwCard(lib, root, dataJson) { CorrelationId = surface.CorrelationId ?? surface.SynapseId };
+            var correlation = surface.Props.TryGetValue(UiSurfaceKeys.SurfaceId, out var sid) && sid is string sidStr && sidStr.Length > 0
+                ? sidStr
+                : surface.CorrelationId ?? surface.SynapseId;
+            return new RfwCard(lib, root, dataJson) { CorrelationId = correlation };
         }
 
         if (surface.Kind == UiSurface.WidgetTreeKind && surface.Props.TryGetValue("tree", out var treeObj))
