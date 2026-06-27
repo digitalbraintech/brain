@@ -174,11 +174,26 @@ public class AspireOrchestratorNeuron : Neuron, IAspireNeuron, IHandle<PerformKe
             }
             foreach (var (label, target) in items)
             {
-                yield return new(DigitalBrain.Core.NeuronUiKit.MenuItem, new Dictionary<string, object?>
+                var itemProps = new Dictionary<string, object?>
                 {
-                    ["label"] = label,
-                    ["targetSurfaceKind"] = target
-                });
+                    ["label"] = label
+                };
+                if (label == "Timeline")
+                {
+                    // Demonstrate action for real synapse (client forwards to UiInput -> dispatch)
+                    itemProps["action"] = new Dictionary<string, object?>
+                    {
+                        ["actionId"] = "show-timeline",
+                        ["label"] = "Timeline",
+                        ["synapseType"] = "Timeline",
+                        ["props"] = new Dictionary<string, object?>()
+                    };
+                }
+                else
+                {
+                    itemProps["targetSurfaceKind"] = target;
+                }
+                yield return new(DigitalBrain.Core.NeuronUiKit.MenuItem, itemProps);
             }
             yield return new(DigitalBrain.Core.NeuronUiKit.Divider, new Dictionary<string, object?>());
         }
