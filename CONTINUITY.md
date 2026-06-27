@@ -196,4 +196,5 @@ Neurons (System, UI kit pack, embodied packs) are the authors of the shell. Clie
 - Focused fix for review critical: UiGatewayService now parses action descriptors (synapseType + props) from UiInputSynapse payloads (the path used by shell's kit buttons and _handleSurfaceEvent). Dispatches real typed synapses (InoRequest, InstallFromMarketplace, RestartResource) instead of always DemoMessageSynapse. Uses Json + NeuronResolver + direct grain FireAsync for the known cases. Fallbacks safe. Context7 for gRPC streaming patterns done pre-edit.
 - Verification ritual (this change): msbuild Kernel /t:CoreCompile (no errors from edit); UiSurfaceContractTests 16/16 --no-build; aspire doctor (MCP) 4/4.
 - Commits + this dispatch = full roundtrip for kit actions now produces IHandle'able typed synapses.
-- Next (one by one): clean residual titles in renderer, reduce ForuiAppShell state, add kit const + tree test coverage, commit each.
+- Small follow: titles in renderer now prefer server-provided (from props or children data) instead of literals in all paths.
+- Next (one by one): reduce ForuiAppShell state further, add kit const + tree test coverage, commit each + ritual.
