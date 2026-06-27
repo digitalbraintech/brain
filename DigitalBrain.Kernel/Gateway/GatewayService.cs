@@ -73,6 +73,20 @@ public sealed class GatewayService(
                 return request;
             }
 
+            if (request.TypeName == nameof(ExperienceStep) || request.TypeName.Contains("ExperienceStep", StringComparison.OrdinalIgnoreCase))
+            {
+                var payloadStr = System.Text.Encoding.UTF8.GetString(request.Payload.ToArray());
+                var p = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(payloadStr) ?? new();
+                var pack = p.GetValueOrDefault("pack", "");
+                var experienceId = p.GetValueOrDefault("experienceId", "");
+                var eventName = p.GetValueOrDefault("eventName", "start");
+                var args = p.Where(kv => kv.Key is not ("pack" or "experienceId" or "eventName" or "synapseType"))
+                            .ToDictionary(kv => kv.Key, kv => kv.Value);
+                var generated = grains.GetGrain<IGeneratedNeuron>("generated-" + pack.ToLowerInvariant());
+                await generated.FireAsync(new ExperienceStep(pack, experienceId, eventName, args));
+                return request;
+            }
+
             // Fallback to resolver for other surface actions (experience run etc.)
             try
             {

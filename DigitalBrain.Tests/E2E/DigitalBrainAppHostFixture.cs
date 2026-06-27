@@ -1,6 +1,7 @@
 using Aspire.Hosting;
 using Aspire.Hosting.ApplicationModel;
 using Aspire.Hosting.Testing;
+using DigitalBrain.Core;
 using DigitalBrain.Runtime.Grpc;
 using Google.Protobuf;
 using Grpc.Net.Client;
@@ -118,6 +119,26 @@ public class DigitalBrainAppHostFixture : IAsyncLifetime
             CorrelationId = correlationId ?? Guid.NewGuid().ToString("N"),
             TypeName = typeName,
             Payload = ByteString.CopyFromUtf8(jsonPayload)
+        });
+    }
+
+    public async Task SendExperienceStepAsync(string pack, string experienceId, string eventName, IReadOnlyDictionary<string, string>? args = null)
+    {
+        using var channel = CreateGatewayGrpcChannel();
+        var client = new DigitalBrainGateway.DigitalBrainGatewayClient(channel);
+
+        var payload = new Dictionary<string, string>(args ?? new Dictionary<string, string>())
+        {
+            ["pack"] = pack,
+            ["experienceId"] = experienceId,
+            ["eventName"] = eventName,
+        };
+
+        await client.SendAsync(new SynapseEnvelope
+        {
+            CorrelationId = "e2e-step-" + eventName,
+            TypeName = nameof(ExperienceStep),
+            Payload = ByteString.CopyFromUtf8(System.Text.Json.JsonSerializer.Serialize(payload))
         });
     }
 }
