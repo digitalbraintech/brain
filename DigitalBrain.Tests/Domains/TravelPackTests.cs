@@ -72,8 +72,8 @@ public class TravelPackTests
         Assert.Equal("travel-activities", SurfaceId(OnlySurface(pack.Handle(Step("event.selected", ("eventId", "EV-001"))))));
         var summary = OnlySurface(pack.Handle(Step("activity.selected", ("activityId", "AC-001"))));
         Assert.Equal("travel-summary", SurfaceId(summary));
-        Assert.Contains("Bali", Source(summary));
-        Assert.Contains("Singapore Airlines", Source(summary)); // FL-001 airline carried through state
+        Assert.Contains("Bali", DataJson(summary));
+        Assert.Contains("Singapore Airlines", DataJson(summary));
     }
 
     [Fact]

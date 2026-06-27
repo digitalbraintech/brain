@@ -148,13 +148,21 @@ internal static class TravelCards
         b.Append("import digitalbrain;\n");
         b.Append("widget root = Panel(radius: 20.0, padding: 18.0, child: VStack(gap: 8.0, cross: \"start\", children: [\n");
         b.Append("  SectionLabel(text: \"TRIP SUMMARY\"),\n");
-        b.Append($"  Text(text: \"{destination}\", variant: \"heading\"),\n");
-        b.Append($"  KeyValue(label: \"Flight\", value: \"{flightAirline}\"),\n");
-        b.Append($"  KeyValue(label: \"Hotel\", value: \"{hotelName}\"),\n");
-        b.Append($"  KeyValue(label: \"Event\", value: \"{eventTitle}\"),\n");
-        b.Append($"  KeyValue(label: \"Activity\", value: \"{activityName}\"),\n");
+        b.Append("  Text(text: data.destination, variant: \"heading\"),\n");
+        b.Append("  KeyValue(label: \"Flight\", value: data.flight),\n");
+        b.Append("  KeyValue(label: \"Hotel\", value: data.hotel),\n");
+        b.Append("  KeyValue(label: \"Event\", value: data.eventTitle),\n");
+        b.Append("  KeyValue(label: \"Activity\", value: data.activity),\n");
         b.Append("]));\n");
-        var data = new { source = b.ToString() };
+        var data = new
+        {
+            source = b.ToString(),
+            destination,
+            flight = flightAirline,
+            hotel = hotelName,
+            eventTitle,
+            activity = activityName,
+        };
         return Surface("travel-summary", data);
     }
 
