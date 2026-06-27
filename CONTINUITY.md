@@ -204,4 +204,7 @@ Neurons (System, UI kit pack, embodied packs) are the authors of the shell. Clie
 - All one by one: changes + ritual + CONTINUITY + commit.
 - Continued one-by-one: Added neuron:Divider support (maps to FDivider) in renderer; inserted example in emission menu. Context7 for FDivider before. Extends official kit for separators in shell.
 - Verification: builds, tests 16/16, doctor 4/4, analyze clean, flutter-ui MCP restart.
-- Next: dynamic menu population from real data (e.g. installed packs as neuron:MenuItem or NeuronButton list).
+- Continued one-by-one: Refactored menu construction to BuildShellMenuItems() local to prepare for dynamic from neuron (no more inline new[] for items).
+- Verification: msbuild CoreCompile, Ui tests 16/16 --no-build, doctor 4/4.
+- Next: actually drive the list from live data like seeds or installed packs for "dynamic menu of available/interesting neurons". Commit + ritual.
+- All changes committed one-by-one as requested.

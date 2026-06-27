@@ -157,6 +157,31 @@ public class AspireOrchestratorNeuron : Neuron, IAspireNeuron, IHandle<PerformKe
 
         // Main UI is UiSurface based. Emit an app-shell surface that can drive the entire thin host chrome + nav.
         // Neurons (and packs after embodiment) build and own this dynamically.
+        static IEnumerable<DigitalBrain.Core.UiWidgetTree> BuildShellMenuItems() =>
+        [
+            new(DigitalBrain.Core.NeuronUiKit.MenuItem, new Dictionary<string, object?>
+            {
+                ["label"] = "Marketplace",
+                ["targetSurfaceKind"] = UiSurfaceKinds.MarketplaceList
+            }),
+            new(DigitalBrain.Core.NeuronUiKit.Divider, new Dictionary<string, object?>()),
+            new(DigitalBrain.Core.NeuronUiKit.MenuItem, new Dictionary<string, object?>
+            {
+                ["label"] = "Tasks",
+                ["targetSurfaceKind"] = UiSurfaceKinds.TaskManager
+            }),
+            new(DigitalBrain.Core.NeuronUiKit.MenuItem, new Dictionary<string, object?>
+            {
+                ["label"] = "INO Chat",
+                ["targetSurfaceKind"] = "chat"
+            }),
+            new(DigitalBrain.Core.NeuronUiKit.MenuItem, new Dictionary<string, object?>
+            {
+                ["label"] = "Timeline",
+                ["targetSurfaceKind"] = UiSurfaceKinds.Timeline
+            })
+        ];
+
         var mainShellTree = new DigitalBrain.Core.UiWidgetTree(
             "app-shell",
             new Dictionary<string, object?>
@@ -172,30 +197,8 @@ public class AspireOrchestratorNeuron : Neuron, IAspireNeuron, IHandle<PerformKe
                     ["title"] = "DigitalBrain"
                 }),
                 new DigitalBrain.Core.UiWidgetTree(DigitalBrain.Core.NeuronUiKit.Menu, new Dictionary<string, object?>(),
-                    new List<DigitalBrain.Core.UiWidgetTree>
-                    {
-                        new DigitalBrain.Core.UiWidgetTree(DigitalBrain.Core.NeuronUiKit.MenuItem, new Dictionary<string, object?>
-                        {
-                            ["label"] = "Marketplace",
-                            ["targetSurfaceKind"] = UiSurfaceKinds.MarketplaceList
-                        }),
-                        new DigitalBrain.Core.UiWidgetTree(DigitalBrain.Core.NeuronUiKit.Divider, new Dictionary<string, object?>()),
-                        new DigitalBrain.Core.UiWidgetTree(DigitalBrain.Core.NeuronUiKit.MenuItem, new Dictionary<string, object?>
-                        {
-                            ["label"] = "Tasks",
-                            ["targetSurfaceKind"] = UiSurfaceKinds.TaskManager
-                        }),
-                        new DigitalBrain.Core.UiWidgetTree(DigitalBrain.Core.NeuronUiKit.MenuItem, new Dictionary<string, object?>
-                        {
-                            ["label"] = "INO Chat",
-                            ["targetSurfaceKind"] = "chat"
-                        }),
-                        new DigitalBrain.Core.UiWidgetTree(DigitalBrain.Core.NeuronUiKit.MenuItem, new Dictionary<string, object?>
-                        {
-                            ["label"] = "Timeline",
-                            ["targetSurfaceKind"] = UiSurfaceKinds.Timeline
-                        })
-                    }),
+                    // Menu built from data (prepared for dynamic emission from a neuron listing installed/interesting experiences)
+                    new List<DigitalBrain.Core.UiWidgetTree>(BuildShellMenuItems())),
                 new DigitalBrain.Core.UiWidgetTree("content-area", new Dictionary<string, object?>
                 {
                     ["defaultView"] = UiSurfaceKinds.MarketplaceList
