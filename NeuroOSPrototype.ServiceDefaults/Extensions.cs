@@ -63,7 +63,7 @@ public static class Extensions
             .WithTracing(tracing =>
             {
                 tracing.AddSource(builder.Environment.ApplicationName)
-                    .AddSource("Microsoft.Orleans.Runtime")
+                    //.AddSource("Microsoft.Orleans.Runtime")
                     .AddSource("Microsoft.Orleans.Application")
                     .AddSource("DigitalBrain.Neuron")
                     .AddAspNetCoreInstrumentation(tracing =>
