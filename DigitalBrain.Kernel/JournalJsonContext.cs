@@ -126,6 +126,8 @@ namespace DigitalBrain.Kernel;
 // Server-driven UI
 [JsonSerializable(typeof(RfwCard))]
 [JsonSerializable(typeof(PerformKernelSelfUpdate))]
+// Experience domain
+[JsonSerializable(typeof(ExperienceStep))]
 // Task records (universal core protocol, used by kernel grain + INO + MCP)
 [JsonSerializable(typeof(DigitalBrain.Core.TaskCreated))]
 [JsonSerializable(typeof(DigitalBrain.Core.TaskStarted))]
