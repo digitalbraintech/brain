@@ -163,21 +163,34 @@ public class AspireOrchestratorNeuron : Neuron, IAspireNeuron, IHandle<PerformKe
             {
                 ["theme"] = "forui-neutral-dark",
                 ["title"] = "DigitalBrain",
-                ["navItems"] = new[]
-                {
-                    new Dictionary<string, object?> { ["label"] = "Marketplace", ["targetSurfaceKind"] = UiSurfaceKinds.MarketplaceList },
-                    new Dictionary<string, object?> { ["label"] = "Tasks", ["targetSurfaceKind"] = UiSurfaceKinds.TaskManager },
-                    new Dictionary<string, object?> { ["label"] = "INO Chat", ["targetSurfaceKind"] = "chat" },
-                    new Dictionary<string, object?> { ["label"] = "Timeline", ["targetSurfaceKind"] = UiSurfaceKinds.Timeline }
-                },
                 ["activeContent"] = UiSurfaceKinds.MarketplaceList
             },
             new List<DigitalBrain.Core.UiWidgetTree>
             {
-                new DigitalBrain.Core.UiWidgetTree("forui:FSidebar", new Dictionary<string, object?>
-                {
-                    ["headerTitle"] = "DigitalBrain"
-                }),
+                new DigitalBrain.Core.UiWidgetTree(DigitalBrain.Core.NeuronUiKit.Menu, new Dictionary<string, object?>(),
+                    new List<DigitalBrain.Core.UiWidgetTree>
+                    {
+                        new DigitalBrain.Core.UiWidgetTree(DigitalBrain.Core.NeuronUiKit.MenuItem, new Dictionary<string, object?>
+                        {
+                            ["label"] = "Marketplace",
+                            ["targetSurfaceKind"] = UiSurfaceKinds.MarketplaceList
+                        }),
+                        new DigitalBrain.Core.UiWidgetTree(DigitalBrain.Core.NeuronUiKit.MenuItem, new Dictionary<string, object?>
+                        {
+                            ["label"] = "Tasks",
+                            ["targetSurfaceKind"] = UiSurfaceKinds.TaskManager
+                        }),
+                        new DigitalBrain.Core.UiWidgetTree(DigitalBrain.Core.NeuronUiKit.MenuItem, new Dictionary<string, object?>
+                        {
+                            ["label"] = "INO Chat",
+                            ["targetSurfaceKind"] = "chat"
+                        }),
+                        new DigitalBrain.Core.UiWidgetTree(DigitalBrain.Core.NeuronUiKit.MenuItem, new Dictionary<string, object?>
+                        {
+                            ["label"] = "Timeline",
+                            ["targetSurfaceKind"] = UiSurfaceKinds.Timeline
+                        })
+                    }),
                 new DigitalBrain.Core.UiWidgetTree("content-area", new Dictionary<string, object?>
                 {
                     ["defaultView"] = UiSurfaceKinds.MarketplaceList
