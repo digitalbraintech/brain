@@ -188,5 +188,40 @@ public class UiSurfaceContractTests
         Assert.Equal(expectedSynapseType, action[UiSurfaceKeys.SynapseType]);
         Assert.True(action.ContainsKey(UiSurfaceKeys.Props));
     }
+
+    [Fact]
+    public void NeuronUiKit_Consts_Are_Stable_For_Server_Driven_Trees()
+    {
+        Assert.Equal("neuron:Menu", DigitalBrain.Core.NeuronUiKit.Menu);
+        Assert.Equal("neuron:MenuItem", DigitalBrain.Core.NeuronUiKit.MenuItem);
+        Assert.Equal("neuron:ActionButton", DigitalBrain.Core.NeuronUiKit.ActionButton);
+        Assert.Equal("neuron:NeuronButton", DigitalBrain.Core.NeuronUiKit.NeuronButton);
+    }
+
+    [Fact]
+    public void AppShell_Tree_Can_Use_NeuronUiKit_Menu_Items()
+    {
+        var shell = new DigitalBrain.Core.UiWidgetTree(
+            "app-shell",
+            new Dictionary<string, object?> { ["activeContent"] = "marketplace-list" },
+            new List<DigitalBrain.Core.UiWidgetTree>
+            {
+                new DigitalBrain.Core.UiWidgetTree(DigitalBrain.Core.NeuronUiKit.Menu, new Dictionary<string, object?>(),
+                    new[]
+                    {
+                        new DigitalBrain.Core.UiWidgetTree(DigitalBrain.Core.NeuronUiKit.MenuItem,
+                            new Dictionary<string, object?> { ["label"] = "Marketplace", ["targetSurfaceKind"] = "marketplace-list" }),
+                        new DigitalBrain.Core.UiWidgetTree(DigitalBrain.Core.NeuronUiKit.MenuItem,
+                            new Dictionary<string, object?> { ["label"] = "Tasks", ["targetSurfaceKind"] = "task-manager" })
+                    })
+            });
+
+        Assert.Equal("app-shell", shell.Type);
+        var menu = Assert.Single(shell.Children!);
+        Assert.Equal(DigitalBrain.Core.NeuronUiKit.Menu, menu.Type);
+        Assert.Equal(2, menu.Children!.Count);
+        Assert.Equal(DigitalBrain.Core.NeuronUiKit.MenuItem, menu.Children[0].Type);
+        Assert.Equal("Marketplace", menu.Children[0].Props["label"]);
+    }
 }
 

@@ -197,4 +197,5 @@ Neurons (System, UI kit pack, embodied packs) are the authors of the shell. Clie
 - Verification ritual (this change): msbuild Kernel /t:CoreCompile (no errors from edit); UiSurfaceContractTests 16/16 --no-build; aspire doctor (MCP) 4/4.
 - Commits + this dispatch = full roundtrip for kit actions now produces IHandle'able typed synapses.
 - Small follow: titles in renderer now prefer server-provided (from props or children data) instead of literals in all paths.
-- Next (one by one): reduce ForuiAppShell state further, add kit const + tree test coverage, commit each + ritual.
+- Added minimal coverage: NeuronUiKit const stability + app-shell tree using Menu/MenuItem in UiSurfaceContractTests (2 new facts).
+- Next (one by one): reduce ForuiAppShell state (selected/surfaces maps), more shell dumbing, commit each + full ritual.
