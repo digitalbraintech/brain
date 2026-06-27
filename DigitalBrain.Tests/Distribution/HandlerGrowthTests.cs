@@ -52,4 +52,22 @@ public class HandlerGrowthTests
             await cluster.StopAllSilosAsync();
         }
     }
+
+    [Fact]
+    public async Task Dev_Can_Package_And_Publish_Dummy_Distributions_Using_Seeds_Helpers()
+    {
+        // This exercises the core dev-on-DigitalBrain case: packaging a new kernel version or behavior pack
+        // for publish (share to marketplace) and install.
+        var kernelCmd = MarketplaceSeeds.KernelPublishCommand("0.4.0-dev");
+        Assert.Equal("kernel", kernelCmd.PackName);
+        Assert.Contains("0.4.0-dev", kernelCmd.Version);
+
+        var dummyCmd = MarketplaceSeeds.DummyBehaviorPackPublish();
+        Assert.Equal("Dummy.DevPack", dummyCmd.PackName);
+        Assert.Contains("IPackBehavior", dummyCmd.Code); // proves the Code packaging for full typed C# dummy
+        Assert.True(dummyCmd.CommissionRate > 0);
+
+        // In real dev: fire to market grain (local or via remote proxy to private marketplace repo).
+        // Here we just validate the "packaging" step produces valid commands.
+    }
 }

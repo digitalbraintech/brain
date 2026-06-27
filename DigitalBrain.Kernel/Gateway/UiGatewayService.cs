@@ -106,6 +106,16 @@ public sealed class UiGatewayService(
                 var buyer = GetProp(props, "buyerId") ?? "current-user";
                 await grainFactory.GetGrain<IMarketplaceNeuron>("market-main").FireAsync(new InstallFromMarketplace(pack, ver, buyer));
                 return;
+            case nameof(PublishToMarketplace):
+                var pName = GetProp(props, "packName") ?? GetProp(props, "name") ?? "";
+                var pVer = GetProp(props, "version") ?? "1.0.0";
+                var pCode = GetProp(props, "code") ?? "";
+                var pOwner = GetProp(props, "ownerId") ?? "current-user";
+                var pPrivate = bool.TryParse(GetProp(props, "isPrivate"), out var priv) && priv;
+                var pComm = double.TryParse(GetProp(props, "commissionRate"), out var comm) ? comm : 0.0;
+                var pDesc = GetProp(props, "description") ?? "";
+                await grainFactory.GetGrain<IMarketplaceNeuron>("market-main").FireAsync(new PublishToMarketplace(pName, pVer, pCode, pOwner, pPrivate, pComm, pDesc));
+                return;
             case nameof(RestartResource):
                 var res = GetProp(props, "resourceName");
                 if (!string.IsNullOrWhiteSpace(res))

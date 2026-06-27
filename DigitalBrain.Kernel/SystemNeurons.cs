@@ -426,6 +426,15 @@ public class MarketplaceNeuron : Neuron, IMarketplaceNeuron
 
     public async Task HandleAsync(PublishToMarketplace cmd)
     {
+        var remote = ServiceProvider.GetService<IRemoteMarketplaceClient>();
+        var useRemote = ServiceProvider.GetService<IConfiguration>()?.GetValue("DigitalBrain:Marketplace:UseRemote", false) ?? false;
+
+        if (useRemote && remote is not null)
+        {
+            await remote.PublishAsync(cmd);
+            // Remote is source of truth for catalog; still allow local journal for offline/hybrid.
+        }
+
         Logger.LogInformation("Marketplace PUBLISHED real pack {Name}@{Ver} owner={Owner} private={Private} commission={Rate:P0}",
             cmd.PackName, cmd.Version, cmd.OwnerId, cmd.IsPrivate, cmd.CommissionRate);
 
@@ -451,6 +460,14 @@ public class MarketplaceNeuron : Neuron, IMarketplaceNeuron
 
     public async Task HandleAsync(InstallFromMarketplace cmd)
     {
+        var remote = ServiceProvider.GetService<IRemoteMarketplaceClient>();
+        var useRemote = ServiceProvider.GetService<IConfiguration>()?.GetValue("DigitalBrain:Marketplace:UseRemote", false) ?? false;
+
+        if (useRemote && remote is not null)
+        {
+            await remote.InstallAsync(cmd);
+        }
+
         var pack = FindPublishedPack(cmd.PackName, cmd.Version);
         if (pack == null)
         {
@@ -545,6 +562,16 @@ public class MarketplaceNeuron : Neuron, IMarketplaceNeuron
 
     public async Task HandleAsync(ListPublished _cmd)
     {
+        var remote = ServiceProvider.GetService<IRemoteMarketplaceClient>();
+        var useRemote = ServiceProvider.GetService<IConfiguration>()?.GetValue("DigitalBrain:Marketplace:UseRemote", false) ?? false;
+
+        if (useRemote && remote is not null)
+        {
+            var list = await remote.ListAsync();
+            await FireAsync(list);
+            return;
+        }
+
         var packs = GetPublishedPacks();
         Logger.LogInformation("Marketplace listing {Count} real packs", packs.Count);
         await FireAsync(new PublishedList(packs));

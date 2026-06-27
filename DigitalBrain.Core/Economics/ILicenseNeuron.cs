@@ -13,12 +13,20 @@ public interface ILicenseNeuron : INeuron
 
     // In-cluster entitlement check: has a license been granted to userId for bundleId?
     Task<bool> HasLicenseAsync(string bundleId, string userId);
+
+    // Overloads using the Core UserId contract (preferred for new code; strings kept for compat).
+    Task<string> IssueLicenseAsync(string bundleId, UserId userId) => IssueLicenseAsync(bundleId, userId.Value);
+    Task<bool> VerifyLicenseAsync(string licenseToken, string bundleId, UserId userId) => VerifyLicenseAsync(licenseToken, bundleId, userId.Value);
+    Task<bool> HasLicenseAsync(string bundleId, UserId userId) => HasLicenseAsync(bundleId, userId.Value);
 }
 
 // Journal record of an issued license — the entitlement source of truth for install gating.
 [GenerateSerializer]
 public record LicenseGranted(string BundleId, string UserId, string Token)
-    : Synapse(nameof(LicenseGranted), DateTimeOffset.UtcNow);
+    : Synapse(nameof(LicenseGranted), DateTimeOffset.UtcNow)
+{
+    public LicenseGranted(string bundleId, UserId userId, string token) : this(bundleId, userId.Value, token) { }
+}
 
 // The license server's persistent ECDSA key pair (journal-persisted). Production should source the key from
 // Key Vault rather than the journal; this is the dev/self-contained path.

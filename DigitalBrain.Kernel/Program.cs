@@ -83,6 +83,14 @@ builder.Services.AddContextStore(builder.Configuration);
 builder.Services.AddSingleton<ProcessCrystallizer>(sp => new ProcessCrystallizer(sp.GetService<IChatClient>()));
 builder.Services.AddSingleton<SkillPackSynthesizer>();
 
+// Proxy to private marketplace (new separate repo) when enabled.
+// Register the stub here; real impl uses HttpClient to the marketplace service.
+var useRemote = builder.Configuration.GetValue("DigitalBrain:Marketplace:UseRemote", false);
+if (useRemote)
+{
+    builder.Services.AddSingleton<IRemoteMarketplaceClient, DigitalBrain.Kernel.Marketplace.RemoteMarketplaceClientStub>();
+}
+
 builder.UseOrleans(siloBuilder =>
 {
     siloBuilder.ConfigureServices(services => services.AddScoped<NeuronJournals>());

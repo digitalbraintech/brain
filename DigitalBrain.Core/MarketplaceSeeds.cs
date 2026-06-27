@@ -57,7 +57,23 @@ public static class MarketplaceSeeds
             false,
             0.05,
             "Packed Telegram bot integration. No core logic; install via marketplace, configure token, wires via synapses or gRPC. Reusable across brains.",
-            "Installable Telegram bot experience. Aspire-executable or process pack for distribution and reuse.")
+            "Installable Telegram bot experience. Aspire-executable or process pack for distribution and reuse."),
+
+        // Dummy for dev testing of full typed-C# behavior pack flow (packaging + publish + share + install + embody).
+        new NeuroPack(
+            "Dummy.BehaviorPack",
+            "1.0.0-dev",
+            "dev",
+            false,
+            0.10,
+            """
+public class DummyBehaviorPack : DigitalBrain.Core.Distribution.IPackBehavior
+{
+    public string Respond(string input) => "Dummy responded to: " + input;
+    public DigitalBrain.Core.Distribution.PackManifest GetManifest() => new(new[] { new DigitalBrain.Core.SynapseType("ExperienceUsed") });
+}
+""",
+            "Dummy behavior pack for testing marketplace distribution of typed C# packs during kernel/experience development.")
     ];
 
     public static IEnumerable<PublishToMarketplace> LocalUiPackPublishCommands() =>
@@ -72,4 +88,37 @@ public static class MarketplaceSeeds
             pack.IsPrivate,
             pack.CommissionRate,
             pack.Description));
+
+    /// <summary>
+    /// For developer workflow: publish a new kernel version (triggers self-update on install).
+    /// Packaging a kernel "version" in dev is primarily the version bump + description; actual binary ships via Aspire/container.
+    /// </summary>
+    public static PublishToMarketplace KernelPublishCommand(string version = null) =>
+        new(
+            PackName: "kernel",
+            Version: version ?? "0.3.1-dev",
+            Code: "",
+            OwnerId: "digitalbraintech",
+            IsPrivate: false,
+            CommissionRate: 0.0,
+            Description: "Core kernel substrate (dev build).");
+
+    /// <summary>
+    /// Dummy full typed-C# behavior pack for testing packaging → publish (share) → install → embody flow during development.
+    /// The Code is the complete compilable source for a class implementing IPackBehavior.
+    /// </summary>
+    public static PublishToMarketplace DummyBehaviorPackPublish() =>
+        new(
+            PackName: "Dummy.DevPack",
+            Version: "1.0.0-dev",
+            Code: """
+                public sealed class DummyDevPack : DigitalBrain.Core.Distribution.IPackBehavior
+                {
+                    public string Respond(string input) => "[dev] handled: " + (input ?? "");
+                }
+                """,
+            OwnerId: "dev",
+            IsPrivate: false,
+            CommissionRate: 0.05,
+            Description: "Dummy behavior pack used to validate marketplace distribution while developing on DigitalBrain.");
 }

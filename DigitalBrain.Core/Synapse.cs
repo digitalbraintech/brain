@@ -65,6 +65,34 @@ public interface IAspireNeuron : IAspire { }
 
 public interface IMarketplaceNeuron : IMarketplace { }
 
+// IUser contract lives in Core so kernel can run standalone for security/air-gapped scenarios.
+// Full user accounts, auth, billing live in the private marketplace service.
+[GenerateSerializer]
+public readonly record struct UserId([property: Id(0)] string Value)
+{
+    public static UserId Anonymous => new("anonymous");
+}
+
+public interface IUserGrain : IGrainWithStringKey
+{
+    Task<UserProfile> GetProfileAsync();
+    Task<bool> HasEntitlementAsync(string bundleOrResource, string actionOrCapability);
+}
+
+[GenerateSerializer]
+public record UserProfile(UserId Id, string DisplayName, IReadOnlyList<string> Roles);
+
+// Remote client contract for the private marketplace service (new repo).
+// Kernel's MarketplaceNeuron becomes a thin proxy when RemoteMarketplaceBaseUrl is configured.
+// This keeps local stub mode for security/air-gapped while enabling cloud pay-go distribution.
+public interface IRemoteMarketplaceClient
+{
+    Task PublishAsync(PublishToMarketplace cmd);
+    Task InstallAsync(InstallFromMarketplace cmd);
+    Task<PublishedList> ListAsync();
+    // Security policy, user entitlement queries etc. added as the private service is built.
+}
+
 public interface IMetaOptimizerNeuron : INeuron, IHandle<NeuronTelemetry>, IHandle<WiringOptimizationProposed> { }
 
 public interface IGeneratedNeuron : INeuron { }
