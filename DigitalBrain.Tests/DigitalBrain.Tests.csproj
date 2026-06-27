@@ -47,6 +47,10 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="E2E/Packs/TravelPack.cs" LogicalName="TravelPack.cs" />
+  </ItemGroup>
+
   <!-- Automate: ensure Chromium for headed E2E (local watch) / headless CI. Browsers cached under user profile. -->
   <Target Name="EnsurePlaywrightBrowsersInstalled" AfterTargets="Build">
     <Exec Command="pwsh -NoProfile -File &quot;$(OutDir)playwright.ps1&quot; install chromium" ContinueOnError="true" IgnoreExitCode="true" />
