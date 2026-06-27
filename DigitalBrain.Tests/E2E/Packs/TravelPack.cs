@@ -109,6 +109,55 @@ internal static class TravelCards
         return Surface("travel-hotels", data);
     }
 
+    public static UiSurface Events(IReadOnlyList<TravelEvent> events)
+    {
+        var b = new StringBuilder();
+        b.Append("import digitalbrain;\n");
+        b.Append("widget root = VStack(gap: 12.0, children: [\n");
+        b.Append("  Panel(radius: 20.0, padding: 18.0, child: SectionLabel(text: \"EVENTS\")),\n");
+        b.Append("  ...for e in data.events:\n");
+        b.Append("    Panel(radius: 16.0, padding: 14.0, child: HStack(between: true, children: [\n");
+        b.Append("      VStack(gap: 4.0, cross: \"start\", children: [ Text(text: e.title, variant: \"title\"), Text(text: e.dateLabel, variant: \"dim\") ]),\n");
+        b.Append($"      Button(label: \"Select\", onTap: {StepEvent("event.selected", "eventId", "e.eventId")}),\n");
+        b.Append("    ])),\n");
+        b.Append($"  Button(label: \"Skip events\", onTap: event \"step\" {{ synapseType: \"ExperienceStep\", pack: \"travel\", experienceId: \"plan-trip\", eventName: \"events.skipped\" }}),\n");
+        b.Append("]);\n");
+        var data = new { source = b.ToString(), events = events.Select(e => new { title = e.Title, dateLabel = e.DateLabel, eventId = e.Id }) };
+        return Surface("travel-events", data);
+    }
+
+    public static UiSurface Activities(IReadOnlyList<TravelActivity> activities)
+    {
+        var b = new StringBuilder();
+        b.Append("import digitalbrain;\n");
+        b.Append("widget root = VStack(gap: 12.0, children: [\n");
+        b.Append("  Panel(radius: 20.0, padding: 18.0, child: SectionLabel(text: \"ACTIVITIES\")),\n");
+        b.Append("  ...for a in data.activities:\n");
+        b.Append("    Panel(radius: 16.0, padding: 14.0, child: HStack(between: true, children: [\n");
+        b.Append("      VStack(gap: 4.0, cross: \"start\", children: [ Text(text: a.name, variant: \"title\"), Badge(text: a.weatherBadge, tone: \"teal\") ]),\n");
+        b.Append($"      Button(label: \"Select\", onTap: {StepEvent("activity.selected", "activityId", "a.activityId")}),\n");
+        b.Append("    ])),\n");
+        b.Append("]);\n");
+        var data = new { source = b.ToString(), activities = activities.Select(a => new { name = a.Name, weatherBadge = a.WeatherBadge, activityId = a.Id }) };
+        return Surface("travel-activities", data);
+    }
+
+    public static UiSurface Summary(string destination, string flightAirline, string hotelName, string eventTitle, string activityName)
+    {
+        var b = new StringBuilder();
+        b.Append("import digitalbrain;\n");
+        b.Append("widget root = Panel(radius: 20.0, padding: 18.0, child: VStack(gap: 8.0, cross: \"start\", children: [\n");
+        b.Append("  SectionLabel(text: \"TRIP SUMMARY\"),\n");
+        b.Append($"  Text(text: \"{destination}\", variant: \"heading\"),\n");
+        b.Append($"  KeyValue(label: \"Flight\", value: \"{flightAirline}\"),\n");
+        b.Append($"  KeyValue(label: \"Hotel\", value: \"{hotelName}\"),\n");
+        b.Append($"  KeyValue(label: \"Event\", value: \"{eventTitle}\"),\n");
+        b.Append($"  KeyValue(label: \"Activity\", value: \"{activityName}\"),\n");
+        b.Append("]));\n");
+        var data = new { source = b.ToString() };
+        return Surface("travel-summary", data);
+    }
+
     public static UiSurface Surface(string surfaceId, object data)
     {
         var props = new Dictionary<string, object?>
@@ -153,6 +202,30 @@ public sealed class TravelPackBehavior : IPackBehavior
             case "flight.selected":
                 _flight = TravelCorpus.Flight(step.Args.GetValueOrDefault("flightId"));
                 return [TravelCards.Hotels(TravelCorpus.Hotels())];
+
+            case "hotel.selected":
+                _hotel = TravelCorpus.Hotel(step.Args.GetValueOrDefault("hotelId"));
+                return [TravelCards.Events(TravelCorpus.Events())];
+
+            case "event.selected":
+                _event = TravelCorpus.Event(step.Args.GetValueOrDefault("eventId"));
+                return [TravelCards.Activities(TravelCorpus.Activities())];
+
+            case "events.skipped":
+                _event = null;
+                return [TravelCards.Activities(TravelCorpus.Activities())];
+
+            case "activity.selected":
+                var activity = TravelCorpus.Activity(step.Args.GetValueOrDefault("activityId"));
+                return
+                [
+                    TravelCards.Summary(
+                        _destination,
+                        _flight?.Airline ?? "(none)",
+                        _hotel?.Name ?? "(none)",
+                        _event?.Title ?? "(skipped)",
+                        activity?.Name ?? "(none)")
+                ];
 
             default:
                 return [];
