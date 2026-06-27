@@ -1,6 +1,9 @@
 // Travel domain pack. References ONLY DigitalBrain.Core + BCL so it embodies cleanly in a
 // collectible ALC. Compiled into the test assembly for fast unit tests AND embedded as the
 // pack Code string for the E2E publish (see TravelPackSource).
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using DigitalBrain.Core;
