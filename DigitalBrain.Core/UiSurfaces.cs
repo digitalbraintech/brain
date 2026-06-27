@@ -51,17 +51,32 @@ public record UiSurface(string Kind, IReadOnlyDictionary<string, object?> Props)
 }
 
 /// Declarative widget tree that neurons (or packs) can emit inside a UiSurface.
-/// This is how neurons "build their own UI and even dynamically".
-/// The thin host walks the tree and renders using registered primitives (ForUI + custom) or falls back to RFW.
+/// Neurons author full chrome, menus, navigation and content using the Neuron UI Kit + forui:* + rfw escapes.
+/// Client (renderer) is dumb: only maps types to widgets and forwards events as synapses.
 [GenerateSerializer]
 public record UiWidgetTree(
-    [property: Id(0)] string Type, // e.g. "FSidebar", "FCard", "VStack", "rfw", "Text", or pack-specific "MyNeuronOrb"
+    [property: Id(0)] string Type, // "app-shell", "neuron:Menu", "neuron:MenuItem", "neuron:ActionButton", "neuron:NeuronButton", "forui:FSidebar", "forui:FButton", "list", "rfw", ...
     [property: Id(1)] IReadOnlyDictionary<string, object?> Props,
     [property: Id(2)] IReadOnlyList<UiWidgetTree>? Children = null,
-    // When Type == "rfw" these carry the dynamic RFW payload
     [property: Id(3)] string? RfwSource = null,
     [property: Id(4)] string? RfwRoot = null
 );
+
+/// Official Neuron UI Kit vocabulary (small, stable, server-driven only).
+/// Neurons emit these as UiWidgetTree nodes inside app-shell / widget-tree surfaces.
+/// Client renders; events carry targets or SynapseAction payloads back as UiInputSynapse.
+public static class NeuronUiKit
+{
+    public const string Menu = "neuron:Menu";
+    public const string MenuItem = "neuron:MenuItem";
+    public const string ActionButton = "neuron:ActionButton";
+    public const string NeuronButton = "neuron:NeuronButton";
+    public const string NeuronList = "neuron:NeuronList";
+    public const string NeuronListItem = "neuron:NeuronListItem";
+    public const string Header = "neuron:Header";
+    public const string Panel = "neuron:Panel";
+    public const string Divider = "neuron:Divider";
+}
 
 [GenerateSerializer]
 public record ChartSpec(
