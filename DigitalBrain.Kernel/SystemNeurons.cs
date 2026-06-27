@@ -171,6 +171,8 @@ public class AspireOrchestratorNeuron : Neuron, IAspireNeuron, IHandle<PerformKe
             var items = new List<(string Label, string? TargetSurfaceKind, IReadOnlyDictionary<string, object?>? Action)>
             {
                 ("Marketplace", UiSurfaceKinds.MarketplaceList, null),
+                ("Installed", UiSurfaceKinds.InstalledBundles, null),
+                ("SE Hello World", "hello-world-se", null),
                 ("Tasks", UiSurfaceKinds.TaskManager, null),
                 ("INO Chat", "chat", null),
                 ("Timeline", UiSurfaceKinds.Timeline, null)
@@ -243,6 +245,79 @@ public class AspireOrchestratorNeuron : Neuron, IAspireNeuron, IHandle<PerformKe
         if (bus != null)
         {
             bus.Broadcast(UiSurfaceRfwBridge.FromUiSurface(installedStart, Self.Value));
+        }
+
+        // Runtime-only Hello World from Software Engineering team (neuron driven, no Flutter view code).
+        // Button click flows as synapse to DemoNeuron which emits "toast" surface -> host shows ForUI notification.
+        var seHelloTree = new UiWidgetTree(
+            "fcard",
+            new Dictionary<string, object?> { ["title"] = "Software Engineering Team", ["subtitle"] = "Build • Pack • Bundle demo" },
+            new List<UiWidgetTree>
+            {
+                new UiWidgetTree("text", new Dictionary<string, object?> { ["text"] = "All UI is neurons + synapses. Click to trigger ForUI notification at runtime." }),
+                new UiWidgetTree("fbutton", new Dictionary<string, object?>
+                {
+                    ["label"] = "Hello World!",
+                    [UiSurfaceKeys.SynapseType] = "DemoMessageSynapse",
+                    ["text"] = "hello-world"
+                })
+            });
+        var seHelloSurface = new UiSurface("hello-world-se", new Dictionary<string, object?>
+        {
+            ["tree"] = seHelloTree,
+            [UiSurfaceKeys.Title] = "SE Team Hello World",
+            [UiSurfaceKeys.Emitter] = Self.Value
+        });
+        await FireAsync(seHelloSurface);
+        if (bus != null)
+        {
+            bus.Broadcast(UiSurfaceRfwBridge.FromUiSurface(seHelloSurface, Self.Value));
+        }
+
+        // Rich UI Kit demo surface (replaces static gallery .dart screen). Neurons emit full forui components via kit.
+        var richKitTree = new UiWidgetTree("column", new Dictionary<string, object?>(), new List<UiWidgetTree>
+        {
+            new UiWidgetTree("forui:fcard", new Dictionary<string, object?> { ["title"] = "ForUI Rich Kit (neuron emitted)" }),
+            new UiWidgetTree("forui:ftextfield", new Dictionary<string, object?> { ["label"] = "Pack name", ["hint"] = "Enter name" }),
+            new UiWidgetTree("forui:fbutton", new Dictionary<string, object?> { ["label"] = "Primary Action", ["variant"] = "primary" }),
+            new UiWidgetTree("forui:fbutton", new Dictionary<string, object?> { ["label"] = "Outline", ["variant"] = "outline" }),
+            new UiWidgetTree("forui:fselect", new Dictionary<string, object?> { ["label"] = "Choose demo", ["items"] = new[] { "Hello", "Market", "Tasks" } }),
+            new UiWidgetTree("neuron:divider", new Dictionary<string, object?>()),
+            new UiWidgetTree("text", new Dictionary<string, object?> { ["text"] = "All UI is runtime from neurons using forui kit. No static .dart screens." })
+        });
+        var richKitSurface = new UiSurface("ui-kit-rich", new Dictionary<string, object?>
+        {
+            ["tree"] = richKitTree,
+            [UiSurfaceKeys.Title] = "ForUI Kit Demo",
+            [UiSurfaceKeys.Emitter] = Self.Value
+        });
+        await FireAsync(richKitSurface);
+        if (bus != null)
+        {
+            bus.Broadcast(UiSurfaceRfwBridge.FromUiSurface(richKitSurface, Self.Value));
+        }
+
+        // Kit-driven INO Chat surface (replaces ino_chat_screen.dart). Messages list + input using forui kit.
+        var chatTree = new UiWidgetTree("column", new Dictionary<string, object?>(), new List<UiWidgetTree>
+        {
+            new UiWidgetTree("forui:fcard", new Dictionary<string, object?> { ["title"] = "INO Chat (neuron kit)" }),
+            new UiWidgetTree("list", new Dictionary<string, object?> { ["items"] = new[] {
+                new Dictionary<string, object?> { ["label"] = "User: Hello", ["subtitle"] = "" },
+                new Dictionary<string, object?> { ["label"] = "INO: How can I help build today?", ["subtitle"] = "" }
+            }}),
+            new UiWidgetTree("forui:ftextfield", new Dictionary<string, object?> { ["label"] = "Message", ["hint"] = "Ask INO..." }),
+            new UiWidgetTree("forui:fbutton", new Dictionary<string, object?> { ["label"] = "Send", ["synapseType"] = "InoRequest" })
+        });
+        var chatSurface = new UiSurface("chat", new Dictionary<string, object?>
+        {
+            ["tree"] = chatTree,
+            [UiSurfaceKeys.Title] = "INO Chat",
+            [UiSurfaceKeys.Emitter] = Self.Value
+        });
+        await FireAsync(chatSurface);
+        if (bus != null)
+        {
+            bus.Broadcast(UiSurfaceRfwBridge.FromUiSurface(chatSurface, Self.Value));
         }
 
         // Seed a first-class live chart surface (uses GraphicSpec for rich interactive rendering via graphic package).
@@ -939,7 +1014,14 @@ public class GeneratedNeuron : Neuron, IGeneratedNeuron, IHandle<NeuronTelemetry
             var output = _embodied.Respond(used.Action);
             await FireAsync(new PackEmission(_embodied.PackName, used.Action, output));
             Logger.LogInformation("GeneratedNeuron ran embodied pack '{Pack}' for action '{Action}'", _embodied.PackName, used.Action);
-            return;
+            if (used.Action is "open" or "emit-test-surface" or "self-test")
+            {
+                var winTree = new UiWidgetTree("fcard", new Dictionary<string, object?> { ["title"] = used.Pack + " - " + used.Action }, new List<UiWidgetTree> { new UiWidgetTree("text", new Dictionary<string, object?> { ["text"] = "Live from embodied " + used.Pack }) });
+                var surf = new UiSurface(used.Pack, new Dictionary<string, object?> { [UiSurfaceKeys.Title] = used.Pack, ["pack"] = used.Pack, ["tree"] = winTree });
+                await FireAsync(surf);
+                var b = ServiceProvider.GetService<HomeFeedBus>();
+                b?.Broadcast(UiSurfaceRfwBridge.FromUiSurface(surf, Self.Value));
+            }
         }
 
         // Fallback for natural-language packs with no compilable Code: LLM "embodiment" (the legacy behavior).
@@ -955,17 +1037,35 @@ public class GeneratedNeuron : Neuron, IGeneratedNeuron, IHandle<NeuronTelemetry
         if (chat is null)
         {
             await FireAsync(new LlmResponse(used.Pack, $"[Embodied: {packKey}] Simulated response to {used.Action} using installed experience.", "sim"));
-            return;
+        }
+        else
+        {
+            var behaviorPrompt = $"You are now the installed experience '{packKey}'.\n" +
+                                 $"Description: {desc}\n" +
+                                 $"Implementation guidance/code:\n{code}\n\n" +
+                                 $"Handle the following usage: {used.Action} on input related to '{used.Pack}'.\n" +
+                                 "Respond in character as this specific installed neuron/experience would. Be concise and useful.";
+            var response = await chat.GetResponseAsync(behaviorPrompt);
+            await FireAsync(new LlmResponse(behaviorPrompt, response.Text.Trim(), "embodied-pack"));
+            Logger.LogInformation("GeneratedNeuron LLM-embodied pack '{Pack}' for action '{Action}'", packKey, used.Action);
         }
 
-        var behaviorPrompt = $"You are now the installed experience '{packKey}'.\n" +
-                             $"Description: {desc}\n" +
-                             $"Implementation guidance/code:\n{code}\n\n" +
-                             $"Handle the following usage: {used.Action} on input related to '{used.Pack}'.\n" +
-                             "Respond in character as this specific installed neuron/experience would. Be concise and useful.";
-        var response = await chat.GetResponseAsync(behaviorPrompt);
-        await FireAsync(new LlmResponse(behaviorPrompt, response.Text.Trim(), "embodied-pack"));
-        Logger.LogInformation("GeneratedNeuron LLM-embodied pack '{Pack}' for action '{Action}'", packKey, used.Action);
+        if (used.Action is "open" or "emit-test-surface" or "self-test")
+        {
+            var winTree = new UiWidgetTree("fcard", new Dictionary<string, object?> { ["title"] = used.Pack + " - " + used.Action }, new List<UiWidgetTree> { new UiWidgetTree("text", new Dictionary<string, object?> { ["text"] = "Live surface from " + used.Pack + " pack scenario." }) });
+            var surf = new UiSurface(used.Pack, new Dictionary<string, object?>
+            {
+                [UiSurfaceKeys.Title] = used.Pack,
+                ["pack"] = used.Pack,
+                ["tree"] = winTree
+            });
+            await FireAsync(surf);
+            var bus = ServiceProvider.GetService<HomeFeedBus>();
+            if (bus != null)
+            {
+                bus.Broadcast(UiSurfaceRfwBridge.FromUiSurface(surf, Self.Value));
+            }
+        }
     }
 
     private (string Key, string Code, string Description)? LastInstalledPack()

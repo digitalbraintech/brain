@@ -128,6 +128,11 @@ public class UiSurfaceContractTests
 
         var workbench = experiences.Single(experience => Equals(experience["name"], "Open Workbench"));
         AssertSynapseAction(workbench["action"], nameof(InoRequest));
+
+        // Launcher scenarios for dev dogfood: Dummy.DevPack must expose runnable self-test + emit surface (ExperienceUsed)
+        Assert.Contains(bundles, b => Equals(b["name"], "Dummy.BehaviorPack") || Equals(b["name"], "Dummy.DevPack"));
+        Assert.Contains(experiences, e => Equals(e["name"], "Run self-test"));
+        Assert.Contains(experiences, e => Equals(e["name"], "Emit test surface"));
     }
 
     [Fact]

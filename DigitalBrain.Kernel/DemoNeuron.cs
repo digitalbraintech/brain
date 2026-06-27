@@ -15,6 +15,22 @@ public class DemoNeuron : Neuron, IDemoNeuron, IHandle<DemoMessageSynapse>
     {
         Logger.LogInformation("Demo received via IHandle: {Text}", synapse.Text);
         await FireAsync(new NeuronTelemetry(Self, "message-handled"));
+
+        if (synapse.Text != null && synapse.Text.Contains("hello-world", StringComparison.OrdinalIgnoreCase))
+        {
+            var toast = new UiSurface("toast", new Dictionary<string, object?>
+            {
+                ["title"] = "Hello World!",
+                ["description"] = "Runtime neuron-driven ForUI notification from Software Engineering demo."
+            });
+            await FireAsync(toast);
+
+            var bus = ServiceProvider.GetService<HomeFeedBus>();
+            if (bus != null)
+            {
+                bus.Broadcast(UiSurfaceRfwBridge.FromUiSurface(toast, Self.Value));
+            }
+        }
     }
 
     public Task<string> GetLastMessageAsync()

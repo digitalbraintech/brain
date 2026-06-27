@@ -78,6 +78,10 @@ public static class NeuronUiKit
     public const string Divider = "neuron:Divider";
     public const string Scaffold = "forui:FScaffold";
     public const string Autocomplete = "forui:FAutocomplete";
+    public const string TextField = "forui:FTextField";
+    public const string Select = "forui:FSelect";
+    public const string Notification = "forui:FNotification";
+    public const string Toast = "forui:Toast";
 }
 
 [GenerateSerializer]
@@ -640,7 +644,8 @@ public static class UiSurfaceLiveData
         var bundles = installedPacks
             .Concat(publishedPacks.Where(pack =>
                 installedKeys.Contains(PackKey(pack)) ||
-                pack.Name.StartsWith("DigitalBrain.UI", StringComparison.Ordinal)))
+                pack.Name.StartsWith("DigitalBrain.UI", StringComparison.Ordinal) ||
+                pack.Name.Contains("Dummy", StringComparison.OrdinalIgnoreCase)))
             .GroupBy(PackKey, StringComparer.OrdinalIgnoreCase)
             .Select(group => BundleRow(group.First()))
             .ToArray();
@@ -653,6 +658,7 @@ public static class UiSurfaceLiveData
                     : Array.Empty<IReadOnlyDictionary<string, object?>>())
             .ToArray();
 
+        var launcherTree = BuildInstalledLauncherTree(bundles);
         return new UiSurface(
             UiSurfaceKinds.InstalledBundles,
             WithCommon(
@@ -664,8 +670,67 @@ public static class UiSurfaceLiveData
                 props: new Dictionary<string, object?>
                 {
                     ["bundles"] = bundles,
-                    ["experiences"] = experiences
+                    ["experiences"] = experiences,
+                    ["tree"] = launcherTree
                 }));
+    }
+
+    public static UiWidgetTree BuildInstalledLauncherTree(IReadOnlyList<IReadOnlyDictionary<string, object?>> bundles)
+    {
+        var kids = new List<UiWidgetTree>();
+        if (bundles != null)
+        {
+            foreach (var b in bundles)
+            {
+                var name = b.TryGetValue("name", out var n) ? n?.ToString() ?? "bundle" : "bundle";
+                var ver = b.TryGetValue("version", out var v) ? v?.ToString() ?? "" : "";
+                var owner = b.TryGetValue("ownerId", out var o) ? o?.ToString() ?? "" : "";
+                var desc = b.TryGetValue("description", out var d) ? d?.ToString() ?? "" : "";
+                var exps = (b.TryGetValue("experiences", out var e) && e is System.Collections.IEnumerable ie)
+                    ? ie.OfType<IReadOnlyDictionary<string, object?>>().ToList()
+                    : new List<IReadOnlyDictionary<string, object?>>();
+
+                var actionKids = new List<UiWidgetTree>();
+                // Open always maps to ExperienceUsed open on the generated embodiment
+                actionKids.Add(new UiWidgetTree("fbutton", new Dictionary<string, object?>
+                {
+                    ["label"] = "Open",
+                    [UiSurfaceKeys.SynapseType] = nameof(ExperienceUsed),
+                    ["packName"] = name,
+                    ["action"] = "open",
+                    ["targetSurfaceKind"] = name
+                }));
+                foreach (var ex in exps.Take(2))
+                {
+                    var lbl = ex.TryGetValue("name", out var ln) ? ln?.ToString() ?? "Run" : "Run";
+                    IReadOnlyDictionary<string, object?>? act = null;
+                    if (ex.TryGetValue("action", out var av) && av is IReadOnlyDictionary<string, object?> am) act = am;
+                    var st = (act != null && act.TryGetValue(UiSurfaceKeys.SynapseType, out var stv)) ? stv?.ToString() ?? nameof(ExperienceUsed) : nameof(ExperienceUsed);
+                    var pName = name;
+                    var pAction = (act != null && act.TryGetValue(UiSurfaceKeys.Props, out var pv) && pv is IReadOnlyDictionary<string, object?> pmap && pmap.TryGetValue("action", out var av2)) ? av2?.ToString() ?? "run" : (ex.TryGetValue("experienceId", out var eid) ? eid?.ToString() ?? "run" : "run");
+                    var btnP = new Dictionary<string, object?>
+                    {
+                        ["label"] = lbl,
+                        [UiSurfaceKeys.SynapseType] = st,
+                        ["packName"] = pName,
+                        ["action"] = pAction
+                    };
+                    actionKids.Add(new UiWidgetTree("fbutton", btnP));
+                }
+                var row = new UiWidgetTree("row", new Dictionary<string, object?>(), actionKids);
+                var cardKids = new List<UiWidgetTree>
+                {
+                    new UiWidgetTree("text", new Dictionary<string, object?> { ["text"] = desc }),
+                    row
+                };
+                kids.Add(new UiWidgetTree("fcard", new Dictionary<string, object?>
+                {
+                    ["title"] = name + (string.IsNullOrEmpty(ver) ? "" : " " + ver),
+                    ["subtitle"] = owner
+                }, cardKids));
+            }
+        }
+        return new UiWidgetTree("column", new Dictionary<string, object?>(), kids);
     }
 
     public static UiSurface TimelineFromSynapses(IReadOnlyList<Synapse> timeline, int maxEvents = 20)
@@ -776,9 +841,11 @@ public static class UiSurfaceLiveData
             ["version"] = pack.Version,
             ["ownerId"] = pack.OwnerId,
             ["installed"] = true,
+            ["hasUi"] = true,
             ["status"] = experiences.Length == 0 ? "installed" : "ready",
             ["description"] = pack.Description,
             ["experienceCount"] = experiences.Length,
+            ["scenarios"] = experiences.Select(e => e.TryGetValue("name", out var n) ? n?.ToString() : null).Where(s => s != null).ToArray(),
             ["experiences"] = experiences
         };
     }
@@ -875,23 +942,56 @@ public static class UiSurfaceLiveData
                         ["prompt"] = "Run installed bundle " + pack.Name
                     }));
         }
-        else
+        else if (pack.Name.Contains("Dummy", StringComparison.OrdinalIgnoreCase) || pack.Name.Contains("DevPack", StringComparison.OrdinalIgnoreCase))
         {
             yield return ExperienceRow(
                 pack,
-                "run",
-                "Run Experience",
+                "self-test",
+                "Run self-test",
                 "experience",
-                "Run this installed bundle through INO.",
+                "Execute pack self-test scenario.",
+                UiSurfaceSamples.SynapseAction(
+                    "dummy-self-test",
+                    "Run self-test",
+                    nameof(ExperienceUsed),
+                    new Dictionary<string, object?> { ["packName"] = pack.Name, ["action"] = "self-test" }));
+            yield return ExperienceRow(
+                pack,
+                "emit-test-surface",
+                "Emit test surface",
+                "app",
+                "Pack responds by emitting a live UI surface for the main area.",
+                UiSurfaceSamples.SynapseAction(
+                    "dummy-emit-surface",
+                    "Emit test surface",
+                    nameof(ExperienceUsed),
+                    new Dictionary<string, object?> { ["packName"] = pack.Name, ["action"] = "emit-test-surface" }));
+        }
+        else
+        {
+            // For newly created/authored packs: exercise real IPackBehavior via ExperienceUsed (distribution/install/embody/execution path).
+            yield return ExperienceRow(
+                pack,
+                "run",
+                "Run",
+                "experience",
+                "Execute the installed pack's Respond behavior.",
                 UiSurfaceSamples.SynapseAction(
                     "run-" + ExperienceSlug(pack, "experience"),
                     "Run",
-                    nameof(InoRequest),
-                    new Dictionary<string, object?>
-                    {
-                        ["prompt"] = "Run installed bundle " + pack.Name,
-                        ["sessionId"] = "workbench"
-                    }));
+                    nameof(ExperienceUsed),
+                    new Dictionary<string, object?> { ["packName"] = pack.Name, ["action"] = "run" }));
+            yield return ExperienceRow(
+                pack,
+                "emit-test-surface",
+                "Emit demo surface",
+                "app",
+                "Trigger pack scenario that emits a live UI surface into the main area.",
+                UiSurfaceSamples.SynapseAction(
+                    "emit-" + ExperienceSlug(pack, "surface"),
+                    "Emit surface",
+                    nameof(ExperienceUsed),
+                    new Dictionary<string, object?> { ["packName"] = pack.Name, ["action"] = "emit-test-surface" }));
         }
     }
 

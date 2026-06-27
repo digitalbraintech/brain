@@ -63,14 +63,14 @@ public static class MarketplaceSeeds
         new NeuroPack(
             "Dummy.BehaviorPack",
             "1.0.0-dev",
-            "dev",
+            "digitalbraintech",
             false,
             0.10,
             """
-public class DummyBehaviorPack : DigitalBrain.Core.Distribution.IPackBehavior
+public class DummyBehaviorPack : DigitalBrain.Core.IPackBehavior
 {
     public string Respond(string input) => "Dummy responded to: " + input;
-    public DigitalBrain.Core.Distribution.PackManifest GetManifest() => new(new[] { new DigitalBrain.Core.SynapseType("ExperienceUsed") });
+    public DigitalBrain.Core.PackManifest GetManifest() => new(new[] { new DigitalBrain.Core.SynapseType("ExperienceUsed") });
 }
 """,
             "Dummy behavior pack for testing marketplace distribution of typed C# packs during kernel/experience development.")
@@ -112,12 +112,12 @@ public class DummyBehaviorPack : DigitalBrain.Core.Distribution.IPackBehavior
             PackName: "Dummy.DevPack",
             Version: "1.0.0-dev",
             Code: """
-                public sealed class DummyDevPack : DigitalBrain.Core.Distribution.IPackBehavior
+                public sealed class DummyDevPack : DigitalBrain.Core.IPackBehavior
                 {
                     public string Respond(string input) => "[dev] handled: " + (input ?? "");
                 }
                 """,
-            OwnerId: "dev",
+            OwnerId: "digitalbraintech",
             IsPrivate: false,
             CommissionRate: 0.05,
             Description: "Dummy behavior pack used to validate marketplace distribution while developing on DigitalBrain.");

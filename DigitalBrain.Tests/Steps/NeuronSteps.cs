@@ -139,6 +139,8 @@ public class NeuronSteps : IAsyncDisposable
         var genKey = "generated-" + packName.ToLower();
         var gen = _cluster.GrainFactory.GetGrain<IGeneratedNeuron>(genKey);
         await gen.FireAsync(new ExperienceUsed(packName, "simulated-use-by-other-brain"));
+        // Point harness current to the generated so Then timeline checks see the ExperienceUsed (market journals publish/install, generated journals the use).
+        _currentGrain = gen;
     }
 
     [When(@"I fire a DemoMessageSynapse with text ""(.*)""")]

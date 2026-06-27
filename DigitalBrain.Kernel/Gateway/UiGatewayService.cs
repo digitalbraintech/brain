@@ -121,6 +121,20 @@ public sealed class UiGatewayService(
                 if (!string.IsNullOrWhiteSpace(res))
                     await grainFactory.GetGrain<IAspireNeuron>("aspire-main").FireAsync(new RestartResource(res));
                 return;
+            case nameof(DemoMessageSynapse):
+                var demoText = GetProp(props, "text") ?? GetProp(props, "prompt") ?? payloadJson;
+                await grainFactory.GetGrain<IDemoNeuron>("demo-main").FireAsync(new DemoMessageSynapse(demoText));
+                return;
+            case nameof(ExperienceUsed):
+                var expPack = GetProp(props, "packName") ?? GetProp(props, "name") ?? GetProp(props, "bundleName") ?? "";
+                var expAct = GetProp(props, "action") ?? GetProp(props, "prompt") ?? "run";
+                if (!string.IsNullOrWhiteSpace(expPack))
+                {
+                    await grainFactory.GetGrain<IGeneratedNeuron>("generated-" + expPack.ToLowerInvariant()).FireAsync(new ExperienceUsed(expPack, expAct));
+                    return;
+                }
+                await grainFactory.GetGrain<IGeneratedNeuron>("generated-dummy").FireAsync(new ExperienceUsed("dummy", expAct));
+                return;
             default:
                 var target = GetProp(props, "neuronId") ?? "ino-main";
                 await NeuronResolver.Resolve(grainFactory, target).FireAsync(new DemoMessageSynapse(payloadJson));
