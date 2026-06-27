@@ -85,14 +85,20 @@ if (ctx.EnableMcp)
         .WithReference((IResourceBuilder<IResourceWithConnectionString>)ctx.Llm);
 }
 
-// Telegram bot as packed marketplace integration (no logic in core or brain.cs).
-// The pack provides it. Use the extension from the pack's integration.
-ctx.AddTelegramBot("telegram-bot");
+if (IsEnabled("DIGITALBRAIN_ENABLE_TELEGRAM"))
+{
+    // Optional packed integration. Keep it out of the default product path until a real host replaces the placeholder.
+    ctx.AddTelegramBot("telegram-bot");
+}
 
-builder.AddProject<Projects.DigitalBrain_Gateway>("gateway")
-    .WithReference(ctx.OrleansClient)
-    .WithReference(ctx.ClusteringTable)
-    .WithExternalHttpEndpoints();
+if (IsEnabled("DIGITALBRAIN_ENABLE_DIAGNOSTIC_GATEWAY"))
+{
+    // Optional legacy diagnostic gateway. The kernel hosts the product gRPC/surface gateway by default.
+    builder.AddProject<Projects.DigitalBrain_Gateway>("gateway")
+        .WithReference(ctx.OrleansClient)
+        .WithReference(ctx.ClusteringTable)
+        .WithExternalHttpEndpoints();
+}
 
 kernel.WithEnvironment("DIGITALBRAIN_USE_LOCAL_MARKETPLACE", ctx.UseLocalMarketplace ? "true" : "false");
 kernel.WithEnvironment("DIGITALBRAIN_SURFACES_ENABLED", "true");
@@ -109,3 +115,7 @@ if (ctx.EnableOrleansDashboard)
 }
 
 builder.Build().Run();
+
+static bool IsEnabled(string name) =>
+    string.Equals(Environment.GetEnvironmentVariable(name), "true", StringComparison.OrdinalIgnoreCase)
+    || string.Equals(Environment.GetEnvironmentVariable(name), "1", StringComparison.OrdinalIgnoreCase);

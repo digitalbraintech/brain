@@ -47,10 +47,10 @@ public class DigitalBrainAppHostFixture : IAsyncLifetime
         await App.StartAsync();
 
         using var startupCts = new CancellationTokenSource(TimeSpan.FromMinutes(3));
-        await App.ResourceNotifications.WaitForResourceHealthyAsync("gateway", startupCts.Token);
         await App.ResourceNotifications.WaitForResourceHealthyAsync("kernel", startupCts.Token);
 
-        // Prefer the kernel web endpoint (Flutter bundle origin); fall back to gateway.
+        // Prefer the kernel web endpoint; the product gRPC/surface gateway is co-hosted there.
+        // The standalone gateway remains an optional diagnostic resource for legacy smoke tests.
         string url = "https://localhost:8080";
         try { url = App.GetEndpoint("kernel", "web").ToString(); }
         catch
