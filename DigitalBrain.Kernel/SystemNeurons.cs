@@ -160,39 +160,23 @@ public class AspireOrchestratorNeuron : Neuron, IAspireNeuron, IHandle<PerformKe
         // Dynamic menu data - populated from seeds (in full system a neuron would provide the list of interesting/activated experiences as UiWidgetTree nodes)
         static IEnumerable<DigitalBrain.Core.UiWidgetTree> BuildShellMenuItems()
         {
-            var items = new List<(string Label, string Target)>
+            var items = new List<(string Label, string? TargetSurfaceKind, IReadOnlyDictionary<string, object?>? Action)>
             {
-                ("Marketplace", UiSurfaceKinds.MarketplaceList),
-                ("Tasks", UiSurfaceKinds.TaskManager),
-                ("INO Chat", "chat"),
-                ("Timeline", UiSurfaceKinds.Timeline)
+                ("Marketplace", UiSurfaceKinds.MarketplaceList, null),
+                ("Tasks", UiSurfaceKinds.TaskManager, null),
+                ("INO Chat", "chat", null),
+                ("Timeline", UiSurfaceKinds.Timeline, null)
             };
             // Dynamic add from MarketplaceSeeds (example of neuron-driven list)
             foreach (var seed in MarketplaceSeeds.LocalUiPacks.Where(p => p.Name.StartsWith("DigitalBrain.UI")).Take(1))
             {
-                items.Add(($"Open {seed.Name}", "marketplace-list"));
+                items.Add(($"Open {seed.Name}", "marketplace-list", null));
             }
-            foreach (var (label, target) in items)
+            foreach (var (label, target, action) in items)
             {
-                var itemProps = new Dictionary<string, object?>
-                {
-                    ["label"] = label
-                };
-                if (label == "Timeline")
-                {
-                    // Demonstrate action for real synapse (client forwards to UiInput -> dispatch)
-                    itemProps["action"] = new Dictionary<string, object?>
-                    {
-                        ["actionId"] = "show-timeline",
-                        ["label"] = "Timeline",
-                        ["synapseType"] = "Timeline",
-                        ["props"] = new Dictionary<string, object?>()
-                    };
-                }
-                else
-                {
-                    itemProps["targetSurfaceKind"] = target;
-                }
+                var itemProps = new Dictionary<string, object?> { ["label"] = label };
+                if (action != null) itemProps["action"] = action;
+                else if (target != null) itemProps["targetSurfaceKind"] = target;
                 yield return new(DigitalBrain.Core.NeuronUiKit.MenuItem, itemProps);
             }
             yield return new(DigitalBrain.Core.NeuronUiKit.Divider, new Dictionary<string, object?>());

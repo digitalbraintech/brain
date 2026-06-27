@@ -212,4 +212,6 @@ Neurons (System, UI kit pack, embodied packs) are the authors of the shell. Clie
 - Verification: build clean, tests 16/16, doctor 4/4.
 - Continued one-by-one: Made one MenuItem carry "action" (with synapseType) to show menu clicks can fire real synapses (via existing UiInput dispatch path).
 - Verification: msbuild CoreCompile, Ui tests 16/16 --no-build, aspire doctor 4/4 (MCP), flutter-ui MCP restart.
-- All one by one + full ritual. Client dumb. Next: live installed packs for menu, or more kit nodes.
+- Continued: Refactored items data to (Label, TargetSurfaceKind?, Action?) tuple to eliminate brittle label== check and support mixed target/action cleanly (review feedback addressed).
+- Verification: msbuild, tests 16/16, doctor 4/4, flutter restart (MCP).
+- All one by one + ritual. Client remains dumb. Next: live installed data or neuron:NeuronButton.
