@@ -208,5 +208,6 @@ Neurons (System, UI kit pack, embodied packs) are the authors of the shell. Clie
 - Verification: msbuild CoreCompile, Ui tests 16/16 --no-build, doctor 4/4.
 - Continued: Made the menu data-driven (array of (label, target) + yield) so it can be populated from real data (seeds, installed packs, etc.) without changing structure. Divider example kept.
 - Verification: msbuild, Ui tests 16/16 --no-build, aspire doctor 4/4 (MCP).
-- Next one-by-one: populate the data array dynamically from MarketplaceSeeds.LocalUiPacks or similar live list (as neuron:MenuItem or NeuronButton). Then commit.
-- All one by one + ritual + commits.
+- Continued: Populated the menu data array dynamically using MarketplaceSeeds.LocalUiPacks (UI seeds added as extra MenuItem). Proves server/kit can drive dynamic list.
+- Verification: build clean, tests 16/16, doctor 4/4.
+- All one by one. Client remains dumb. Ready for more (live installed, full neuron shell emission).

@@ -157,16 +157,21 @@ public class AspireOrchestratorNeuron : Neuron, IAspireNeuron, IHandle<PerformKe
 
         // Main UI is UiSurface based. Emit an app-shell surface that can drive the entire thin host chrome + nav.
         // Neurons (and packs after embodiment) build and own this dynamically.
-        // Dynamic menu data (in real flow a neuron/pack would emit the list of interesting/ installed experiences)
+        // Dynamic menu data - populated from seeds (in full system a neuron would provide the list of interesting/activated experiences as UiWidgetTree nodes)
         static IEnumerable<DigitalBrain.Core.UiWidgetTree> BuildShellMenuItems()
         {
-            var items = new[]
+            var items = new List<(string Label, string Target)>
             {
                 ("Marketplace", UiSurfaceKinds.MarketplaceList),
                 ("Tasks", UiSurfaceKinds.TaskManager),
                 ("INO Chat", "chat"),
                 ("Timeline", UiSurfaceKinds.Timeline)
             };
+            // Dynamic add from MarketplaceSeeds (example of neuron-driven list)
+            foreach (var seed in MarketplaceSeeds.LocalUiPacks.Where(p => p.Name.StartsWith("DigitalBrain.UI")).Take(1))
+            {
+                items.Add(($"Open {seed.Name}", "marketplace-list"));
+            }
             foreach (var (label, target) in items)
             {
                 yield return new(DigitalBrain.Core.NeuronUiKit.MenuItem, new Dictionary<string, object?>
@@ -175,7 +180,6 @@ public class AspireOrchestratorNeuron : Neuron, IAspireNeuron, IHandle<PerformKe
                     ["targetSurfaceKind"] = target
                 });
             }
-            // Example divider from kit (separators can be emitted too)
             yield return new(DigitalBrain.Core.NeuronUiKit.Divider, new Dictionary<string, object?>());
         }
 
