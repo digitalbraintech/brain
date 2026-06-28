@@ -23,6 +23,26 @@ public sealed class GatewayService(
                 return request;
             }
 
+            // Publish a pack to the marketplace. Payload carries the pack fields (and optional signature).
+            // Without this, "PublishToMarketplace" fell through to the generic fallback and the pack code was
+            // dropped, so nothing could later be installed/embodied.
+            if (request.TypeName == nameof(PublishToMarketplace) || request.TypeName.Contains("PublishToMarketplace", StringComparison.OrdinalIgnoreCase))
+            {
+                var market = grains.GetGrain<IMarketplaceNeuron>("market-main");
+                var payloadStr = System.Text.Encoding.UTF8.GetString(request.Payload.ToArray());
+                var p = CaseInsensitive(System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object?>>(payloadStr));
+                string Field(string key, string fallback = "") => p.TryGetValue(key, out var v) ? v?.ToString() ?? fallback : fallback;
+                var packName = Field("packName", Field("name", request.CorrelationId));
+                var isPrivate = bool.TryParse(Field("isPrivate"), out var priv) && priv;
+                var commissionRate = double.TryParse(Field("commissionRate"), System.Globalization.CultureInfo.InvariantCulture, out var cr) ? cr : 0.10;
+                var price = decimal.TryParse(Field("price"), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var pr) ? pr : 0m;
+                await market.FireAsync(new PublishToMarketplace(
+                    packName, Field("version"), Field("code"), Field("ownerId", "anonymous"),
+                    isPrivate, commissionRate, Field("description"),
+                    Field("authorPublicKeyBase64"), Field("signatureBase64"), price));
+                return request;
+            }
+
             // Generic surface action dispatch (from UI kit RFW events / descriptors).
             // Supports install from MarketplaceList + run experiences from InstalledBundles via neurons/synapses.
             if (request.TypeName == nameof(InstallFromMarketplace) || request.TypeName.Contains("InstallFromMarketplace", StringComparison.OrdinalIgnoreCase))
@@ -30,7 +50,7 @@ public sealed class GatewayService(
                 var market = grains.GetGrain<IMarketplaceNeuron>("market-main");
                 // payload json carries props (packName/version/buyerId from surface action)
                 var payloadStr = System.Text.Encoding.UTF8.GetString(request.Payload.ToArray());
-                var p = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object?>>(payloadStr) ?? new();
+                var p = CaseInsensitive(System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object?>>(payloadStr));
                 var packName = p.TryGetValue("packName", out var pn) ? pn?.ToString() ?? p.GetValueOrDefault("name")?.ToString() ?? "" : "";
                 var ver = p.TryGetValue("version", out var v) ? v?.ToString() ?? "" : "";
                 var buyer = p.TryGetValue("buyerId", out var b)
@@ -122,6 +142,11 @@ public sealed class GatewayService(
             await WriteCardAsync(responseStream, card);
         }
     }
+
+    // Surface-action payloads arrive from both Flutter (camelCase) and test/native callers (PascalCase).
+    // A case-insensitive view lets one set of key lookups serve both without silent misses.
+    private static Dictionary<string, object?> CaseInsensitive(Dictionary<string, object?>? source) =>
+        new(source ?? new(), StringComparer.OrdinalIgnoreCase);
 
     private static Task WriteCardAsync(
         IServerStreamWriter<RfwCardEnvelope> responseStream,
