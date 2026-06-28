@@ -20,6 +20,7 @@ public static class E2EPrerequisites
         Skip.IfNot(OptedIn, "Set RUN_FLUTTER_E2E=true to run the Flutter render E2E.");
         Skip.IfNot(WebBundlePresent,
             $"Flutter web bundle not found at {WebBundleDir}. Build it first: " +
-            "cd app && flutter build web --release --dart-define=DIGITALBRAIN_E2E=true");
+            "cd app && flutter build web --release --no-tree-shake-icons --dart-define=DIGITALBRAIN_E2E=true " +
+            "(--no-tree-shake-icons is required: the app uses non-constant IconData).");
     }
 }

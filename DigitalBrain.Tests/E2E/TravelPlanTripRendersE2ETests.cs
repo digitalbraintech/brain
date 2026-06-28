@@ -18,7 +18,23 @@ public sealed class TravelPlanTripRendersE2ETests(DigitalBrainBrowserFixture fix
             description: "Travel domain — Plan a trip experience");
         await _fx.InstallPackAsync("travel", "1.0", buyer: "e2e-travel");
 
-        await _fx.Page.GotoAsync(_fx.GatewayHttpsUrl, new() { WaitUntil = WaitUntilState.Load });
+        // Live pack surfaces render on the canvas, where each WatchHomeFeed card becomes a panel
+        // whose semantics identifier is the card's correlationId (== the per-hop surfaceId). The
+        // neuron-driven shell at "/" only renders shell/widget-tree surfaces, so it ignores these.
+        // Web uses hash URL strategy (see app/lib/main.dart), hence the "/#/canvas" deep link.
+        var canvasUrl = _fx.GatewayHttpsUrl.TrimEnd('/') + "/#/canvas";
+
+        // HomeFeedBus does not replay to late subscribers and dedups identical re-sends, so the
+        // canvas WatchHomeFeed stream MUST be open before the first hop is emitted. Wait for the
+        // stream's response to arrive (triggered while the canvas mounts) before stepping.
+        await _fx.Page.RunAndWaitForResponseAsync(
+            () => _fx.Page.GotoAsync(canvasUrl, new() { WaitUntil = WaitUntilState.Load }),
+            r => r.Url.Contains("WatchHomeFeed"),
+            new() { Timeout = 60_000 });
+
+        // Screenshots are collectable test artifacts: anchor under the test output dir, not the user temp.
+        var shotDir = System.IO.Path.Combine(AppContext.BaseDirectory, "e2e-screenshots");
+        System.IO.Directory.CreateDirectory(shotDir);
 
         await Step("start",            "travel-intro",      ("prompt", "plan a trip to Bali next month"));
         await Step("flight.selected",  "travel-hotels",     ("flightId", "FL-001"));
@@ -33,7 +49,7 @@ public sealed class TravelPlanTripRendersE2ETests(DigitalBrainBrowserFixture fix
             var node = _fx.Page.Locator($"[flt-semantics-identifier=\"{surfaceId}\"]");
             await node.WaitForAsync(new() { Timeout = 30_000 });
             Assert.Equal(1, await node.CountAsync());
-            await _fx.Page.ScreenshotAsync(new() { Path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"e2e-travel-{surfaceId}.png") });
+            await _fx.Page.ScreenshotAsync(new() { Path = System.IO.Path.Combine(shotDir, $"e2e-travel-{surfaceId}.png") });
         }
     }
 }

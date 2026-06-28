@@ -16,7 +16,13 @@ public class DigitalBrainAppHostFixture : IAsyncLifetime
 {
     public DistributedApplication App { get; private set; } = null!;
 
+    // The browser navigates here: the kernel "web" endpoint (Http1AndHttp2) serves the Flutter
+    // bundle and gRPC-Web. Native gRPC helpers must NOT use this — over cleartext an Http1AndHttp2
+    // endpoint answers HTTP/1.1 (no ALPN), so an HTTP/2 gRPC call gets HTTP_1_1_REQUIRED.
     public string GatewayHttpsUrl { get; private set; } = null!;
+
+    // The native-gRPC helpers dial here: the kernel "grpc" endpoint (Http2-only).
+    public string GrpcUrl { get; private set; } = null!;
 
     public virtual async Task InitializeAsync()
     {
@@ -50,16 +56,22 @@ public class DigitalBrainAppHostFixture : IAsyncLifetime
         using var startupCts = new CancellationTokenSource(TimeSpan.FromMinutes(3));
         await App.ResourceNotifications.WaitForResourceHealthyAsync("kernel", startupCts.Token);
 
-        // Prefer the kernel web endpoint; the product gRPC/surface gateway is co-hosted there.
+        // Browser nav target: the kernel "web" endpoint (static bundle + gRPC-Web).
         // The standalone gateway remains an optional diagnostic resource for legacy smoke tests.
-        string url = "https://localhost:8080";
-        try { url = App.GetEndpoint("kernel", "web").ToString(); }
+        string webUrl = "https://localhost:8080";
+        try { webUrl = App.GetEndpoint("kernel", "web").ToString(); }
         catch
         {
-            try { url = App.GetEndpoint("gateway", "https").ToString(); }
-            catch { try { url = App.GetEndpoint("gateway", "http").ToString(); } catch { } }
+            try { webUrl = App.GetEndpoint("gateway", "https").ToString(); }
+            catch { try { webUrl = App.GetEndpoint("gateway", "http").ToString(); } catch { } }
         }
-        GatewayHttpsUrl = url;
+        GatewayHttpsUrl = webUrl;
+
+        // Native-gRPC target: the kernel "grpc" endpoint (Http2). Falls back to the web URL only
+        // if "grpc" is unavailable (legacy gateway smoke tests).
+        string grpcUrl = webUrl;
+        try { grpcUrl = App.GetEndpoint("kernel", "grpc").ToString(); } catch { }
+        GrpcUrl = grpcUrl;
     }
 
     public virtual async Task DisposeAsync()
@@ -73,7 +85,7 @@ public class DigitalBrainAppHostFixture : IAsyncLifetime
 
     public GrpcChannel CreateGatewayGrpcChannel()
     {
-        return GrpcChannel.ForAddress(GatewayHttpsUrl);
+        return GrpcChannel.ForAddress(GrpcUrl);
     }
 
     // Pack-specific helpers for E2E: drive real marketplace publish/install so packs embody via ALC/IPackBehavior.
@@ -82,7 +94,18 @@ public class DigitalBrainAppHostFixture : IAsyncLifetime
         using var channel = CreateGatewayGrpcChannel();
         var client = new DigitalBrainGateway.DigitalBrainGatewayClient(channel);
 
-        var cmd = new { PackName = packName, Version = version, Code = code, OwnerId = owner, IsPrivate = false, CommissionRate = commissionRate, Description = description };
+        // Sign the pack so it passes the install-time RejectUnsignedPacks gate (the secure default).
+        // Self-signed is sufficient: the gate verifies code integrity, not publisher identity.
+        var (privateKey, publicKey) = PackSignatureVerifier.GenerateKeyPair();
+        var signed = PackSignatureVerifier.SignPack(
+            new NeuroPack(packName, version, owner, false, commissionRate, code, description), privateKey, publicKey);
+
+        var cmd = new
+        {
+            PackName = packName, Version = version, Code = code, OwnerId = owner,
+            IsPrivate = false, CommissionRate = commissionRate, Description = description,
+            AuthorPublicKeyBase64 = signed.AuthorPublicKeyBase64, SignatureBase64 = signed.SignatureBase64
+        };
         var payload = System.Text.Json.JsonSerializer.Serialize(cmd);
 
         await client.SendAsync(new SynapseEnvelope

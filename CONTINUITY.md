@@ -229,3 +229,34 @@ Neurons (System, UI kit pack, embodied packs) are the authors of the shell. Clie
 - Key trap found+fixed: a pack file relying on <ImplicitUsings> compiles in the test asm but FAILS the standalone Roslyn/ALC compile (no implicit usings) → silent PackEmbodimentException → LLM fallback → pack never runs. Packs MUST have explicit `using`s.
 - Verification: aspire doctor 4/4 pass; dotnet test Category!=E2E = 163 pass / 1 skip (the gated E2E) / 0 fail; whole-branch review MERGE-READY (no Critical/Important).
 - Phase 2 follow-ups (deferred): NeuroPack→Domain rename everywhere + collisions (app domain_palette.dart → cluster_palette.dart); per-user (not per-install) flow state; multi-word destination parsing + dynamic month; empty-pack guard in the gateway ExperienceStep route; cross-origin E2E.
+
+## 2026-06-28 — Task D: travel slice browser E2E actually executed (branch e2e/travel-browser-validation, off master)
+The gated TravelPlanTripRendersE2ETests had NEVER run (always skipped). Running it for real exposed four
+issues; the slice now passes end-to-end up to Flutter. Server-side proven independently by a new
+TravelServerFeedDiagnosticTests (native-gRPC WatchHomeFeed, no browser). Verification: browser E2E + diagnostic
+both green; non-E2E suite 163 pass / 0 fail; aspire doctor 4/4.
+- **Build**: the web bundle needs `flutter build web --release --no-tree-shake-icons --dart-define=DIGITALBRAIN_E2E=true`.
+  `--no-tree-shake-icons` is mandatory (app paints non-const IconData via brain_painter MaterialIcons). The
+  E2EPrerequisites skip-hint was corrected to include it. main.dart forces semantics under DIGITALBRAIN_E2E.
+- **gRPC endpoint split (test fixture)**: native-gRPC helpers hit the kernel "web" endpoint (Http1AndHttp2)
+  and got HTTP_1_1_REQUIRED — over cleartext that endpoint answers HTTP/1.1. Fixed: browser nav uses "web";
+  CreateGatewayGrpcChannel now dials the "grpc" endpoint (Http2). Mirrors prod: browser=gRPC-Web, native=HTTP/2.
+- **PRODUCT GAP (GatewayService)**: `Send` had NO `PublishToMarketplace` case — publishes fell through to the
+  generic fallback (DemoMessageSynapse) and the pack CODE WAS DROPPED, so nothing could be installed/embodied.
+  Added a real publish handler. Also added `CaseInsensitive(...)` applied to both publish and the existing
+  install handler (install read camelCase keys but native/PascalCase callers silently fell back).
+- **Unsigned-pack gate**: install enforces RejectUnsignedPacks (secure default true; only appsettings.Development
+  sets false, not applied in the test AppHost). The E2E PublishPackAsync now ECDSA-self-signs the pack
+  (PackSignatureVerifier.SignPack) — self-signed passes the integrity gate (no publisher allowlist yet).
+- **Render route + feed timing (test)**: live pack surfaces render on the CANVAS (panel semanticsId ==
+  correlationId == surfaceId); the neuron shell at "/" drops kind-less RFW surfaces. Test now drives "/#/canvas"
+  (web hash strategy) and waits for the WatchHomeFeed stream before the first hop (HomeFeedBus has no replay and
+  dedups identical re-sends, so subscribe-before-emit is required).
+- Whole-change code review (opus): two findings applied (diagnostic Task.Run dropped the scheduler token;
+  screenshots moved off Path.GetTempPath() to AppContext.BaseDirectory/e2e-screenshots). Skipped findings:
+  empty-payload guard (CaseInsensitive already null-guards; matches existing handlers) and the pre-existing
+  localhost:8080 fallback (out of scope).
+- Follow-ups surfaced: the neuron shell ("/") cannot render a guided experience full-screen (only canvas panels
+  do) — a real UX gap for experiences; the gateway publish path is now reachable but has no auth (RejectUnsigned
+  still gates install); consider an empty-pack/embodiment-failed guard so a failed publish/install surfaces an
+  error instead of a silent render timeout.
