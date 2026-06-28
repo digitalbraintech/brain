@@ -20,10 +20,15 @@ public class DigitalBrainBrowserFixture : DigitalBrainAppHostFixture
         Playwright = await Microsoft.Playwright.Playwright.CreateAsync();
 
         bool isCi = string.Equals(Environment.GetEnvironmentVariable("CI"), "true", StringComparison.OrdinalIgnoreCase);
+        bool forceHeaded = string.Equals(Environment.GetEnvironmentVariable("DIGITALBRAIN_E2E_HEADED"), "true", StringComparison.OrdinalIgnoreCase);
+        bool forceHeadless = string.Equals(Environment.GetEnvironmentVariable("DIGITALBRAIN_E2E_HEADLESS"), "true", StringComparison.OrdinalIgnoreCase);
+        bool headless = forceHeaded ? false : (forceHeadless || isCi);
+        float? slowMo = int.TryParse(Environment.GetEnvironmentVariable("DIGITALBRAIN_E2E_SLOWMO"), out var ms) ? ms : null;
 
         Browser = await Playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
         {
-            Headless = isCi,
+            Headless = headless,
+            SlowMo = slowMo,
         });
 
         var context = await Browser.NewContextAsync(new BrowserNewContextOptions
