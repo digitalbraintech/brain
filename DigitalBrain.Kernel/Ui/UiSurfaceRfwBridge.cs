@@ -56,7 +56,7 @@ public static class UiSurfaceRfwBridge
         {
             var payload = new Dictionary<string, object?> { ["tree"] = treeObj, ["kind"] = surface.Kind };
             // Carry experience markers so the experience host can match the hop and key its semantics on the surfaceId.
-            foreach (var markerKey in new[] { "activeExperience", "experienceId", UiSurfaceKeys.SurfaceId })
+            foreach (var markerKey in new[] { "activeExperience", "experienceId", UiSurfaceKeys.SurfaceId, UiSurfaceKeys.Title })
             {
                 if (surface.Props.TryGetValue(markerKey, out var markerValue) && markerValue is not null)
                     payload[markerKey] = markerValue;
