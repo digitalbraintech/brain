@@ -209,6 +209,9 @@ public class KitExperienceTests
         Assert.Equal("p", tabs.Props["pack"]);
         var items = Assert.IsAssignableFrom<IReadOnlyList<object>>(tabs.Props["items"]);
         Assert.Equal(2, items.Count);
+        var first = Assert.IsType<Dictionary<string, object?>>(items[0]);
+        Assert.Equal("One", first["label"]);
+        Assert.Equal("one", first["eventName"]);
     }
 
     private sealed class NavStubPack : KitExperience
