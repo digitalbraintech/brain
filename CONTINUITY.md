@@ -340,3 +340,50 @@ file, rendered full-screen from the marketplace with NO kernel recompile/restart
   `KitExperience._state`; (4) CLI default gateway `https://localhost:7080` — wire to the real Aspire port;
   (5) live `aspire run` hot-loop demo (the file-watch reload path is not covered by the E2E); (6) fan the kit
   out to the full ~20–30 components (sub-project B).
+
+## 2026-06-29 — Sub-project B: fan the `ui:` kit out to a 35-component curated catalog + gallery
+Subagent-driven (11 TDD tasks, fresh implementer + per-task spec/quality review + opus whole-branch review).
+Spec+plan under `docs/superpowers/{specs,plans}/2026-06-29-ui-kit-catalog*`. Branch `feat/ui-kit-catalog` (both
+repos), merged locally to master/main (no push). Grew the typed `ui:` kit from **5 → 35** components, each a
+thin ForUI cover + a `ui:<Name>` const on `DigitalBrain.Core.Ui` + a `UiHop` fluent builder + one
+`app/lib/ui_kit/ui_<name>.dart` cover + a lowercased `ui_registry.buildUiNode` case. Pure additive fan-out on
+the Slice 0 pattern — the `ui:*` renderer branch was never touched.
+- **Catalog (35):** Inputs (TextField, TextArea, Checkbox, Switch, RadioGroup, Select, Slider, DateField,
+  Button); Layout (Screen, Panel, Row, Column, Divider, Header, Gap); Display (Text, Heading, Icon, Avatar,
+  Badge, Tile, List); Feedback (Alert, Progress, Spinner, Tooltip); Navigation (Tabs, Breadcrumb, Sidebar,
+  BottomNav, Pagination); Overlays (Dialog, Sheet, Toast).
+- **Value model = strings on the wire.** Folded-in Slice 0 follow-ups done first: bridge now forwards
+  `UiSurfaceKeys.Title`; `buildActionEnvelope` string-coerces every prop (bool/double/null) so non-string inputs
+  round-trip. Inputs capture into `UiKitFormScope` (`Map<String,String>`) on a REAL interaction callback.
+- **ForUI 0.21.3 facts (hard-won):** form widgets have NO `onChange` on FSelect/FSelectGroup/FDateField — capture
+  via a controller `addListener` (`FSelectController`, `FDateFieldController`), disposed; RadioGroup uses
+  individual `FRadio` (parent holds `_selected`, `value:_selected==o` = single-select) because `FSelectGroup.onSaved`
+  never fires without a `Form.save()`; Slider captures on `onEnd`. Linear progress = `FDeterminateProgress(value:)`,
+  spinner = `FCircularProgress()` (NOT `FProgress.*`). Icon class is `FIcons` (re-exported by `package:forui/forui.dart`;
+  `FLucideIcons` is 0.22+). `FTabs(onPress:(int))`, `FButtonVariant.outline` (enum), `FBottomNavigationBar(onChange:(int))`,
+  `FBottomNavigationBarItem.icon` required. Overlays: `showFSheet` needs a Navigator, `showFToast` needs an `FToaster`.
+- **Two cross-cutting Core changes:** `KitExperience.Inject` now stamps `pack`/`experienceId` onto any node with a
+  top-level `eventName` (Button, Tile) OR an `items` prop (all 5 nav covers), recursing into children (overlay-child
+  buttons). All action covers share ONE envelope shape `{synapseType:'ExperienceStep', props:{pack,experienceId,
+  eventName,...captured}}` via `ui_button.dart` / `buildExperienceFTile` (ui_tile.dart, used by Tile AND List) /
+  `fireNav` (ui_nav_item.dart, used by all 5 nav covers). `[InternalsVisibleTo("DigitalBrain.Tests")]` added to Core
+  so `UiHop` internals stay internal while tests `new UiHop(...)`.
+- **Navigation = hop-advance (no new infra).** Nav covers carry `(label, goTo)` items; selection fires
+  `ExperienceStep{eventName:goTo}` over the existing unary Send — intra-experience nav only.
+- **Overlays = the one new mechanism (no new wire protocol).** Declarative `open` node → zero-size cover →
+  `PresentOnce` mixin (`ui_overlay_host.dart`) imperatively calls `showFDialog/showFSheet/showFToast` in a
+  post-frame callback exactly once (guard set BEFORE scheduling, `mounted` check; reset on `open:false` so it can
+  re-present). Dismiss = author re-emits the hop with `open:false`.
+- **Gallery dogfood (`ui-gallery`).** A `KitExperience` authored WITH the kit (single-source const
+  `MarketplaceSeeds.UiGalleryPackCode`), 5 category hops with a dogfooded `Sidebar`, openable full-screen from the
+  marketplace (`/experience/ui-gallery/ui-gallery`) like hello-world. `PackAlcEmbodierTests` compiles+embodies it
+  via the REAL Roslyn/ALC path — the deterministic proof that all 35 builder signatures + usings are correct
+  (catches name drift without the live stack). Gated `UiGalleryRendersE2ETests` walks all 5 hops.
+- **Verification.** brain build clean + 187 pass/1 skip/0 fail; app analyze clean (ui_kit) + 65/65; overlay guard
+  5/5; aspire doctor 4/4. Final whole-branch review (opus) "READY", 0 Critical / 0 merge-blocking. The 35 covers
+  are genuinely consistent (one nav path, one tile builder, one Inject rule, one string-coercion choke point).
+- **Deferred follow-ups (non-blocking, from the final review):** harden the overlay guard's element-identity
+  dependence further if overlays are toggled on a reused State (one edge done); `ui:Gap` is a square SizedBox
+  (not axis-aware); `ui_bottom_nav` placeholder uses Material `Icons.circle_outlined` (→ `FIcons.circle`);
+  `ui:Sheet` title is a plain Text (no ForUI header slot); gallery `Pagination` targets non-existent `page-N` hops
+  (cosmetic dead-end); live `aspire run` + gallery/HelloWorld browser E2E not yet run this session (gated).
