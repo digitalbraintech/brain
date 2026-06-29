@@ -1,8 +1,20 @@
 // GrokCLI TUI - interactive Text User Interface for DigitalBrain (MCP/CLI proxy to neurons)
+using DigitalBrain.Cli.Commands;
 using DigitalBrain.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Spectre.Console;
+
+if (args.Length > 0 && args[0].Equals("author", StringComparison.OrdinalIgnoreCase))
+{
+    var file = args.Length > 1 ? args[1] : "";
+    var watch = args.Contains("--watch");
+    var gatewayIndex = Array.IndexOf(args, "--gateway");
+    var gateway = gatewayIndex >= 0 && gatewayIndex + 1 < args.Length
+        ? args[gatewayIndex + 1]
+        : Environment.GetEnvironmentVariable("DIGITALBRAIN_GATEWAY") ?? "https://localhost:7080";
+    return await AuthorCommand.RunAsync(file, watch, gateway);
+}
 
 var host = Host.CreateApplicationBuilder(args);
 
@@ -302,4 +314,5 @@ if (grains != null)
 }
 
 AnsiConsole.MarkupLine("[grey]GrokCLI TUI exited.[/]");
+return 0;
 
