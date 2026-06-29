@@ -17,7 +17,7 @@ public sealed class HelloWorldExperience : KitExperience
             .Button("Greet", "greeting"))
         .Hop("greeting", s => s
             .Panel(p => p.Text(state =>
-                $"Hello {(state.TryGetValue(\"name\", out var n) && n.Length > 0 ? n : \"World\")}!")));
+                "Hello " + (state.GetValueOrDefault("name") is { Length: > 0 } n ? n : "World") + "!")));
 }
 """;
 }
