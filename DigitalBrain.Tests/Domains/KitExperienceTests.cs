@@ -131,4 +131,20 @@ public class KitExperienceTests
         Assert.Equal(10.0, nodes[2].Props["max"]);
         Assert.Equal(DigitalBrain.Core.Ui.DateField, nodes[3].Type);
     }
+
+    [Fact]
+    public void Layout_nodes_emit_containers_and_leaves()
+    {
+        var hop = new UiHop("h");
+        hop.Row(r => r.Text("a").Text("b")).Divider().Header("Section").Gap(8);
+        var nodes = hop.Factories.Select(f => f(new Dictionary<string, string>())).ToList();
+
+        Assert.Equal(DigitalBrain.Core.Ui.Row, nodes[0].Type);
+        Assert.Equal(2, nodes[0].Children!.Count);
+        Assert.Equal(DigitalBrain.Core.Ui.Divider, nodes[1].Type);
+        Assert.Equal(DigitalBrain.Core.Ui.Header, nodes[2].Type);
+        Assert.Equal("Section", nodes[2].Props["title"]);
+        Assert.Equal(DigitalBrain.Core.Ui.Gap, nodes[3].Type);
+        Assert.Equal(8.0, nodes[3].Props["size"]);
+    }
 }

@@ -122,4 +122,40 @@ public sealed class UiHop
         }));
         return this;
     }
+
+    public UiHop Row(Action<UiHop> body)
+    {
+        var inner = new UiHop(Id);
+        body(inner);
+        Factories.Add(state => new UiWidgetTree(Ui.Row, new Dictionary<string, object?>(),
+            inner.Factories.Select(f => f(state)).ToList()));
+        return this;
+    }
+
+    public UiHop Column(Action<UiHop> body)
+    {
+        var inner = new UiHop(Id);
+        body(inner);
+        Factories.Add(state => new UiWidgetTree(Ui.Column, new Dictionary<string, object?>(),
+            inner.Factories.Select(f => f(state)).ToList()));
+        return this;
+    }
+
+    public UiHop Divider()
+    {
+        Factories.Add(_ => new UiWidgetTree(Ui.Divider, new Dictionary<string, object?>()));
+        return this;
+    }
+
+    public UiHop Header(string title)
+    {
+        Factories.Add(_ => new UiWidgetTree(Ui.Header, new Dictionary<string, object?> { ["title"] = title }));
+        return this;
+    }
+
+    public UiHop Gap(double size = 16)
+    {
+        Factories.Add(_ => new UiWidgetTree(Ui.Gap, new Dictionary<string, object?> { ["size"] = size }));
+        return this;
+    }
 }

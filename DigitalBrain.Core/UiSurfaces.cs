@@ -158,6 +158,11 @@ public static class Ui
     public const string RadioGroup = "ui:RadioGroup";
     public const string Slider = "ui:Slider";
     public const string DateField = "ui:DateField";
+    public const string Row = "ui:Row";
+    public const string Column = "ui:Column";
+    public const string Divider = "ui:Divider";
+    public const string Header = "ui:Header";
+    public const string Gap = "ui:Gap";
 }
 
 [GenerateSerializer]
