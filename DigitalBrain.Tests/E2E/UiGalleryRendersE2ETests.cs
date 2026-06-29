@@ -26,5 +26,11 @@ public sealed class UiGalleryRendersE2ETests(DigitalBrainBrowserFixture fixture)
 
         await driver.TapAsync("feedback");
         await driver.AssertHopRendersAsync("feedback");
+
+        await driver.TapAsync("navigation");
+        await driver.AssertHopRendersAsync("navigation");
+
+        await driver.TapAsync("overlays");
+        await driver.AssertHopRendersAsync("overlays");
     }
 }
