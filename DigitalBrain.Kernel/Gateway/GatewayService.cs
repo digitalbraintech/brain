@@ -3,6 +3,7 @@ using DigitalBrain.Runtime.Grpc;
 using DigitalBrain.Kernel;
 using Grpc.Core;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace DigitalBrain.Kernel.Gateway;
@@ -11,6 +12,7 @@ public sealed class GatewayService(
     IGrainFactory grains,
     IConfiguration configuration,
     HomeFeedBus homeFeedBus,
+    IHostEnvironment environment,
     ILogger<GatewayService> logger) : DigitalBrainGateway.DigitalBrainGatewayBase
 {
     public override async Task<SynapseEnvelope> Send(SynapseEnvelope request, ServerCallContext context)
@@ -133,7 +135,11 @@ public sealed class GatewayService(
     public override async Task WatchHomeFeed(WatchHomeFeedRequest request, IServerStreamWriter<RfwCardEnvelope> responseStream, ServerCallContext context)
     {
         logger.LogInformation("WatchHomeFeed opened for {Peer}", context.Peer);
-        await WriteCardAsync(responseStream, UiSurfaceRfwBridge.FromUiSurface(UiSurfaceSamples.Login(clientId: "flutter"), "session-main"));
+        // The first card a client sees is the login surface — pre-fill it with the dev credentials in Development.
+        var initialLogin = DevAuth.Enabled(configuration, environment)
+            ? UiSurfaceSamples.Login(clientId: "flutter", defaultUsername: DevAuth.Username, defaultPassword: DevAuth.Password)
+            : UiSurfaceSamples.Login(clientId: "flutter");
+        await WriteCardAsync(responseStream, UiSurfaceRfwBridge.FromUiSurface(initialLogin, "session-main"));
         logger.LogInformation("WatchHomeFeed sent initial login surface to {Peer}", context.Peer);
 
         using var subscription = homeFeedBus.Subscribe();

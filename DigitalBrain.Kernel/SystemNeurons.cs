@@ -939,7 +939,21 @@ public class GeneratedNeuron : Neuron, IGeneratedNeuron, IHandle<NeuronTelemetry
         if (_embodied is not null) return;
         var last = OutgoingJournal.Concat(IncomingJournal).OfType<NeuroPackInstalled>().LastOrDefault();
         if (last is not null)
+        {
             TryEmbody(last.Pack);
+            return;
+        }
+        // Preinstalled local seed packs (e.g. ui-gallery, hello-world) are shown in the installer but never
+        // receive a NeuroPackInstalled, so they were never embodied — opening one stalled on "Waiting for the
+        // experience to start". Embody such a pack on first use from the local catalog, keyed by grain id.
+        const string generatedPrefix = "generated-";
+        var packName = this.GetPrimaryKeyString() ?? string.Empty;
+        if (packName.StartsWith(generatedPrefix, StringComparison.OrdinalIgnoreCase))
+            packName = packName[generatedPrefix.Length..];
+        var seed = MarketplaceSeeds.LocalUiPacks.FirstOrDefault(pack =>
+            string.Equals(pack.Name, packName, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(pack.Code));
+        if (seed is not null)
+            TryEmbody(seed);
     }
 
     private async Task<bool> TryDispatchEmbodiedAsync(Synapse synapse)

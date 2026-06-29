@@ -1,4 +1,3 @@
-using DigitalBrain.Tests.E2E.Packs;
 using Xunit;
 
 namespace DigitalBrain.Tests.E2E;
@@ -14,8 +13,9 @@ public sealed class UiGalleryRendersE2ETests(DigitalBrainBrowserFixture fixture)
     {
         E2EPrerequisites.RequireRenderE2E();
 
+        // No explicit install: ui-gallery is a preinstalled local seed shown in the installer, so opening it
+        // must start the experience directly (it is embodied lazily from the seed catalog on first use).
         var driver = new ExperienceFlowDriver(_fx, pack: "ui-gallery", experienceId: "ui-gallery");
-        await driver.PublishAndInstallAsync(UiGalleryPackSource.Code, description: "UI Kit Gallery experience");
         await driver.OpenAsync();
 
         await driver.TriggerExperienceAsync();
@@ -32,5 +32,18 @@ public sealed class UiGalleryRendersE2ETests(DigitalBrainBrowserFixture fixture)
 
         await driver.TapAsync("overlays");
         await driver.AssertHopRendersAsync("overlays");
+    }
+
+    [SkippableFact]
+    public async Task Gallery_auto_starts_from_the_client_without_a_manual_step()
+    {
+        E2EPrerequisites.RequireRenderE2E();
+
+        // Reproduces the real desktop flow: the ExperienceHostScreen must auto-fire ExperienceStep(start)
+        // itself (no test-sent step), then the first hop must render.
+        var driver = new ExperienceFlowDriver(_fx, pack: "ui-gallery", experienceId: "ui-gallery");
+        await driver.OpenAsync();
+
+        await driver.AssertHopRendersAsync("inputs");
     }
 }

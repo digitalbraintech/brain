@@ -33,7 +33,9 @@ public class GatewayServiceTests : IAsyncLifetime
     public async Task DisposeAsync() => await _cluster.StopAllSilosAsync();
 
     private GatewayService NewService() =>
-        new(_cluster.GrainFactory, new ConfigurationBuilder().Build(), _homeFeedBus, NullLogger<GatewayService>.Instance);
+        new(_cluster.GrainFactory, new ConfigurationBuilder().Build(), _homeFeedBus,
+            new FakeHostEnvironment(),
+            NullLogger<GatewayService>.Instance);
 
     [Fact]
     public async Task Ask_Ino_ReturnsNonEmptyReply()
@@ -152,6 +154,8 @@ public class GatewayServiceTests : IAsyncLifetime
         public void Configure(ISiloBuilder siloBuilder) => siloBuilder
             .AddMemoryGrainStorageAsDefault()
             .AddMemoryStreams("Default")
+            .AddMemoryStreams("HomeFeed")
+            .AddMemoryGrainStorage("PubSubStore")
             .ConfigureServices(services =>
             {
                 services.AddKeyedScoped<IDurableList<Synapse>>("in-journal", (_, _) => new InMemoryDurableList<Synapse>());

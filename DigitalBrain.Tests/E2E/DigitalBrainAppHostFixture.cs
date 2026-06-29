@@ -34,7 +34,8 @@ public class DigitalBrainAppHostFixture : IAsyncLifetime
         Environment.SetEnvironmentVariable("DIGITALBRAIN_USE_LOCAL_MARKETPLACE", "true");
         Environment.SetEnvironmentVariable("DIGITALBRAIN_SURFACES_ENABLED", "true");
         Environment.SetEnvironmentVariable("DigitalBrain__ClusterId", $"e2e-{testId}");
-        Environment.SetEnvironmentVariable("DIGITALBRAIN_KERNEL_REPLICAS", "1");
+        Environment.SetEnvironmentVariable("DIGITALBRAIN_KERNEL_REPLICAS",
+            Environment.GetEnvironmentVariable("DIGITALBRAIN_E2E_REPLICAS") ?? "1");
         Environment.SetEnvironmentVariable("DIGITALBRAIN_WEBROOT", E2EPrerequisites.WebBundleDir);
 
         // Resolve the AppHost entry point type from the referenced assembly without pulling duplicate Program symbols into global scope.

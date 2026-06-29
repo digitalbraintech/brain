@@ -383,73 +383,64 @@ public static class UiSurfaceSamples
                 })
             }));
 
-    public static UiSurface Login(string? error = null, string clientId = "flutter") => new(
-        UiSurfaceKinds.Login,
-        WithCommon(
-            surfaceId: "surface.login.local",
-            emitter: "session-main",
-            title: "Sign In",
-            layout: UiSurfaceLayouts.Panel,
-            requiresInput: true,
-            priority: 100,
-            props: new Dictionary<string, object?>
-            {
-                ["clientId"] = clientId,
-                ["mode"] = "local",
-                ["error"] = error,
-                ["fields"] = new[]
+    public static UiSurface Login(
+        string? error = null,
+        string clientId = "flutter",
+        string? defaultUsername = null,
+        string? defaultPassword = null)
+    {
+        // A field carries an optional pre-filled `value` the client seeds its input with.
+        static Dictionary<string, object?> Field(string name, string label, string kind, string? value) => new()
+        {
+            ["name"] = name,
+            ["label"] = label,
+            ["kind"] = kind,
+            ["required"] = true,
+            ["value"] = value ?? string.Empty
+        };
+
+        Dictionary<string, object?>[] Fields() => new[]
+        {
+            Field("username", "Username", "text", defaultUsername),
+            Field("password", "Password", "password", defaultPassword)
+        };
+
+        return new(
+            UiSurfaceKinds.Login,
+            WithCommon(
+                surfaceId: "surface.login.local",
+                emitter: "session-main",
+                title: "Sign In",
+                layout: UiSurfaceLayouts.Panel,
+                requiresInput: true,
+                priority: 100,
+                props: new Dictionary<string, object?>
                 {
-                    new Dictionary<string, object?>
-                    {
-                        ["name"] = "username",
-                        ["label"] = "Username",
-                        ["kind"] = "text",
-                        ["required"] = true
-                    },
-                    new Dictionary<string, object?>
-                    {
-                        ["name"] = "password",
-                        ["label"] = "Password",
-                        ["kind"] = "password",
-                        ["required"] = true
-                    }
-                },
-                ["submitAction"] = SynapseAction(
-                    "local-login",
-                    "Sign in",
-                    nameof(LoginRequest),
-                    new Dictionary<string, object?>
-                    {
-                        ["clientId"] = clientId
-                    }),
-                ["tree"] = new UiWidgetTree(
-                    NeuronUiKit.Form,
-                    new Dictionary<string, object?>
-                    {
-                        ["title"] = "Sign In",
-                        ["submitLabel"] = "Sign in",
-                        ["error"] = error,
-                        [UiSurfaceKeys.SynapseType] = nameof(LoginRequest),
-                        ["clientId"] = clientId,
-                        ["fields"] = new[]
+                    ["clientId"] = clientId,
+                    ["mode"] = "local",
+                    ["error"] = error,
+                    ["fields"] = Fields(),
+                    ["submitAction"] = SynapseAction(
+                        "local-login",
+                        "Sign in",
+                        nameof(LoginRequest),
+                        new Dictionary<string, object?>
                         {
-                            new Dictionary<string, object?>
-                            {
-                                ["name"] = "username",
-                                ["label"] = "Username",
-                                ["kind"] = "text",
-                                ["required"] = true
-                            },
-                            new Dictionary<string, object?>
-                            {
-                                ["name"] = "password",
-                                ["label"] = "Password",
-                                ["kind"] = "password",
-                                ["required"] = true
-                            }
-                        }
-                    })
-            }));
+                            ["clientId"] = clientId
+                        }),
+                    ["tree"] = new UiWidgetTree(
+                        NeuronUiKit.Form,
+                        new Dictionary<string, object?>
+                        {
+                            ["title"] = "Sign In",
+                            ["submitLabel"] = "Sign in",
+                            ["error"] = error,
+                            [UiSurfaceKeys.SynapseType] = nameof(LoginRequest),
+                            ["clientId"] = clientId,
+                            ["fields"] = Fields()
+                        })
+                }));
+    }
 
     public static UiSurface MarketplaceList() => new(
         UiSurfaceKinds.MarketplaceList,
@@ -882,17 +873,25 @@ public static class UiSurfaceLiveData
                     : new List<IReadOnlyDictionary<string, object?>>();
 
                 var actionKids = new List<UiWidgetTree>();
-                // Open always maps to ExperienceUsed open on the generated embodiment
-                actionKids.Add(new UiWidgetTree("fbutton", new Dictionary<string, object?>
+                // Generic "Open" maps to ExperienceUsed open on the embodiment. Skip it when an experience is
+                // already labelled "Open" (e.g. ui-gallery, hello-world) — otherwise the launcher shows two
+                // "Open" buttons and the generic one's target (the pack name) doesn't reach the experience host.
+                var hasOpenExperience = exps.Any(ex =>
+                    ex.TryGetValue("name", out var exName) &&
+                    string.Equals(exName?.ToString(), "Open", StringComparison.OrdinalIgnoreCase));
+                if (!hasOpenExperience)
                 {
-                    ["label"] = "Open",
-                    [UiSurfaceKeys.SynapseType] = nameof(ExperienceUsed),
-                    ["packName"] = name,
-                    ["action"] = "open",
-                    ["targetSurfaceKind"] = name,
-                    ["userId"] = userId,
-                    ["sessionId"] = sessionId
-                }));
+                    actionKids.Add(new UiWidgetTree("fbutton", new Dictionary<string, object?>
+                    {
+                        ["label"] = "Open",
+                        [UiSurfaceKeys.SynapseType] = nameof(ExperienceUsed),
+                        ["packName"] = name,
+                        ["action"] = "open",
+                        ["targetSurfaceKind"] = name,
+                        ["userId"] = userId,
+                        ["sessionId"] = sessionId
+                    }));
+                }
                 foreach (var ex in exps.Take(2))
                 {
                     var lbl = ex.TryGetValue("name", out var ln) ? ln?.ToString() ?? "Run" : "Run";

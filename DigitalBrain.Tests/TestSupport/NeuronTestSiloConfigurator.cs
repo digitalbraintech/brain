@@ -4,6 +4,7 @@ using DigitalBrain.Kernel;
 using DigitalBrain.Kernel.Company;
 using DigitalBrain.Kernel.Foundry;
 using DigitalBrain.Kernel.Llm;
+using DigitalBrain.Kernel.Ui;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,6 +22,8 @@ public sealed class NeuronTestSiloConfigurator : ISiloConfigurator
         siloBuilder
             .AddMemoryGrainStorageAsDefault()
             .AddMemoryStreams("Default")
+            .AddMemoryStreams("HomeFeed")
+            .AddMemoryGrainStorage("PubSubStore")
             .ConfigureServices(services =>
             {
                 services.AddKeyedScoped<IDurableList<Synapse>>("in-journal", (_, _) => new InMemoryDurableList<Synapse>());
@@ -34,6 +37,7 @@ public sealed class NeuronTestSiloConfigurator : ISiloConfigurator
                 services.AddSingleton<ProcessCrystallizer>(sp => new ProcessCrystallizer(sp.GetService<IChatClient>()));
                 services.AddSingleton<SkillPackSynthesizer>();
                 services.AddSingleton<HomeFeedBus>();
+                services.AddHomeFeedStreamSubscriber();
                 services.AddSingleton<IConfiguration>(
                     new ConfigurationBuilder()
                         .AddInMemoryCollection(new Dictionary<string, string?>

@@ -4,6 +4,7 @@ using DigitalBrain.Kernel;
 using DigitalBrain.Kernel.Company;
 using DigitalBrain.Kernel.Foundry;
 using DigitalBrain.Kernel.Llm;
+using DigitalBrain.Kernel.Ui;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
@@ -63,6 +64,8 @@ builder.Services.AddCors(options => options.AddPolicy("browser", policy => polic
     .WithExposedHeaders("Grpc-Status", "Grpc-Message", "Grpc-Encoding", "Grpc-Accept-Encoding")));
 
 // Server-driven UI fanout: neurons broadcast RfwCards; WatchHomeFeed gRPC subscribers stream them.
+// The per-silo HomeFeedStreamSubscriber (wired into the silo below) re-fans cards from the shared Orleans
+// MemoryStream so cards broadcast on any silo reach all replicas.
 builder.Services.AddSingleton<HomeFeedBus>();
 
 // Co-host the MCP tool surface in-process. Only read-only tools are exposed over HTTP (remotely reachable);
@@ -132,6 +135,9 @@ builder.UseOrleans(siloBuilder =>
             .UseJsonJournalFormat(DigitalBrain.Kernel.JournalJsonContext.Default);
     }
 
+    siloBuilder.AddMemoryStreams("HomeFeed");
+    siloBuilder.AddMemoryGrainStorage("PubSubStore");
+    siloBuilder.ConfigureServices(services => services.AddHomeFeedStreamSubscriber());
     siloBuilder.AddFoundry();
 });
 

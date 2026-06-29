@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using DigitalBrain.Core;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 
 namespace DigitalBrain.Kernel;
 
@@ -21,7 +22,7 @@ public sealed class UserSessionNeuron : Neuron, IUserSessionNeuron
 
         if (!ActiveSessions().Any())
         {
-            Broadcast(UiSurfaceSamples.Login());
+            Broadcast(LoginSurface());
         }
     }
 
@@ -36,12 +37,17 @@ public sealed class UserSessionNeuron : Neuron, IUserSessionNeuron
             return;
         }
 
+        // Dev-only convenience: the seeded credentials always authenticate (provisioned on first use,
+        // password-bypassed if an account already exists) so a fresh checkout can sign in without setup.
+        // Off outside Development, so the deployed app is unaffected.
+        var isDevCredentials = DevAuthEnabled() && DevAuth.Matches(username, request.Password);
+
         var users = RegisteredUsers().ToList();
         var user = users.FirstOrDefault(u => string.Equals(u.Username, username, StringComparison.OrdinalIgnoreCase));
 
         if (user is null)
         {
-            if (!AllowFirstUserProvisioning() || users.Count > 0)
+            if (!isDevCredentials && (!AllowFirstUserProvisioning() || users.Count > 0))
             {
                 await RejectAsync(username, "invalid username or password", clientId);
                 return;
@@ -50,7 +56,7 @@ public sealed class UserSessionNeuron : Neuron, IUserSessionNeuron
             user = CreateLocalUser(username, request.Password);
             await FireAsync(user);
         }
-        else if (!VerifyPassword(request.Password, user.PasswordSaltBase64, user.PasswordHashBase64))
+        else if (!isDevCredentials && !VerifyPassword(request.Password, user.PasswordSaltBase64, user.PasswordHashBase64))
         {
             await RejectAsync(username, "invalid username or password", clientId);
             return;
@@ -78,7 +84,7 @@ public sealed class UserSessionNeuron : Neuron, IUserSessionNeuron
             await FireAsync(new UserSessionEnded(request.SessionId, clientId));
         }
 
-        Broadcast(UiSurfaceSamples.Login(clientId: clientId));
+        Broadcast(LoginSurface(clientId: clientId));
     }
 
     public Task<UserSessionState?> GetSessionAsync(string sessionId)
@@ -123,7 +129,20 @@ public sealed class UserSessionNeuron : Neuron, IUserSessionNeuron
     }
 
     public Task<UiSurface> BuildLoginSurfaceAsync(string? clientId = null) =>
-        Task.FromResult(UiSurfaceSamples.Login(clientId: string.IsNullOrWhiteSpace(clientId) ? "flutter" : clientId));
+        Task.FromResult(LoginSurface(clientId: clientId));
+
+    // In Development the login surface is pre-filled with seeded dev credentials that always authenticate
+    // (see HandleAsync). Disabled outside Development unless DigitalBrain:Auth:DevAutoLogin is set explicitly.
+    private UiSurface LoginSurface(string? error = null, string? clientId = null)
+    {
+        var resolvedClientId = string.IsNullOrWhiteSpace(clientId) ? "flutter" : clientId;
+        return DevAuthEnabled()
+            ? UiSurfaceSamples.Login(error, resolvedClientId, DevAuth.Username, DevAuth.Password)
+            : UiSurfaceSamples.Login(error, resolvedClientId);
+    }
+
+    private bool DevAuthEnabled() =>
+        DevAuth.Enabled(ServiceProvider.GetService<IConfiguration>(), ServiceProvider.GetService<IHostEnvironment>());
 
     private async Task BroadcastProductHomeAsync(LocalUserRegistered user, string sessionId)
     {
@@ -216,7 +235,7 @@ public sealed class UserSessionNeuron : Neuron, IUserSessionNeuron
     private async Task RejectAsync(string username, string reason, string clientId)
     {
         await FireAsync(new LoginFailed(username, reason, clientId));
-        Broadcast(UiSurfaceSamples.Login(reason, clientId));
+        Broadcast(LoginSurface(reason, clientId));
     }
 
     private void BroadcastSignedIn(LocalUserRegistered user, string sessionId, string clientId)
