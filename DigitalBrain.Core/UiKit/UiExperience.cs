@@ -185,4 +185,24 @@ public sealed class UiHop
         Factories.Add(_ => new UiWidgetTree(Ui.Badge, new Dictionary<string, object?> { ["text"] = text }));
         return this;
     }
+
+    public UiHop Tile(string title, string? subtitle = null, string? goTo = null)
+    {
+        Factories.Add(_ =>
+        {
+            var props = new Dictionary<string, object?> { ["title"] = title, ["subtitle"] = subtitle ?? string.Empty };
+            if (goTo is not null) props["eventName"] = goTo;
+            return new UiWidgetTree(Ui.Tile, props);
+        });
+        return this;
+    }
+
+    public UiHop List(Action<UiHop> body)
+    {
+        var inner = new UiHop(Id);
+        body(inner);
+        Factories.Add(state => new UiWidgetTree(Ui.List, new Dictionary<string, object?>(),
+            inner.Factories.Select(f => f(state)).ToList()));
+        return this;
+    }
 }

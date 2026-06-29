@@ -43,14 +43,14 @@ public abstract class KitExperience : IPackBehavior
         return new UiWidgetTree(Ui.Screen, new Dictionary<string, object?>(), children);
     }
 
-    // The button must carry pack + experienceId so the client can address the ExperienceStep back to this pack.
-    // Hops do not know those ids, so the base injects them when it emits.
+    // Any action-bearing node (carries eventName) must know pack + experienceId so the client can route the ExperienceStep.
+    // Hops do not know those ids, so the base injects them at emit time — covers Button, Tile, and future nav nodes.
     private static UiWidgetTree Inject(UiWidgetTree node, string id)
     {
-        if (node.Type == Ui.Button)
+        if (node.Props.ContainsKey("eventName"))
         {
             var props = new Dictionary<string, object?>(node.Props) { ["pack"] = id, ["experienceId"] = id };
-            return node with { Props = props };
+            node = node with { Props = props };
         }
         if (node.Children is { } children)
         {

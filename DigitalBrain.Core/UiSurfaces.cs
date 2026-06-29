@@ -167,6 +167,8 @@ public static class Ui
     public const string Icon = "ui:Icon";
     public const string Avatar = "ui:Avatar";
     public const string Badge = "ui:Badge";
+    public const string Tile = "ui:Tile";
+    public const string List = "ui:List";
 }
 
 [GenerateSerializer]

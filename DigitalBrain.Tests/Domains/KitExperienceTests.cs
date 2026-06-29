@@ -163,4 +163,31 @@ public class KitExperienceTests
         Assert.Equal(DigitalBrain.Core.Ui.Badge, nodes[3].Type);
         Assert.Equal("New", nodes[3].Props["text"]);
     }
+
+    [Fact]
+    public void Tile_with_goTo_is_stamped_with_pack_and_experienceId()
+    {
+        var pack = new GalleryStubPack();
+        var outputs = pack.Handle(new ExperienceStep("p", "p", "start", new Dictionary<string, string>()));
+        var tree = (UiWidgetTree)((UiSurface)outputs[0]).Props["tree"];
+        var tile = FindByType(tree, DigitalBrain.Core.Ui.Tile);
+        Assert.Equal("p", tile.Props["pack"]);
+        Assert.Equal("p", tile.Props["experienceId"]);
+        Assert.Equal("next", tile.Props["eventName"]);
+    }
+
+    private sealed class GalleryStubPack : KitExperience
+    {
+        protected override UiExperience Define() => Experience("p", "P")
+            .Hop("start", s => s.Tile("Go", goTo: "next"))
+            .Hop("next", s => s.Text("done"));
+    }
+
+    private static UiWidgetTree FindByType(UiWidgetTree node, string type)
+    {
+        if (node.Type == type) return node;
+        foreach (var child in node.Children ?? new List<UiWidgetTree>())
+            if (FindByType(child, type) is { } match) return match;
+        return null!;
+    }
 }
