@@ -2,6 +2,24 @@ namespace DigitalBrain.Core;
 
 public static class MarketplaceSeeds
 {
+    public const string HelloWorldPackCode = """
+using System.Collections.Generic;
+using DigitalBrain.Core;
+
+public sealed class HelloWorldExperience : KitExperience
+{
+    protected override UiExperience Define() => Experience("hello-world", "Hello World")
+        .Hop("ask", s => s
+            .Text("What's your name?")
+            .TextField("name", "Your name")
+            .Button("Greet", "greeting"))
+        .Hop("greeting", s => s
+            .Panel(p => p.Text(state =>
+                "Hello " + (state.GetValueOrDefault("name") is { Length: > 0 } n ? n : "World") + "!")));
+}
+""";
+
+
     public static IReadOnlyList<NeuroPack> LocalUiPacks { get; } =
     [
         new NeuroPack(
@@ -74,22 +92,7 @@ public static class MarketplaceSeeds
             "digitalbraintech",
             false,
             0.0,
-            """
-using System.Collections.Generic;
-using DigitalBrain.Core;
-
-public sealed class HelloWorldExperience : KitExperience
-{
-    protected override UiExperience Define() => Experience("hello-world", "Hello World")
-        .Hop("ask", s => s
-            .Text("What's your name?")
-            .TextField("name", "Your name")
-            .Button("Greet", "greeting"))
-        .Hop("greeting", s => s
-            .Panel(p => p.Text(state =>
-                $"Hello {(state.TryGetValue(\"name\", out var n) && n.Length > 0 ? n : \"World\")}!")));
-}
-""",
+            HelloWorldPackCode,
             "Hello World — the smallest ui: kit app: enter your name, press Greet, see a greeting."),
 
         // Dummy for dev testing of full typed-C# behavior pack flow (packaging + publish + share + install + embody).
