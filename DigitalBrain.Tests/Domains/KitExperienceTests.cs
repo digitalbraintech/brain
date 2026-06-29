@@ -232,6 +232,20 @@ public class KitExperienceTests
         Assert.Equal(2, ((IReadOnlyList<object>)nodes[0].Props["items"]!).Count);
     }
 
+    [Fact]
+    public void Overlay_nodes_emit_open_flag_and_children()
+    {
+        var hop = new UiHop("h");
+        hop.Dialog(true, "Confirm", d => d.Text("Sure?").Button("OK", "done")).Toast("Saved");
+        var nodes = hop.Factories.Select(f => f(new Dictionary<string, string>())).ToList();
+        Assert.Equal(DigitalBrain.Core.Ui.Dialog, nodes[0].Type);
+        Assert.Equal(true, nodes[0].Props["open"]);
+        Assert.Equal("Confirm", nodes[0].Props["title"]);
+        Assert.Equal(2, nodes[0].Children!.Count);
+        Assert.Equal(DigitalBrain.Core.Ui.Toast, nodes[1].Type);
+        Assert.Equal("Saved", nodes[1].Props["message"]);
+    }
+
     private static UiWidgetTree FindByType(UiWidgetTree node, string type)
     {
         if (node.Type == type) return node;

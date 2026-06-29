@@ -270,6 +270,32 @@ public sealed class UiHop
         return this;
     }
 
+    public UiHop Dialog(bool open, string title, Action<UiHop> body)
+    {
+        var inner = new UiHop(Id);
+        body(inner);
+        Factories.Add(state => new UiWidgetTree(Ui.Dialog,
+            new Dictionary<string, object?> { ["open"] = open, ["title"] = title },
+            inner.Factories.Select(f => f(state)).ToList()));
+        return this;
+    }
+
+    public UiHop Sheet(bool open, string title, Action<UiHop> body)
+    {
+        var inner = new UiHop(Id);
+        body(inner);
+        Factories.Add(state => new UiWidgetTree(Ui.Sheet,
+            new Dictionary<string, object?> { ["open"] = open, ["title"] = title },
+            inner.Factories.Select(f => f(state)).ToList()));
+        return this;
+    }
+
+    public UiHop Toast(string message)
+    {
+        Factories.Add(_ => new UiWidgetTree(Ui.Toast, new Dictionary<string, object?> { ["message"] = message }));
+        return this;
+    }
+
     private static List<Dictionary<string, object?>> NavItems((string label, string goTo)[] items) =>
         items.Select(i => new Dictionary<string, object?> { ["label"] = i.label, ["eventName"] = i.goTo }).ToList();
 }

@@ -178,6 +178,9 @@ public static class Ui
     public const string Tooltip = "ui:Tooltip";
     public const string Sidebar = "ui:Sidebar";
     public const string BottomNav = "ui:BottomNav";
+    public const string Dialog = "ui:Dialog";
+    public const string Sheet = "ui:Sheet";
+    public const string Toast = "ui:Toast";
 }
 
 [GenerateSerializer]
