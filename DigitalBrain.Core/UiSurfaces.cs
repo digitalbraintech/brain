@@ -176,6 +176,8 @@ public static class Ui
     public const string Progress = "ui:Progress";
     public const string Spinner = "ui:Spinner";
     public const string Tooltip = "ui:Tooltip";
+    public const string Sidebar = "ui:Sidebar";
+    public const string BottomNav = "ui:BottomNav";
 }
 
 [GenerateSerializer]

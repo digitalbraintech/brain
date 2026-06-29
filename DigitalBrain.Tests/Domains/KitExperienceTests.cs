@@ -221,6 +221,17 @@ public class KitExperienceTests
             .Hop("one", s => s.Text("1")).Hop("two", s => s.Text("2"));
     }
 
+    [Fact]
+    public void Nav_b_nodes_emit_items()
+    {
+        var hop = new UiHop("h");
+        hop.Sidebar(("Home", "home"), ("Settings", "settings")).BottomNav(("A", "a"), ("B", "b"));
+        var nodes = hop.Factories.Select(f => f(new Dictionary<string, string>())).ToList();
+        Assert.Equal(DigitalBrain.Core.Ui.Sidebar, nodes[0].Type);
+        Assert.Equal(DigitalBrain.Core.Ui.BottomNav, nodes[1].Type);
+        Assert.Equal(2, ((IReadOnlyList<object>)nodes[0].Props["items"]!).Count);
+    }
+
     private static UiWidgetTree FindByType(UiWidgetTree node, string type)
     {
         if (node.Type == type) return node;

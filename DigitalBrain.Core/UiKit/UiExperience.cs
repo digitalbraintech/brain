@@ -249,6 +249,18 @@ public sealed class UiHop
         return this;
     }
 
+    public UiHop Sidebar(params (string label, string goTo)[] items)
+    {
+        Factories.Add(_ => new UiWidgetTree(Ui.Sidebar, new Dictionary<string, object?> { ["items"] = NavItems(items) }));
+        return this;
+    }
+
+    public UiHop BottomNav(params (string label, string goTo)[] items)
+    {
+        Factories.Add(_ => new UiWidgetTree(Ui.BottomNav, new Dictionary<string, object?> { ["items"] = NavItems(items) }));
+        return this;
+    }
+
     public UiHop Pagination(int pages, string goToPrefix)
     {
         var items = Enumerable.Range(0, pages)
