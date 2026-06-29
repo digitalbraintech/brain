@@ -52,6 +52,11 @@ public abstract class KitExperience : IPackBehavior
             var props = new Dictionary<string, object?>(node.Props) { ["pack"] = id, ["experienceId"] = id };
             node = node with { Props = props };
         }
+        if (node.Props.ContainsKey("items"))
+        {
+            var props = new Dictionary<string, object?>(node.Props) { ["pack"] = id, ["experienceId"] = id };
+            node = node with { Props = props };
+        }
         if (node.Children is { } children)
         {
             return node with { Children = children.Select(child => Inject(child, id)).ToList() };

@@ -199,6 +199,25 @@ public class KitExperienceTests
         Assert.Single(nodes[3].Children!);
     }
 
+    [Fact]
+    public void Nav_a_nodes_emit_items_and_are_stamped()
+    {
+        var pack = new NavStubPack();
+        var outputs = pack.Handle(new ExperienceStep("p", "p", "start", new Dictionary<string, string>()));
+        var tree = (UiWidgetTree)((UiSurface)outputs[0]).Props["tree"];
+        var tabs = FindByType(tree, DigitalBrain.Core.Ui.Tabs);
+        Assert.Equal("p", tabs.Props["pack"]);
+        var items = Assert.IsAssignableFrom<IReadOnlyList<object>>(tabs.Props["items"]);
+        Assert.Equal(2, items.Count);
+    }
+
+    private sealed class NavStubPack : KitExperience
+    {
+        protected override UiExperience Define() => Experience("p", "P")
+            .Hop("start", s => s.Tabs(("One", "one"), ("Two", "two")))
+            .Hop("one", s => s.Text("1")).Hop("two", s => s.Text("2"));
+    }
+
     private static UiWidgetTree FindByType(UiWidgetTree node, string type)
     {
         if (node.Type == type) return node;

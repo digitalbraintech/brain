@@ -236,4 +236,28 @@ public sealed class UiHop
             inner.Factories.Select(f => f(state)).ToList()));
         return this;
     }
+
+    public UiHop Tabs(params (string label, string goTo)[] items)
+    {
+        Factories.Add(_ => new UiWidgetTree(Ui.Tabs, new Dictionary<string, object?> { ["items"] = NavItems(items) }));
+        return this;
+    }
+
+    public UiHop Breadcrumb(params (string label, string goTo)[] items)
+    {
+        Factories.Add(_ => new UiWidgetTree(Ui.Breadcrumb, new Dictionary<string, object?> { ["items"] = NavItems(items) }));
+        return this;
+    }
+
+    public UiHop Pagination(int pages, string goToPrefix)
+    {
+        var items = Enumerable.Range(0, pages)
+            .Select(i => new Dictionary<string, object?> { ["label"] = (i + 1).ToString(), ["eventName"] = goToPrefix + i })
+            .ToList();
+        Factories.Add(_ => new UiWidgetTree(Ui.Pagination, new Dictionary<string, object?> { ["items"] = items }));
+        return this;
+    }
+
+    private static List<Dictionary<string, object?>> NavItems((string label, string goTo)[] items) =>
+        items.Select(i => new Dictionary<string, object?> { ["label"] = i.label, ["eventName"] = i.goTo }).ToList();
 }
