@@ -154,6 +154,10 @@ public static class Ui
     public const string Checkbox = "ui:Checkbox";
     public const string Switch = "ui:Switch";
     public const string TextArea = "ui:TextArea";
+    public const string Select = "ui:Select";
+    public const string RadioGroup = "ui:RadioGroup";
+    public const string Slider = "ui:Slider";
+    public const string DateField = "ui:DateField";
 }
 
 [GenerateSerializer]

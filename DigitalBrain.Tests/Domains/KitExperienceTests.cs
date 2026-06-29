@@ -111,4 +111,24 @@ public class KitExperienceTests
         Assert.Equal(DigitalBrain.Core.Ui.TextArea, nodes[2].Type);
         Assert.Equal("About you", nodes[2].Props["placeholder"]);
     }
+
+    [Fact]
+    public void Select_radio_slider_datefield_emit_input_nodes_with_options()
+    {
+        var hop = new UiHop("h");
+        hop.Select("color", new[] { "Red", "Green" }, "Color")
+           .RadioGroup("size", new[] { "S", "M", "L" })
+           .Slider("level", 0, 10, "Level")
+           .DateField("when", "When");
+        var nodes = hop.Factories.Select(f => f(new Dictionary<string, string>())).ToList();
+
+        Assert.Equal(DigitalBrain.Core.Ui.Select, nodes[0].Type);
+        Assert.Equal("color", nodes[0].Props["name"]);
+        var options = Assert.IsAssignableFrom<IReadOnlyList<string>>(nodes[0].Props["options"]);
+        Assert.Equal(new[] { "Red", "Green" }, options);
+        Assert.Equal(DigitalBrain.Core.Ui.RadioGroup, nodes[1].Type);
+        Assert.Equal(DigitalBrain.Core.Ui.Slider, nodes[2].Type);
+        Assert.Equal(10.0, nodes[2].Props["max"]);
+        Assert.Equal(DigitalBrain.Core.Ui.DateField, nodes[3].Type);
+    }
 }

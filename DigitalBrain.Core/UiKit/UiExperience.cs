@@ -86,4 +86,40 @@ public sealed class UiHop
             new Dictionary<string, object?> { ["name"] = name, ["placeholder"] = placeholder }));
         return this;
     }
+
+    public UiHop Select(string name, IReadOnlyList<string> options, string? label = null)
+    {
+        Factories.Add(_ => new UiWidgetTree(Ui.Select, new Dictionary<string, object?>
+        {
+            ["name"] = name, ["options"] = options, ["label"] = label ?? string.Empty
+        }));
+        return this;
+    }
+
+    public UiHop RadioGroup(string name, IReadOnlyList<string> options, string? label = null)
+    {
+        Factories.Add(_ => new UiWidgetTree(Ui.RadioGroup, new Dictionary<string, object?>
+        {
+            ["name"] = name, ["options"] = options, ["label"] = label ?? string.Empty
+        }));
+        return this;
+    }
+
+    public UiHop Slider(string name, double min = 0, double max = 1, string? label = null)
+    {
+        Factories.Add(_ => new UiWidgetTree(Ui.Slider, new Dictionary<string, object?>
+        {
+            ["name"] = name, ["min"] = min, ["max"] = max, ["label"] = label ?? string.Empty
+        }));
+        return this;
+    }
+
+    public UiHop DateField(string name, string? label = null)
+    {
+        Factories.Add(_ => new UiWidgetTree(Ui.DateField, new Dictionary<string, object?>
+        {
+            ["name"] = name, ["label"] = label ?? string.Empty
+        }));
+        return this;
+    }
 }
