@@ -20,6 +20,58 @@ public sealed class HelloWorldExperience : KitExperience
 """;
 
 
+    public const string UiGalleryPackCode = """
+using System.Collections.Generic;
+using DigitalBrain.Core;
+
+public sealed class UiGalleryExperience : KitExperience
+{
+    protected override UiExperience Define() => Experience("ui-gallery", "UI Kit Gallery")
+        .Hop("inputs", s => Nav(s)
+            .Heading("Inputs")
+            .Panel(p => p.Text("TextField").TextField("name", "Your name"))
+            .Panel(p => p.Text("Checkbox").Checkbox("agree", "I agree"))
+            .Panel(p => p.Text("Switch").Switch("notify", "Notify me"))
+            .Panel(p => p.Text("TextArea").TextArea("bio", "About you"))
+            .Panel(p => p.Text("Select").Select("color", new List<string> { "Red", "Green", "Blue" }, "Color"))
+            .Panel(p => p.Text("RadioGroup").RadioGroup("size", new List<string> { "S", "M", "L" }))
+            .Panel(p => p.Text("Slider").Slider("level", 0, 10, "Level"))
+            .Panel(p => p.Text("DateField").DateField("when", "When"))
+            .Button("Next: Display", "display"))
+        .Hop("display", s => Nav(s)
+            .Heading("Display")
+            .Panel(p => p.Heading("Heading widget").Text("Body text here").Badge("New"))
+            .Panel(p => p.Icon("star").Avatar(fallback: "AB"))
+            .Panel(p => p.List(l => l.Tile("First item", "subtitle A").Tile("Second item", "subtitle B")))
+            .Panel(p => p.Row(r => r.Text("Row item A").Divider().Text("Row item B")))
+            .Panel(p => p.Column(c => c.Gap(8).Header("Section").Gap(4).Text("Under header"))))
+        .Hop("feedback", s => Nav(s)
+            .Heading("Feedback")
+            .Panel(p => p.Alert("Heads up", "an inline alert"))
+            .Panel(p => p.Progress(0.6))
+            .Panel(p => p.Spinner())
+            .Panel(p => p.Tooltip("hint text", t => t.Text("hover me"))))
+        .Hop("navigation", s => Nav(s)
+            .Heading("Navigation")
+            .Panel(p => p.Tabs(("Tab A", "inputs"), ("Tab B", "display")))
+            .Panel(p => p.Breadcrumb(("Home", "inputs"), ("Gallery", "navigation")))
+            .Panel(p => p.Pagination(3, "page-"))
+            .Panel(p => p.BottomNav(("Home", "inputs"), ("Display", "display"), ("More", "feedback"))))
+        .Hop("overlays", s => Nav(s)
+            .Heading("Overlays")
+            .Panel(p => p.Dialog(false, "Sample Dialog", d => d.Text("Dialog content.").Button("Close", "overlays")))
+            .Panel(p => p.Sheet(false, "Sample Sheet", sh => sh.Text("Sheet content.")))
+            .Toast("Hello from the gallery"));
+
+    private static UiHop Nav(UiHop s) => s.Sidebar(
+        ("Inputs", "inputs"),
+        ("Display", "display"),
+        ("Feedback", "feedback"),
+        ("Navigation", "navigation"),
+        ("Overlays", "overlays"));
+}
+""";
+
     public static IReadOnlyList<NeuroPack> LocalUiPacks { get; } =
     [
         new NeuroPack(
@@ -94,6 +146,15 @@ public sealed class HelloWorldExperience : KitExperience
             0.0,
             HelloWorldPackCode,
             "Hello World — the smallest ui: kit app: enter your name, press Greet, see a greeting."),
+
+        new NeuroPack(
+            "ui-gallery",
+            "1.0.0",
+            "digitalbraintech",
+            false,
+            0.0,
+            UiGalleryPackCode,
+            "Browse every ui: component in one place."),
 
         // Dummy for dev testing of full typed-C# behavior pack flow (packaging + publish + share + install + embody).
         new NeuroPack(

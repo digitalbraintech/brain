@@ -246,6 +246,21 @@ public class KitExperienceTests
         Assert.Equal("Saved", nodes[1].Props["message"]);
     }
 
+    [Fact]
+    public void UiGallery_pack_source_is_present_and_explicit_usings()
+    {
+        var code = DigitalBrain.Tests.E2E.Packs.UiGalleryPackSource.Code;
+        Assert.Contains("using DigitalBrain.Core;", code);
+        Assert.Contains(": KitExperience", code);
+        Assert.DoesNotContain("\\\"", code);
+    }
+
+    [Fact]
+    public void Seeds_include_ui_gallery_pack()
+    {
+        Assert.Contains(MarketplaceSeeds.LocalUiPacks, p => p.Name == "ui-gallery");
+    }
+
     private static UiWidgetTree FindByType(UiWidgetTree node, string type)
     {
         if (node.Type == type) return node;
