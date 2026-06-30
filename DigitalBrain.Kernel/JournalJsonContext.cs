@@ -102,6 +102,7 @@ namespace DigitalBrain.Kernel;
 [JsonSerializable(typeof(GitReverted))]
 // Distribution / embodiment
 [JsonSerializable(typeof(PackEmission))]
+[JsonSerializable(typeof(ConfigurationProvided))]
 // Company brain knowledge + skills (ingest, crystallize, refund vertical outcomes)
 [JsonSerializable(typeof(IngestCompanySource))]
 [JsonSerializable(typeof(CompanySourceIngested))]
