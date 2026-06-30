@@ -2,6 +2,7 @@ using System.IO;
 using DigitalBrain.Core;
 using DigitalBrain.Kernel;
 using DigitalBrain.Kernel.Company;
+using DigitalBrain.Kernel.Config;
 using DigitalBrain.Kernel.Foundry;
 using DigitalBrain.Kernel.Llm;
 using DigitalBrain.Kernel.Ui;
@@ -86,12 +87,17 @@ if (isAspireHosted)
 
     builder.AddKeyedAzureTableServiceClient(clusteringServiceKey);
     builder.AddKeyedAzureBlobServiceClient(grainStorageServiceKey);
+
+    // Non-keyed BlobServiceClient from grain storage for pack-config key ring persistence and blob backing.
+    // Uses the same Azurite account as grain state but stores in a separate "pack-config" container.
+    builder.AddAzureBlobServiceClient("grainstate");
 }
 
 builder.Services.AddDigitalBrainChat(builder.Configuration);
 builder.Services.AddKernelSecurity(builder.Configuration, builder.Environment);
 builder.Services.AddEconomics(builder.Configuration);
 builder.Services.AddContextStore(builder.Configuration);
+builder.Services.AddPackConfigStore();
 builder.Services.AddSingleton<ProcessCrystallizer>(sp => new ProcessCrystallizer(sp.GetService<IChatClient>()));
 builder.Services.AddSingleton<SkillPackSynthesizer>();
 
