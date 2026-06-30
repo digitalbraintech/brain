@@ -19,6 +19,10 @@ public sealed class TelegramTransportOptions
     // Tests point this at an in-process fake server to pin the wire contract.
     public string ApiServerAddress { get; set; } = string.Empty;
 
-    // The pack whose ConfigurationProvided events carry this transport's token.
+    // The marketplace pack whose stored config carries this transport's token. A PackConfigured
+    // notification for this pack triggers a point-to-point GetPackConfig pull of the (decrypted) token.
     public string PackName { get; set; } = "TelegramResponderNeuron";
+
+    // The config scope to pull. Matches the gateway's ConfigurationProvided scope (default "default").
+    public string ConfigScope { get; set; } = "default";
 }

@@ -16,6 +16,10 @@ public sealed class SynapseStreamConsumer(
     {
         await webhookSetup.RegisterAsync(stoppingToken);
 
+        // Pull once at startup in case config already exists (we may have booted after the form was submitted).
+        // This sets the token + webhook point-to-point without waiting for a PackConfigured notification.
+        await dispatcher.PullConfigAndApplyAsync(stoppingToken);
+
         while (!stoppingToken.IsCancellationRequested)
         {
             try

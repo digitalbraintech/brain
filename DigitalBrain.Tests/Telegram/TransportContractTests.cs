@@ -88,7 +88,8 @@ public sealed class TransportContractTests
             Microsoft.Extensions.Options.Options.Create(options),
             NullLogger<Transport.TelegramWebhookSetup>.Instance);
         var dispatcher = new Transport.TelegramReplyDispatcher(
-            accessor, webhookSetup, options, NullLogger<Transport.TelegramReplyDispatcher>.Instance);
+            accessor, webhookSetup, new RecordingGatewayClient(), options,
+            NullLogger<Transport.TelegramReplyDispatcher>.Instance);
 
         var reply = new SynapseEnvelope
         {
@@ -104,6 +105,50 @@ public sealed class TransportContractTests
         Assert.Equal("yo", call.Body!["text"]!.GetValue<string>());
     }
 
+    // Task 7b store-and-PULL: a PackConfigured notification for this transport's pack drives a point-to-point
+    // GetPackConfig pull; the token comes from that RPC reply (never a broadcast) and is used to set the webhook.
+    [Fact]
+    public async Task PackConfigured_PullsTokenViaGetPackConfig_AndSetsWebhook()
+    {
+        await using var telegram = await FakeTelegramServer.StartAsync();
+
+        var options = new Transport.TelegramTransportOptions
+        {
+            BotToken = string.Empty, // no token at boot — it must be pulled
+            ApiServerAddress = telegram.BaseUrl,
+            WebhookUrl = "https://example.test",
+            PackName = "TelegramResponderNeuron",
+            ConfigScope = "default",
+        };
+        var accessor = new Transport.TelegramBotAccessor(options);
+        var webhookSetup = new Transport.TelegramWebhookSetup(
+            accessor,
+            new SingleClientHttpFactory(),
+            Microsoft.Extensions.Options.Options.Create(options),
+            NullLogger<Transport.TelegramWebhookSetup>.Instance);
+        var gateway = new ConfigPullGatewayClient(new Dictionary<string, string> { ["telegram_token"] = "123:ABC" });
+        var dispatcher = new Transport.TelegramReplyDispatcher(
+            accessor, webhookSetup, gateway, options, NullLogger<Transport.TelegramReplyDispatcher>.Instance);
+
+        Assert.False(accessor.HasToken); // nothing to send with yet
+
+        var notify = new SynapseEnvelope
+        {
+            TypeName = "PackConfigured",
+            Payload = ByteString.CopyFrom(JsonSerializer.SerializeToUtf8Bytes(
+                new { pack = "TelegramResponderNeuron", scope = "default" })),
+        };
+        await dispatcher.DispatchAsync(notify);
+
+        // The token was obtained via the GetPackConfig RPC (point-to-point), NOT from the broadcast payload.
+        Assert.Equal(1, gateway.GetPackConfigCalls);
+        Assert.True(accessor.HasToken);
+
+        var call = await telegram.WaitForMethodAsync("setWebhook", TimeSpan.FromSeconds(8));
+        Assert.NotNull(call);
+        Assert.Contains("https://example.test/webhook", call!.Body!["url"]!.GetValue<string>());
+    }
+
     private sealed class RecordingGatewayClient : DigitalBrainGateway.DigitalBrainGatewayClient
     {
         public List<SynapseEnvelope> Sent { get; } = new();
@@ -114,6 +159,29 @@ public sealed class TransportContractTests
             Sent.Add(request);
             return new AsyncUnaryCall<SynapseEnvelope>(
                 Task.FromResult(request),
+                Task.FromResult(new Metadata()),
+                () => Status.DefaultSuccess,
+                () => new Metadata(),
+                () => { });
+        }
+    }
+
+    // Fake gateway that returns config only via the GetPackConfig RPC — so a test asserting the token was
+    // obtained here (and not from a broadcast) is meaningful.
+    private sealed class ConfigPullGatewayClient(IReadOnlyDictionary<string, string> values)
+        : DigitalBrainGateway.DigitalBrainGatewayClient
+    {
+        public int GetPackConfigCalls { get; private set; }
+
+        public override AsyncUnaryCall<TransportAssembly::DigitalBrain.Runtime.Grpc.PackConfigReply> GetPackConfigAsync(
+            TransportAssembly::DigitalBrain.Runtime.Grpc.GetPackConfigRequest request, CallOptions options)
+        {
+            GetPackConfigCalls++;
+            var reply = new TransportAssembly::DigitalBrain.Runtime.Grpc.PackConfigReply();
+            foreach (var (k, v) in values)
+                reply.Values[k] = v;
+            return new AsyncUnaryCall<TransportAssembly::DigitalBrain.Runtime.Grpc.PackConfigReply>(
+                Task.FromResult(reply),
                 Task.FromResult(new Metadata()),
                 () => Status.DefaultSuccess,
                 () => new Metadata(),

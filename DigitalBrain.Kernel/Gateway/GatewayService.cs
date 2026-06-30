@@ -91,6 +91,18 @@ public sealed class GatewayService(
 
                 await packConfigStore.SetAsync(scope, pack, values);
                 logger.LogInformation("Stored configuration for pack {Pack} ({FieldCount} fields).", pack, values.Count);
+
+                // Non-secret notification only: subscribers learn config changed and re-PULL the values
+                // point-to-point via GetPackConfig. The stored values (which may be secrets) are NOT broadcast.
+                var notifyKey = string.IsNullOrWhiteSpace(request.CorrelationId)
+                    ? $"pack-configured-{scope}-{pack}"
+                    : request.CorrelationId;
+                var notifyIngress = grains.GetGrain<IIngressNeuron>(notifyKey);
+                await notifyIngress.IngestAsync("PackConfigured", new Dictionary<string, object?>
+                {
+                    ["pack"] = pack,
+                    ["scope"] = scope
+                });
                 return request;
             }
 
@@ -198,6 +210,22 @@ public sealed class GatewayService(
                     System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(signal.Props))
             });
         }
+    }
+
+    // Point-to-point pull of a pack's decrypted config over the internal gRPC channel. Same trust level as the
+    // startup env param — the secret travels here, never on the broadcast timeline/egress. Values are NOT logged.
+    public override async Task<PackConfigReply> GetPackConfig(GetPackConfigRequest request, ServerCallContext context)
+    {
+        if (packConfigStore is null)
+            throw new RpcException(new Status(StatusCode.FailedPrecondition, "Pack config store is not configured."));
+
+        var scope = string.IsNullOrWhiteSpace(request.Scope) ? "default" : request.Scope;
+        var values = await packConfigStore.GetAsync(scope, request.Pack);
+
+        var reply = new PackConfigReply();
+        foreach (var (key, value) in values)
+            reply.Values[key] = value;
+        return reply;
     }
 
     // Surface-action payloads arrive from both Flutter (camelCase) and test/native callers (PascalCase).

@@ -7,20 +7,22 @@ namespace DigitalBrain.Telegram.Transport;
 
 // Outbound half of the transport: turns broadcast Signals streamed from the
 // brain's WatchSynapses into Telegram API calls.
-//   TelegramReplyRequested  -> sendMessage(chatId, text)
-//   ConfigurationProvided   -> adopt the token + (re)register the webhook
-// Each Signal arrives as a SynapseEnvelope whose Payload is UTF-8 JSON of the
-// Signal props.
+//   TelegramReplyRequested -> sendMessage(chatId, text)
+//   PackConfigured         -> point-to-point GetPackConfig pull of the token, then (re)register the webhook
+// The token is NEVER carried on the broadcast — PackConfigured only names the pack/scope that changed, and the
+// transport pulls the secret over the internal gRPC channel. Each Signal arrives as a SynapseEnvelope whose
+// Payload is UTF-8 JSON of the Signal props.
 public sealed class TelegramReplyDispatcher(
     TelegramBotAccessor botAccessor,
     TelegramWebhookSetup webhookSetup,
+    DigitalBrainGateway.DigitalBrainGatewayClient gateway,
     TelegramTransportOptions options,
     ILogger<TelegramReplyDispatcher> logger)
 {
     public const string ReplyRequestedType = "TelegramReplyRequested";
-    public const string ConfigurationProvidedType = "ConfigurationProvided";
+    public const string PackConfiguredType = "PackConfigured";
 
-    public IReadOnlyList<string> WatchedTypes => new[] { ReplyRequestedType, ConfigurationProvidedType };
+    public IReadOnlyList<string> WatchedTypes => new[] { ReplyRequestedType, PackConfiguredType };
 
     public async Task DispatchAsync(SynapseEnvelope envelope, CancellationToken ct = default)
     {
@@ -31,13 +33,38 @@ public sealed class TelegramReplyDispatcher(
             case ReplyRequestedType:
                 await SendReplyAsync(props, ct);
                 break;
-            case ConfigurationProvidedType:
-                await ApplyConfigurationAsync(props, ct);
+            case PackConfiguredType:
+                await OnPackConfiguredAsync(props, ct);
                 break;
             default:
                 logger.LogDebug("Ignoring unwatched synapse {TypeName}", envelope.TypeName);
                 break;
         }
+    }
+
+    // Pull the token for this transport's pack/scope and adopt it. Used both on a PackConfigured notification
+    // and once at startup (config may already exist). No-op when no token is stored yet.
+    public async Task PullConfigAndApplyAsync(CancellationToken ct = default)
+    {
+        PackConfigReply reply;
+        try
+        {
+            reply = await gateway.GetPackConfigAsync(
+                new GetPackConfigRequest { Scope = options.ConfigScope, Pack = options.PackName },
+                cancellationToken: ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "GetPackConfig pull failed for pack {Pack}", options.PackName);
+            return;
+        }
+
+        if (!reply.Values.TryGetValue("telegram_token", out var token) || string.IsNullOrWhiteSpace(token))
+            return;
+
+        botAccessor.SetToken(token);
+        logger.LogInformation("Adopted Telegram token pulled for pack {Pack}; re-registering webhook.", options.PackName);
+        await webhookSetup.RegisterAsync(ct);
     }
 
     private async Task SendReplyAsync(IReadOnlyDictionary<string, JsonElement> props, CancellationToken ct)
@@ -69,24 +96,18 @@ public sealed class TelegramReplyDispatcher(
         }
     }
 
-    private async Task ApplyConfigurationAsync(IReadOnlyDictionary<string, JsonElement> props, CancellationToken ct)
+    private async Task OnPackConfiguredAsync(IReadOnlyDictionary<string, JsonElement> props, CancellationToken ct)
     {
         var pack = props.TryGetValue("pack", out var packEl) ? packEl.GetString()
                  : props.TryGetValue("packName", out var nameEl) ? nameEl.GetString()
                  : null;
         if (!string.IsNullOrEmpty(pack) && !string.Equals(pack, options.PackName, StringComparison.OrdinalIgnoreCase))
         {
-            logger.LogDebug("ConfigurationProvided for pack {Pack} is not for this transport ({Own})", pack, options.PackName);
+            logger.LogDebug("PackConfigured for pack {Pack} is not for this transport ({Own})", pack, options.PackName);
             return;
         }
 
-        var token = props.TryGetValue("telegram_token", out var tokenEl) ? tokenEl.GetString() : null;
-        if (string.IsNullOrWhiteSpace(token))
-            return;
-
-        botAccessor.SetToken(token);
-        logger.LogInformation("Adopted Telegram token from ConfigurationProvided; re-registering webhook.");
-        await webhookSetup.RegisterAsync(ct);
+        await PullConfigAndApplyAsync(ct);
     }
 
     private static IReadOnlyDictionary<string, JsonElement> ReadProps(SynapseEnvelope envelope)
