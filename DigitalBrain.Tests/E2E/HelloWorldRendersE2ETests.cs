@@ -1,3 +1,4 @@
+using DigitalBrain.Core;
 using DigitalBrain.Tests.E2E.Packs;
 using Xunit;
 
@@ -14,15 +15,15 @@ public sealed class HelloWorldRendersE2ETests(DigitalBrainBrowserFixture fixture
     {
         E2EPrerequisites.RequireRenderE2E();
 
-        var driver = new ExperienceFlowDriver(_fx, pack: "hello-world", experienceId: "hello-world");
+        var driver = new LiveRenderVerifier(_fx, pack: "hello-world", experienceId: "hello-world");
         await driver.PublishAndInstallAsync(HelloWorldPackSource.Code, description: "Hello World experience");
         await driver.OpenAsync();
 
-        await driver.TriggerExperienceAsync();
-        await driver.AssertHopRendersAsync("ask");
+        await driver.SendUserActionAsync("start");
+        await driver.AssertSurfaceRenderedAsync(MarketplaceSeeds.HelloWorldHops.Ask);
 
-        await driver.TapAsync("greeting", ("name", "Alice"));
-        await driver.AssertHopRendersAsync("greeting");
+        await driver.SendUserActionAsync(MarketplaceSeeds.HelloWorldHops.Greeting, ("name", "Alice"));
+        await driver.AssertSurfaceRenderedAsync(MarketplaceSeeds.HelloWorldHops.Greeting);
 
         await _fx.Page.Locator("text=Hello Alice!").WaitForAsync(new() { Timeout = 30_000 });
     }

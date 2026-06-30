@@ -16,23 +16,23 @@ public sealed class UiGalleryRendersE2ETests(DigitalBrainBrowserFixture fixture)
 
         // No explicit install: ui-gallery is a preinstalled local seed shown in the installer, so opening it
         // must start the experience directly (it is embodied lazily from the seed catalog on first use).
-        var driver = new ExperienceFlowDriver(_fx, pack: "ui-gallery", experienceId: "ui-gallery");
-        await driver.OpenAsync();
+        var verifier = new LiveRenderVerifier(_fx, pack: "ui-gallery", experienceId: "ui-gallery");
+        await verifier.OpenAsync();
 
         // Client auto-starts the experience for the preinstalled gallery seed
-        await driver.AssertHopRendersAsync(DigitalBrain.Core.MarketplaceSeeds.UiGalleryHops.Inputs);
+        await verifier.AssertSurfaceRenderedAsync(DigitalBrain.Core.MarketplaceSeeds.UiGalleryHops.Inputs);
 
-        await driver.TapAsync(DigitalBrain.Core.MarketplaceSeeds.UiGalleryHops.Display);
-        await driver.AssertHopRendersAsync(DigitalBrain.Core.MarketplaceSeeds.UiGalleryHops.Display);
+        await verifier.SendUserActionAsync(DigitalBrain.Core.MarketplaceSeeds.UiGalleryHops.Display);
+        await verifier.AssertSurfaceRenderedAsync(DigitalBrain.Core.MarketplaceSeeds.UiGalleryHops.Display);
 
-        await driver.TapAsync(DigitalBrain.Core.MarketplaceSeeds.UiGalleryHops.Feedback);
-        await driver.AssertHopRendersAsync(DigitalBrain.Core.MarketplaceSeeds.UiGalleryHops.Feedback);
+        await verifier.SendUserActionAsync(DigitalBrain.Core.MarketplaceSeeds.UiGalleryHops.Feedback);
+        await verifier.AssertSurfaceRenderedAsync(DigitalBrain.Core.MarketplaceSeeds.UiGalleryHops.Feedback);
 
-        await driver.TapAsync(DigitalBrain.Core.MarketplaceSeeds.UiGalleryHops.Navigation);
-        await driver.AssertHopRendersAsync(DigitalBrain.Core.MarketplaceSeeds.UiGalleryHops.Navigation);
+        await verifier.SendUserActionAsync(DigitalBrain.Core.MarketplaceSeeds.UiGalleryHops.Navigation);
+        await verifier.AssertSurfaceRenderedAsync(DigitalBrain.Core.MarketplaceSeeds.UiGalleryHops.Navigation);
 
-        await driver.TapAsync(DigitalBrain.Core.MarketplaceSeeds.UiGalleryHops.Overlays);
-        await driver.AssertHopRendersAsync(DigitalBrain.Core.MarketplaceSeeds.UiGalleryHops.Overlays);
+        await verifier.SendUserActionAsync(DigitalBrain.Core.MarketplaceSeeds.UiGalleryHops.Overlays);
+        await verifier.AssertSurfaceRenderedAsync(DigitalBrain.Core.MarketplaceSeeds.UiGalleryHops.Overlays);
     }
 
     [SkippableFact]
@@ -42,9 +42,9 @@ public sealed class UiGalleryRendersE2ETests(DigitalBrainBrowserFixture fixture)
 
         // Reproduces the real desktop flow: the ExperienceHostScreen must auto-fire ExperienceStep(start)
         // itself (no test-sent step), then the first hop must render.
-        var driver = new ExperienceFlowDriver(_fx, pack: "ui-gallery", experienceId: "ui-gallery");
-        await driver.OpenAsync();
+        var verifier = new LiveRenderVerifier(_fx, pack: "ui-gallery", experienceId: "ui-gallery");
+        await verifier.OpenAsync();
 
-        await driver.AssertHopRendersAsync(DigitalBrain.Core.MarketplaceSeeds.UiGalleryHops.Inputs);
+        await verifier.AssertSurfaceRenderedAsync(DigitalBrain.Core.MarketplaceSeeds.UiGalleryHops.Inputs);
     }
 }
