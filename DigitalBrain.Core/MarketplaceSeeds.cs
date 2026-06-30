@@ -19,6 +19,23 @@ public sealed class HelloWorldExperience : KitExperience
 }
 """;
 
+public const string SimpleColorPickerPackCode = """
+using System.Collections.Generic;
+using DigitalBrain.Core;
+
+public sealed class SimpleColorPickerExperience : KitExperience
+{
+    protected override UiExperience Define() => Experience("simple-color-picker", "Simple Color Picker")
+        .Hop("choose", s => s
+            .Text("Pick your favorite color")
+            .Select("color", new List<string> { "Red", "Green", "Blue" }, "Color")
+            .Button("Show result", "result"))
+        .Hop("result", s => s
+            .Text(state => "You chose: " + (state.GetValueOrDefault("color") ?? "none"))
+            .Button("Choose again", "choose"));
+}
+""";
+
 
     public const string UiGalleryPackCode = """
 using System.Collections.Generic;
@@ -146,6 +163,15 @@ public sealed class UiGalleryExperience : KitExperience
             0.0,
             HelloWorldPackCode,
             "Hello World — the smallest ui: kit app: enter your name, press Greet, see a greeting."),
+
+        new NeuroPack(
+            "simple-color-picker",
+            "1.0.0",
+            "digitalbraintech",
+            false,
+            0.0,
+            SimpleColorPickerPackCode,
+            "Simple interactive example: pick a color with select, see result using state in text. Demonstrates basic ui: kit experience flow."),
 
         new NeuroPack(
             "ui-gallery",

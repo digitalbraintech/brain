@@ -184,6 +184,54 @@ All rituals: dotnet build/test targeted, aspire doctor, flutter analyze, relativ
 
 Plan updated live.
 
+### Brainstorm & Focus: Loop All UI Kit Dev in Fast E2E Surface Cycle
+
+To accelerate neuron/synapse UI (the whole point of the kit), make development a tight closed loop driven by running E2E tests constantly and verifying results immediately.
+
+This can speed "fast ui surface e2e tests".
+
+Current good base (from research):
+- Dedicated E2E like UiGalleryRendersE2ETests (the ui kit demo via KitExperience), PackEmbodimentRenders, using ExperienceFlowDriver: navigate to experience url, send steps, assert [flt-semantics-identifier], screenshot + dump on fail.
+- Uses real gRPC, embody, WatchHomeFeed, RFW render.
+- Configurable replicas=1, skippable, web bundle prereq.
+- Contract + widget tests are already the "fast" layer.
+
+Brainstorm for the cycle (all dev happens by running/verifying these):
+- **Tiered fast loop**:
+  1. Change C# (UiWidgetTree emission, helper, KitExperience) or Dart (renderer switch, ui_kit widget, ForUI integration).
+  2. Quick: dotnet build (Core/Kernel) + flutter analyze/test (ui_kit + rfw_host) -- seconds.
+  3. Mid: run contract tests + specific widget test for the tree node.
+  4. Full surface verify: set FAST_UI_E2E=1 RUN_FLUTTER_E2E=true (or use prebuilt), dotnet test --filter "*UiGalleryRendersE2ETests*" (or specific fact). Assert hop, semantics, result.
+  5. If using aspire run: after change use MCP execute_resource_command to restart flutter-ui (for dart hot) or kernel, then re-run test or drive browser.
+  6. Verify results: test output (pass/fail), no failure dump, semantics count==1, screenshot artifact if wanted. Agent parses and reports.
+  7. Repeat. This makes E2E the living verification for every UI kit change.
+
+- Speed ups (some implemented):
+  - FAST_UI_E2E=1 shortens waits in driver (8s vs 30s) -- added.
+  - Default E2E to 1 replica.
+  - Targeted filters only UI facts.
+  - Prefer semantics locator (fast) over heavy visual.
+  - On fail, rich dump already there for quick debug.
+  - Use asp ire MCP for targeted restarts instead of full restart.
+  - For pure renderer: the widget tests can mock the tree from "neuron" without full pack.
+  - Future: lighter fixture for "ui-surface-only" (no unnecessary resources), golden snapshots for trees, integrate dart MCP get_widget_tree for live inspection.
+  - Watch mode: pwsh script or in loop: on file change auto build + test the filter.
+
+- Benefits for this project:
+  - Ensures "everything neuron or synapse" UI always works in real client (RFW + ForUI + gRPC).
+  - Fast iteration on the kit (Menu, Header, experiences, new ui: nodes) without manual browser clicks.
+  - Aligns with BDD (the feature files/tests are specs).
+  - With constant agent verification, changes are proven before "commit".
+  - Can evolve UiGalleryPackSource as the canonical "ui kit test pack".
+
+- Risks/mitigations: E2E still heavier than pure unit -- use as outer loop; keep inner fast tests green always. Prereqs (bundle) -- document in plan.
+
+Implemented as part of this: the FAST support + this section. Tests (client) re-ran green after fixes.
+
+This is the way to make UI surface dev fast while staying true to the neuron/synapse model. 
+
+Use `FAST_UI_E2E=1` + targeted test filter for the loop. Update E2E when adding kit features.
+
 **Prioritization principle (Musk + project rules):**
 Delete / simplify first (remaining loose paths and legacy), then accelerate (tests + live MCP), then high-value features (theme).
 

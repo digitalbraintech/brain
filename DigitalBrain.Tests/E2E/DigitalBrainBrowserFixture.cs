@@ -3,9 +3,25 @@ using Xunit;
 
 namespace DigitalBrain.Tests.E2E;
 
-/// Extends the AppHost fixture with a real Chromium (Playwright) page.
-/// Local runs are headed so you can watch the Flutter UI render live when packs embody and stream RfwCards.
-/// CI (CI=true) forces headless.
+/// <summary>
+/// Provides a real running Flutter web app (inside a Chromium via Playwright) against
+/// the full DigitalBrain stack (Aspire + kernels + gateway).
+///
+/// This fixture exists **only** for live rendering verification:
+/// - Does the RFW + UiSurfaceTreeRenderer + ui_kit actually produce visible, accessible widgets?
+/// - Do screenshots / semantics look correct?
+///
+/// User actions (button taps, form submits) are sent as <see cref="ExperienceStep"/> synapses
+/// (via <see cref="LiveRenderVerifier"/> / <see cref="ExperienceFlowDriver"/>).
+/// This is intentional and correct for a neuron/synapse architecture.
+///
+/// For fast iteration use:
+/// - <see cref="ExperienceTestHarness{T}"/> (in-memory model + tree assertions)
+/// - Flutter widget tests against the renderer
+/// - The existing KitExperience unit tests
+///
+/// Only bring up this fixture when you need end-to-end visual + stack confirmation.
+/// </summary>
 public class DigitalBrainBrowserFixture : DigitalBrainAppHostFixture
 {
     public IPlaywright Playwright { get; private set; } = null!;
@@ -15,7 +31,7 @@ public class DigitalBrainBrowserFixture : DigitalBrainAppHostFixture
     public override async Task InitializeAsync()
     {
         await base.InitializeAsync();
-        if (App is null) return; // base skipped boot (prereqs absent)
+        if (App is null) return;
 
         Playwright = await Microsoft.Playwright.Playwright.CreateAsync();
 
@@ -37,9 +53,6 @@ public class DigitalBrainBrowserFixture : DigitalBrainAppHostFixture
         });
 
         Page = await context.NewPageAsync();
-
-        // Navigation is performed by the test when ready (after pack install etc.).
-        // This keeps fixture init fast and robust even if the web UI resource isn't serving pages yet.
     }
 
     public override async Task DisposeAsync()
