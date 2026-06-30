@@ -69,7 +69,7 @@ public sealed class GatewayService(
 
             // A submitted config form round-trips here. Persist the field values for the pack via the encrypted
             // config store. The values may include secrets, so they are NEVER logged.
-            if (request.TypeName == nameof(ConfigurationProvided) || request.TypeName.Contains("ConfigurationProvided", StringComparison.OrdinalIgnoreCase))
+            if (request.TypeName == nameof(ConfigurationProvided))
             {
                 if (packConfigStore is null)
                     throw new RpcException(new Status(StatusCode.FailedPrecondition, "Pack config store is not configured."));
