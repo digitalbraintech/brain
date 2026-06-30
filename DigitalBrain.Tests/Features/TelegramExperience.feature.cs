@@ -107,7 +107,7 @@ namespace DigitalBrain.Tests.Features
         
         private static global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages InitializeCucumberMessages()
         {
-            return new global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages("Features/TelegramExperience.feature.ndjson", 3);
+            return new global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages("Features/TelegramExperience.feature.ndjson", 4);
         }
         
         async global::System.Threading.Tasks.Task global::Xunit.IAsyncLifetime.InitializeAsync()
@@ -180,6 +180,63 @@ namespace DigitalBrain.Tests.Features
 #line 12
   await testRunner.ThenAsync("the pack config store returns token \"tok-123\", provider \"openai\", key \"sk-secret\"" +
                         "", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
+        
+        [global::Xunit.SkippableFactAttribute(DisplayName="Full reactive loop - an inbound message round-trips through the pack and the stub" +
+            "bed LLM to an egress reply")]
+        [global::Xunit.TraitAttribute("FeatureTitle", "Pack config form on install (Slice 2 - config-driven experience)")]
+        [global::Xunit.TraitAttribute("Description", "Full reactive loop - an inbound message round-trips through the pack and the stub" +
+            "bed LLM to an egress reply")]
+        [global::Xunit.TraitAttribute("Category", "distribution")]
+        [global::Xunit.TraitAttribute("Category", "e2e")]
+        public async global::System.Threading.Tasks.Task FullReactiveLoop_AnInboundMessageRound_TripsThroughThePackAndTheStubbedLLMToAnEgressReply()
+        {
+            string[] tagsOfScenario = new string[] {
+                    "distribution",
+                    "e2e"};
+            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
+            string pickleIndex = "1";
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("Full reactive loop - an inbound message round-trips through the pack and the stub" +
+                    "bed LLM to an egress reply", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            string[] tagsOfRule = ((string[])(null));
+            global::Reqnroll.RuleInfo ruleInfo = null;
+#line 15
+ this.ScenarioInitialize(scenarioInfo, ruleInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                await testRunner.SkipScenarioAsync();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 16
+  await testRunner.GivenAsync("the Telegram responder experience is installed", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
+#line hidden
+#line 17
+  await testRunner.ThenAsync("the install emits a config form whose tree contains the fields \"telegram_token\", " +
+                        "\"llm_provider\", \"llm_key\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+#line 18
+  await testRunner.WhenAsync("I provide the Telegram configuration token \"tok-123\", provider \"openai\", key \"sk-" +
+                        "secret\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+#line 19
+  await testRunner.AndAsync("the LLM responder is active and the egress bus is watching \"TelegramReplyRequeste" +
+                        "d\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 20
+  await testRunner.AndAsync("a Telegram message arrives for chat 7 with text \"hi\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 21
+  await testRunner.ThenAsync("the embodied pack emits an AskLlm for \"hi\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+#line 22
+  await testRunner.AndAsync("a \"TelegramReplyRequested\" reply for chat 7 with text \"ANSWER:hi\" reaches the egr" +
+                        "ess bus", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
             }
             await this.ScenarioCleanupAsync();

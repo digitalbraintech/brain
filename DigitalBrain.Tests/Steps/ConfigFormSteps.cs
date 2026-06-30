@@ -181,6 +181,7 @@ public class ConfigFormSteps : IAsyncDisposable
             .AddMemoryGrainStorageAsDefault()
             .AddMemoryStreams("Default")
             .AddMemoryStreams("HomeFeed")
+            .AddMemoryStreams("DigitalBrainTimeline")
             .AddMemoryGrainStorage("PubSubStore")
             .ConfigureServices(services =>
             {

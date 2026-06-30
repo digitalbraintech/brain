@@ -1015,7 +1015,11 @@ public class GeneratedNeuron : Neuron, IGeneratedNeuron, IHandle<NeuronTelemetry
         foreach (var output in outputs)
         {
             var normalized = NormalizePackOutput(_embodied.PackName, output);
-            await FireAsync(normalized);
+            // Broadcast (not FireAsync): a non-broadcast no-receiver synapse delivers to SELF only, so pack
+            // outputs like AskLlm would never reach the kernel neuron that fulfils them. Broadcasting puts the
+            // output on the shared timeline so any subscribed handler (e.g. LlmResponderNeuron) reacts, while
+            // still appending to this grain's outgoing journal (Broadcast = FireAsync with IsBroadcast=true).
+            await Broadcast(normalized);
             BroadcastPackSurface(normalized, _embodied.PackName);
         }
 

@@ -156,6 +156,7 @@ public class GatewayServiceTests : IAsyncLifetime
             .AddMemoryGrainStorageAsDefault()
             .AddMemoryStreams("Default")
             .AddMemoryStreams("HomeFeed")
+            .AddMemoryStreams("DigitalBrainTimeline")
             .AddMemoryGrainStorage("PubSubStore")
             .ConfigureServices(services =>
             {
