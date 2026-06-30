@@ -13,6 +13,9 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var ctx = builder.AddDigitalBrain("digitalbrain");
 
+var kernel = builder.AddProject<Projects.DigitalBrain_Kernel>("kernel");
+ctx.WireKernelSilo(kernel);
+
 // Packed integrations added via their Aspire extensions from the marketplace pack's SDK.
 // No logic here for the bot or Flutter - just declare the resource from the pack.
 // Use args to include (e.g. dotnet run brain.cs --telegram --flutter).
@@ -21,7 +24,13 @@ bool withFlutter = args.Any(a => a.Contains("flutter", StringComparison.OrdinalI
 
 if (withTelegram)
 {
-    ctx.AddTelegramBot("telegram-bot");
+    // Real transport resource (the echo placeholder is gone). Optional secret token -> no-op without it.
+    var telegramBotToken = builder.AddParameter(
+        "telegram-bot-token",
+        () => builder.Configuration["Parameters:telegram-bot-token"] ?? string.Empty,
+        secret: true);
+    var telegramTransport = builder.AddProject<Projects.DigitalBrain_Telegram_Transport>("telegram-bot");
+    ctx.WireTelegramTransport(telegramTransport, kernel, telegramBotToken);
 }
 if (withFlutter)
 {

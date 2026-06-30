@@ -158,22 +158,36 @@ public static class DigitalBrainBuilderExtensions
             .WithEnvironment("DIGITALBRAIN_UI_TIER1_RESTART_REQUIRED", "true");
     }
 
-    /// Packed Telegram bot as integration (no logic in core). The marketplace pack provides the bot host.
-    /// Call from the thin brain.cs or AppHost when the Telegram.Bot pack is installed.
-    /// Uses args or config for token etc.
-    public static IResourceBuilder<ExecutableResource> AddTelegramBot(
+    /// <summary>
+    /// Wires the Telegram transport (<c>DigitalBrain.Telegram.Transport</c>) as an Aspire resource that bridges
+    /// Telegram updates to the kernel gateway over gRPC. The transport boots no-op without a bot token, so the
+    /// resource can be present from startup and configured later (token supplied at launch or via the in-app flow)
+    /// with no AppHost restart.
+    /// </summary>
+    /// <param name="transport">The transport project, created in the AppHost via <c>AddProject&lt;Projects.DigitalBrain_Telegram_Transport&gt;(name)</c> so the generated <c>Projects.*</c> metadata type resolves.</param>
+    /// <param name="kernel">The kernel/gateway resource whose gRPC endpoint the transport calls. Its grpc endpoint is injected as the gateway address.</param>
+    /// <param name="botToken">Optional secret parameter carrying the Telegram bot token. When omitted (no token configured), the transport runs idle.</param>
+    public static IResourceBuilder<ProjectResource> WireTelegramTransport(
         this DigitalBrainContext ctx,
-        string name,
-        string botHostPath = ".")
+        IResourceBuilder<ProjectResource> transport,
+        IResourceBuilder<ProjectResource> kernel,
+        IResourceBuilder<ParameterResource>? botToken = null)
     {
-        // The pack would provide the real host exe or project.
-        // Placeholder for the packed integration.
-        return ctx.Resource.ApplicationBuilder.AddExecutable(
-                name,
-                "echo",
-                botHostPath,
-                "Telegram.Bot packed integration from marketplace - no logic in brain.cs. Configure token via env.")
-            .WithReference(ctx.OrleansClient);
+        var kernelGrpc = kernel.GetEndpoint("grpc");
+
+        transport = transport
+            .WithReference(ctx.OrleansClient)
+            .WithReference(kernel)
+            .WaitFor(kernel)
+            .WithEnvironment("DigitalBrain__GatewayAddress",
+                ReferenceExpression.Create($"http://{kernelGrpc.Property(EndpointProperty.Host)}:{kernelGrpc.Property(EndpointProperty.Port)}"));
+
+        if (botToken is not null)
+        {
+            transport = transport.WithEnvironment("Telegram__BotToken", botToken);
+        }
+
+        return transport;
     }
 }
 

@@ -218,6 +218,12 @@ if (grainFactory != null)
                 await grainFactory.GetGrain<IDbSupportNeuron>("db-main").GetTimelineAsync();
                 await grainFactory.GetGrain<IDataVisualizationNeuron>("chart-main").GetTimelineAsync();
                 await grainFactory.GetGrain<IUserSessionNeuron>("session-main").GetTimelineAsync();
+
+                // Activate the singleton LLM responder so it subscribes to the timeline at startup.
+                // Broadcasts only reach already-activated grains; without this the AskLlm -> reply Signal
+                // chain (e.g. the Telegram experience) would silently never fire in production. GetTimelineAsync
+                // is idempotent — a no-op if the grain is already active.
+                await grainFactory.GetGrain<ILlmResponderNeuron>(ILlmResponderNeuron.SingletonKey).GetTimelineAsync();
             }
             catch (Exception ex)
             {
