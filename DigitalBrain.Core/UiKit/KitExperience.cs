@@ -15,6 +15,15 @@ public abstract class KitExperience : IPackBehavior
 
     public PackManifest GetManifest() => new(new[] { new SynapseType(nameof(ExperienceStep)) });
 
+    public BundleManifest? GetBundleManifest()
+    {
+        var experience = _definition ??= Define();
+        return new BundleManifest(
+            BundleTier.Content,
+            new ExperienceRef(experience.Id),
+            new[] { BundleChannel.InApp });
+    }
+
     public bool CanHandle(Synapse synapse) => synapse is ExperienceStep;
 
     public IReadOnlyList<Synapse> Handle(Synapse synapse)

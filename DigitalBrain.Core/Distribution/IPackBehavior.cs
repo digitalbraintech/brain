@@ -26,6 +26,8 @@ public interface IPackBehavior
 
     PackManifest GetManifest() => new(new[] { new SynapseType(nameof(ExperienceUsed)) });
 
+    BundleManifest? GetBundleManifest() => null;
+
     bool CanHandle(Synapse synapse) =>
         GetManifest().HandledSynapseTypes.Any(t => t.Value == synapse.Type) || synapse is ExperienceUsed;
 
