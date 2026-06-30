@@ -330,5 +330,23 @@ public class UiSurfaceContractTests
         Assert.Equal("Marketplace", menu.Children[0].Props["label"]);
         Assert.Equal(DigitalBrain.Core.NeuronUiKit.Divider, menu.Children[1].Type);
     }
+
+    [Fact]
+    public void NeuronUiKit_Consts_Are_Stable()
+    {
+        Assert.Equal("neuron:Menu", NeuronUiKit.Menu);
+        Assert.Equal("neuron:MenuItem", NeuronUiKit.MenuItem);
+        Assert.Equal("forui:FScaffold", NeuronUiKit.Scaffold);
+        Assert.Equal("forui:FSidebar", NeuronUiKit.Sidebar);
+    }
+
+    [Fact]
+    public void BuildHeader_Helper_Produces_Correct_Tree()
+    {
+        var node = NeuronUiKit.BuildHeader("Title", "Sub");
+        Assert.Equal(NeuronUiKit.Header, node.Type);
+        Assert.Equal("Title", node.Props["title"]);
+        Assert.Equal("Sub", node.Props["subtitle"]);
+    }
 }
 

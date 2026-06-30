@@ -198,12 +198,8 @@ public sealed class UserSessionNeuron : Neuron, IUserSessionNeuron
             },
             new List<UiWidgetTree>
             {
-                new(NeuronUiKit.Header, new Dictionary<string, object?>
-                {
-                    ["title"] = "DigitalBrain",
-                    ["subtitle"] = user.DisplayName
-                }),
-                new("forui:sidebar", new Dictionary<string, object?> { ["title"] = user.DisplayName }, menuItems),
+                NeuronUiKit.BuildHeader("DigitalBrain", user.DisplayName),
+                new(NeuronUiKit.Sidebar, new Dictionary<string, object?> { ["title"] = user.DisplayName }, menuItems),
                 new("content", new Dictionary<string, object?>
                 {
                     ["defaultView"] = UiSurfaceKinds.InstalledBundles

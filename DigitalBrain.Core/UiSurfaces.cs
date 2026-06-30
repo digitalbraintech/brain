@@ -136,11 +136,34 @@ public static class NeuronUiKit
     public const string Panel = "neuron:Panel";
     public const string Divider = "neuron:Divider";
     public const string Scaffold = "forui:FScaffold";
+    public const string Sidebar = "forui:FSidebar";
     public const string Autocomplete = "forui:FAutocomplete";
     public const string TextField = "forui:FTextField";
     public const string Select = "forui:FSelect";
     public const string Notification = "forui:FNotification";
     public const string Toast = "forui:Toast";
+
+    // Self-explanatory helpers for common tree nodes (used by emitters; keep emission sites small).
+    public static UiWidgetTree BuildMenuItem(string label, string? targetSurfaceKind = null, IReadOnlyDictionary<string, object?>? action = null)
+    {
+        var p = new Dictionary<string, object?> { ["label"] = label };
+        if (targetSurfaceKind is not null) p["targetSurfaceKind"] = targetSurfaceKind;
+        if (action is not null) p["action"] = action;
+        return new UiWidgetTree(MenuItem, p);
+    }
+
+    public static UiWidgetTree BuildHeader(string title, string? subtitle = null)
+    {
+        var p = new Dictionary<string, object?> { ["title"] = title };
+        if (subtitle is not null) p["subtitle"] = subtitle;
+        return new UiWidgetTree(Header, p);
+    }
+
+    public static UiWidgetTree BuildMenu(string title, IReadOnlyList<UiWidgetTree> items)
+        => new(Menu, new Dictionary<string, object?> { ["title"] = title }, items);
+
+    public static UiWidgetTree BuildSidebar(string title, IReadOnlyList<UiWidgetTree> items)
+        => new(Sidebar, new Dictionary<string, object?> { ["title"] = title }, items);
 }
 
 // Curated UI-kit vocabulary (Slice 0). Each node is a thin ForUI cover on the client.

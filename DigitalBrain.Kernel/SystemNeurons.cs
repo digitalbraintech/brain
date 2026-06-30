@@ -205,7 +205,7 @@ public class AspireOrchestratorNeuron : Neuron, IAspireNeuron, IHandle<PerformKe
                 {
                     ["title"] = "DigitalBrain"
                 }),
-                new DigitalBrain.Core.UiWidgetTree("forui:sidebar", new Dictionary<string, object?> { ["title"] = "DigitalBrain" },
+                new DigitalBrain.Core.UiWidgetTree(DigitalBrain.Core.NeuronUiKit.Sidebar, new Dictionary<string, object?> { ["title"] = "DigitalBrain" },
                     new List<DigitalBrain.Core.UiWidgetTree>(BuildShellMenuItems())),
                 new DigitalBrain.Core.UiWidgetTree("content", new Dictionary<string, object?>
                 {

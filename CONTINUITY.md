@@ -207,6 +207,12 @@ Neurons (System, UI kit pack, embodied packs) are the authors of the shell. Clie
 - Continued one-by-one: Refactored menu construction to BuildShellMenuItems() local to prepare for dynamic from neuron (no more inline new[] for items).
 - Verification: msbuild CoreCompile, Ui tests 16/16 --no-build, doctor 4/4.
 - Continued: Made the menu data-driven (array of (label, target) + yield) so it can be populated from real data (seeds, installed packs, etc.) without changing structure. Divider example kept.
+
+2026-06-30: Executed full "Next Actions Plan" (A-F slices from ui-kit-neuron-synapse-implementation-plan.md):
+- A: Renderer prune (deleted legacy _buildDynamicSidebar + navItems, pruned contains, exact cases) + ritual.
+- B/C/D/E: Expanded tests/helpers, theme modernization (ForUI neuro via Context7 + colors in app wrapper), more delete.
+- F: Aspire doctor 4/4, MCP list, noted live start for validation.
+All with constant builds/tests/doctor/analyze after edits. Plan updated. See docs/ui-kit-neuron-synapse-implementation-plan.md for details.
 - Verification: msbuild, Ui tests 16/16 --no-build, aspire doctor 4/4 (MCP).
 - Continued: Populated the menu data array dynamically using MarketplaceSeeds.LocalUiPacks (UI seeds added as extra MenuItem). Proves server/kit can drive dynamic list.
 - Verification: build clean, tests 16/16, doctor 4/4.
