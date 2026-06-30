@@ -53,11 +53,11 @@ public sealed class LiveRenderVerifier
         _fx.Page.PageError += (_, err) => _consoleLog.Add($"[pageerror] {err}");
 
         var url = _fx.GatewayHttpsUrl.TrimEnd('/') + $"/#/experience/{_pack}/{_experienceId}";
-        // Navigate and wait for the page to load. The actual surface render is asserted
-        // via semantics locators (which wait with timeout). This avoids brittle
-        // response URL matching for hash-routed Flutter apps and makes Open more robust
-        // in full E2E with the live stack.
         await _fx.Page.GotoAsync(url, new() { WaitUntil = WaitUntilState.Load });
+
+        // Wait for Flutter to render something with semantics (the stable contract we use for asserts).
+        // This makes navigation robust even if the initial load state is reached before the app hydrates.
+        await _fx.Page.WaitForSelectorAsync("[flt-semantics]", new() { Timeout = 30000, State = WaitForSelectorState.Attached });
     }
 
     /// <summary>
