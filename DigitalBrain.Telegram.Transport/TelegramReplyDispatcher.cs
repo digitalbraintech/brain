@@ -22,6 +22,9 @@ public sealed class TelegramReplyDispatcher(
     public const string ReplyRequestedType = "TelegramReplyRequested";
     public const string PackConfiguredType = "PackConfigured";
 
+    // Must match GatewayService.InternalKeyHeader on the kernel side.
+    private const string InternalKeyHeader = "x-internal-key";
+
     public IReadOnlyList<string> WatchedTypes => new[] { ReplyRequestedType, PackConfiguredType };
 
     public async Task DispatchAsync(SynapseEnvelope envelope, CancellationToken ct = default)
@@ -49,9 +52,15 @@ public sealed class TelegramReplyDispatcher(
         PackConfigReply reply;
         try
         {
+            // Present the shared service-to-service secret so the kernel admits this internal pull of decrypted
+            // secrets; browsers on the same gateway have no key and are rejected.
+            var headers = new Grpc.Core.Metadata();
+            if (!string.IsNullOrEmpty(options.InternalServiceKey))
+                headers.Add(InternalKeyHeader, options.InternalServiceKey);
+
             reply = await gateway.GetPackConfigAsync(
                 new GetPackConfigRequest { Scope = options.ConfigScope, Pack = options.PackName },
-                cancellationToken: ct);
+                headers: headers, cancellationToken: ct);
         }
         catch (Exception ex)
         {

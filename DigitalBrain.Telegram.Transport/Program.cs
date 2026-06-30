@@ -6,6 +6,10 @@ using Telegram.BotAPI.GettingUpdates;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.Configure<TelegramTransportOptions>(builder.Configuration.GetSection("Telegram"));
+// The internal service key lives under the shared DigitalBrain section (same key the kernel reads), not the
+// transport's Telegram section — bind it onto the options explicitly so the GetPackConfig pull can present it.
+builder.Services.Configure<TelegramTransportOptions>(o =>
+    o.InternalServiceKey = builder.Configuration["DigitalBrain:InternalServiceKey"] ?? o.InternalServiceKey);
 builder.Services.AddSingleton(sp => sp.GetRequiredService<IOptions<TelegramTransportOptions>>().Value);
 builder.Services.AddHttpClient();
 

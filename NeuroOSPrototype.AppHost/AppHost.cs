@@ -19,8 +19,17 @@ var ctx = builder.AddDigitalBrain("digitalbrain", options =>
 .WithOrleansDashboard(8080)
 .WithMcp();
 
+// Service-to-service secret gating the secrets-returning GetPackConfig RPC. Shared (same value) between the
+// kernel and any internal transport that pulls pack config; NEVER injected into the Flutter client config, so a
+// browser/untrusted gRPC client on the same external ingress cannot present it. Auto-generated when absent.
+var internalServiceKey = builder.AddParameter(
+    "internal-service-key",
+    () => builder.Configuration["Parameters:internal-service-key"] ?? Guid.NewGuid().ToString("N"),
+    secret: true);
+
 var kernel = builder.AddProject<Projects.DigitalBrain_Kernel>("kernel");
 ctx.WireKernelSilo(kernel);  // Provides kernel cool features out of box (marketplace, surfaces, journals, 3 replicas HA, LLM for built-ins) via the Aspire package.
+kernel.WithEnvironment("DigitalBrain__InternalServiceKey", internalServiceKey);
 
 var startUi = builder.AddProject<Projects.DigitalBrain_Cli>("start-ui")
     .WithReference(ctx.OrleansClient)
@@ -98,7 +107,7 @@ if (IsEnabled("DIGITALBRAIN_ENABLE_TELEGRAM"))
         () => builder.Configuration["Parameters:telegram-bot-token"] ?? string.Empty,
         secret: true);
     var telegramTransport = builder.AddProject<Projects.DigitalBrain_Telegram_Transport>("telegram-bot");
-    ctx.WireTelegramTransport(telegramTransport, kernel, telegramBotToken);
+    ctx.WireTelegramTransport(telegramTransport, kernel, telegramBotToken, internalServiceKey);
 }
 
 if (IsEnabled("DIGITALBRAIN_ENABLE_DIAGNOSTIC_GATEWAY"))

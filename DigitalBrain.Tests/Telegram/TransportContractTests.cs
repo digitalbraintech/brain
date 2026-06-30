@@ -119,6 +119,7 @@ public sealed class TransportContractTests
             WebhookUrl = "https://example.test",
             PackName = "TelegramResponderNeuron",
             ConfigScope = "default",
+            InternalServiceKey = "super-secret-internal-key",
         };
         var accessor = new Transport.TelegramBotAccessor(options);
         var webhookSetup = new Transport.TelegramWebhookSetup(
@@ -142,6 +143,8 @@ public sealed class TransportContractTests
 
         // The token was obtained via the GetPackConfig RPC (point-to-point), NOT from the broadcast payload.
         Assert.Equal(1, gateway.GetPackConfigCalls);
+        // The transport presented the shared internal service key so the kernel admits the secret pull.
+        Assert.Equal("super-secret-internal-key", gateway.LastInternalKeyHeader);
         Assert.True(accessor.HasToken);
 
         var call = await telegram.WaitForMethodAsync("setWebhook", TimeSpan.FromSeconds(8));
@@ -172,11 +175,13 @@ public sealed class TransportContractTests
         : DigitalBrainGateway.DigitalBrainGatewayClient
     {
         public int GetPackConfigCalls { get; private set; }
+        public string? LastInternalKeyHeader { get; private set; }
 
         public override AsyncUnaryCall<TransportAssembly::DigitalBrain.Runtime.Grpc.PackConfigReply> GetPackConfigAsync(
             TransportAssembly::DigitalBrain.Runtime.Grpc.GetPackConfigRequest request, CallOptions options)
         {
             GetPackConfigCalls++;
+            LastInternalKeyHeader = options.Headers?.GetValue("x-internal-key");
             var reply = new TransportAssembly::DigitalBrain.Runtime.Grpc.PackConfigReply();
             foreach (var (k, v) in values)
                 reply.Values[k] = v;

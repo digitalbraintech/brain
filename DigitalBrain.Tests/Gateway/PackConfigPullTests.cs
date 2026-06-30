@@ -7,6 +7,7 @@ using DigitalBrain.Kernel.Gateway;
 using DigitalBrain.Kernel.Ui;
 using DigitalBrain.Runtime.Grpc;
 using DigitalBrain.Tests.TestSupport;
+using Grpc.Core;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -49,6 +50,27 @@ public class PackConfigPullTests : IAsyncLifetime
     private GatewayService NewService() =>
         new(_cluster.GrainFactory, new ConfigurationBuilder().Build(), new HomeFeedBus(),
             _egressBus, new FakeHostEnvironment(), NullLogger<GatewayService>.Instance, _configStore);
+
+    // A production-equivalent service whose GetPackConfig gate is armed with a configured InternalServiceKey.
+    private GatewayService NewGatedService(string internalKey) =>
+        new(_cluster.GrainFactory,
+            new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?> { ["DigitalBrain:InternalServiceKey"] = internalKey })
+                .Build(),
+            new HomeFeedBus(), _egressBus, new FakeHostEnvironment("Production"),
+            NullLogger<GatewayService>.Instance, _configStore);
+
+    private async Task StoreConfigAsync(GatewayService svc)
+    {
+        var payload = System.Text.Encoding.UTF8.GetBytes(
+            "{\"pack\":\"TelegramResponderNeuron\",\"scope\":\"default\",\"telegram_token\":\"123:ABC\"}");
+        await svc.Send(new SynapseEnvelope
+        {
+            TypeName = nameof(ConfigurationProvided),
+            CorrelationId = "cfg-auth",
+            Payload = Google.Protobuf.ByteString.CopyFrom(payload)
+        }, TestServerCallContext.Create());
+    }
 
     [Fact]
     public async Task GetPackConfig_ReturnsStoredValues_AfterConfigurationProvided()
@@ -97,6 +119,43 @@ public class PackConfigPullTests : IAsyncLifetime
         Assert.Equal("default", received.Props["scope"]);
         Assert.False(received.Props.ContainsKey("telegram_token"),
             "The secret token must NEVER reach the broadcast egress.");
+    }
+
+    // SECURITY (the hole this task closes): GetPackConfig sits on the SAME external gRPC service a browser reaches.
+    // A caller that does NOT present the shared internal service key (i.e. any untrusted internet/browser client)
+    // must be REJECTED before any decrypted secret is returned.
+    [Fact]
+    public async Task GetPackConfig_WithoutInternalKey_IsRejectedUnauthenticated()
+    {
+        const string internalKey = "super-secret-internal-key";
+        var svc = NewGatedService(internalKey);
+        await StoreConfigAsync(svc);
+
+        // No x-internal-key header — a browser/untrusted caller.
+        var noHeaderEx = await Assert.ThrowsAsync<RpcException>(() => svc.GetPackConfig(
+            new GetPackConfigRequest { Scope = "default", Pack = "TelegramResponderNeuron" },
+            TestServerCallContext.Create()));
+        Assert.Equal(StatusCode.Unauthenticated, noHeaderEx.StatusCode);
+
+        // Wrong key — still rejected.
+        var wrongKeyEx = await Assert.ThrowsAsync<RpcException>(() => svc.GetPackConfig(
+            new GetPackConfigRequest { Scope = "default", Pack = "TelegramResponderNeuron" },
+            TestServerCallContext.WithHeaders(("x-internal-key", "not-the-key"))));
+        Assert.Equal(StatusCode.Unauthenticated, wrongKeyEx.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetPackConfig_WithCorrectInternalKey_ReturnsValues()
+    {
+        const string internalKey = "super-secret-internal-key";
+        var svc = NewGatedService(internalKey);
+        await StoreConfigAsync(svc);
+
+        var reply = await svc.GetPackConfig(
+            new GetPackConfigRequest { Scope = "default", Pack = "TelegramResponderNeuron" },
+            TestServerCallContext.WithHeaders(("x-internal-key", internalKey)));
+
+        Assert.Equal("123:ABC", reply.Values["telegram_token"]);
     }
 
     private sealed class PackConfigPullSiloConfig : ISiloConfigurator

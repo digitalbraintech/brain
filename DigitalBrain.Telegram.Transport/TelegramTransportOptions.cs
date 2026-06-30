@@ -25,4 +25,9 @@ public sealed class TelegramTransportOptions
 
     // The config scope to pull. Matches the gateway's ConfigurationProvided scope (default "default").
     public string ConfigScope { get; set; } = "default";
+
+    // Shared service-to-service secret presented on the secrets-returning GetPackConfig RPC (x-internal-key
+    // metadata). Injected by the host from the same Aspire parameter as the kernel's DigitalBrain:InternalServiceKey.
+    // Empty in local "clone + run" dev, where the kernel allows the pull unauthenticated in Development only.
+    public string InternalServiceKey { get; set; } = string.Empty;
 }

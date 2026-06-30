@@ -167,11 +167,13 @@ public static class DigitalBrainBuilderExtensions
     /// <param name="transport">The transport project, created in the AppHost via <c>AddProject&lt;Projects.DigitalBrain_Telegram_Transport&gt;(name)</c> so the generated <c>Projects.*</c> metadata type resolves.</param>
     /// <param name="kernel">The kernel/gateway resource whose gRPC endpoint the transport calls. Its grpc endpoint is injected as the gateway address.</param>
     /// <param name="botToken">Optional secret parameter carrying the Telegram bot token. When omitted (no token configured), the transport runs idle.</param>
+    /// <param name="internalServiceKey">Shared service-to-service secret (same value injected into the kernel) that the transport presents on the secrets-returning <c>GetPackConfig</c> RPC. Server/transport-only — never exposed to the Flutter client config.</param>
     public static IResourceBuilder<ProjectResource> WireTelegramTransport(
         this DigitalBrainContext ctx,
         IResourceBuilder<ProjectResource> transport,
         IResourceBuilder<ProjectResource> kernel,
-        IResourceBuilder<ParameterResource>? botToken = null)
+        IResourceBuilder<ParameterResource>? botToken = null,
+        IResourceBuilder<ParameterResource>? internalServiceKey = null)
     {
         var kernelGrpc = kernel.GetEndpoint("grpc");
 
@@ -185,6 +187,11 @@ public static class DigitalBrainBuilderExtensions
         if (botToken is not null)
         {
             transport = transport.WithEnvironment("Telegram__BotToken", botToken);
+        }
+
+        if (internalServiceKey is not null)
+        {
+            transport = transport.WithEnvironment("DigitalBrain__InternalServiceKey", internalServiceKey);
         }
 
         return transport;

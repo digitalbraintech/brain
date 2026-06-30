@@ -214,8 +214,15 @@ public sealed class GatewayService(
 
     // Point-to-point pull of a pack's decrypted config over the internal gRPC channel. Same trust level as the
     // startup env param — the secret travels here, never on the broadcast timeline/egress. Values are NOT logged.
+    //
+    // SECURITY: this RPC lives on the same DigitalBrainGateway service that the browser/Flutter client reaches on
+    // the external ingress (CORS is not a security boundary). It is therefore gated by a service-to-service secret:
+    // only callers that present the configured InternalServiceKey (the kernel + internal transports — never the
+    // browser, which is not given the key) may pull decrypted secrets.
     public override async Task<PackConfigReply> GetPackConfig(GetPackConfigRequest request, ServerCallContext context)
     {
+        EnforceInternalCaller(context);
+
         if (packConfigStore is null)
             throw new RpcException(new Status(StatusCode.FailedPrecondition, "Pack config store is not configured."));
 
@@ -227,6 +234,35 @@ public sealed class GatewayService(
             reply.Values[key] = value;
         return reply;
     }
+
+    // gRPC metadata header carrying the shared service-to-service secret. Lower-case per gRPC ASCII-header rules.
+    internal const string InternalKeyHeader = "x-internal-key";
+
+    // Reject any caller that cannot prove it is an internal transport. The kernel is configured with a shared
+    // InternalServiceKey (injected as an env param to both the kernel and the internal transport); the transport
+    // presents it as the x-internal-key metadata header. Constant-time compare avoids leaking the key by timing.
+    // When NO key is configured: allow only in Development (local "clone + run" convenience), deny otherwise — so a
+    // misconfigured production kernel fails closed rather than exposing secrets to the open ingress.
+    private void EnforceInternalCaller(ServerCallContext context)
+    {
+        var configuredKey = configuration["DigitalBrain:InternalServiceKey"];
+
+        if (string.IsNullOrEmpty(configuredKey))
+        {
+            if (environment.IsDevelopment())
+                return;
+            logger.LogError("GetPackConfig denied: no InternalServiceKey configured outside Development.");
+            throw new RpcException(new Status(StatusCode.Unauthenticated, "internal only"));
+        }
+
+        var presented = context.RequestHeaders.GetValue(InternalKeyHeader);
+        if (presented is null || !FixedTimeEquals(presented, configuredKey))
+            throw new RpcException(new Status(StatusCode.Unauthenticated, "internal only"));
+    }
+
+    private static bool FixedTimeEquals(string a, string b) =>
+        System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(
+            System.Text.Encoding.UTF8.GetBytes(a), System.Text.Encoding.UTF8.GetBytes(b));
 
     // Surface-action payloads arrive from both Flutter (camelCase) and test/native callers (PascalCase).
     // A case-insensitive view lets one set of key lookups serve both without silent misses.
