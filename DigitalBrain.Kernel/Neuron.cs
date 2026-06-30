@@ -2,6 +2,7 @@ using DigitalBrain.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Orleans.Journaling;
 using Orleans.Runtime;
+using Orleans.Streams;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 
@@ -18,11 +19,12 @@ public sealed class NeuronJournals(
 }
 
 [GrainType("digitalbrain.base.v2")]
-public abstract class Neuron : DurableGrain, INeuron
+public abstract class Neuron : DurableGrain, INeuron, IAsyncObserver<Synapse>
 {
     protected readonly ILogger Logger;
     private IDurableList<Synapse>? _incomingSynapses;
     private IDurableList<Synapse>? _outgoingSynapses;
+    private StreamSubscriptionHandle<Synapse>? _timelineSubscription;
 
     // The synapse currently being handled. Synapses fired while handling it are caused by it.
     // Grains are non-reentrant by Orleans contract, so plain field + finally-restore correctly nests causal chains.
@@ -91,6 +93,61 @@ public abstract class Neuron : DurableGrain, INeuron
         {
             Logger.LogWarning(ex, "Activation marker was not journaled for {Neuron}; continuing so the first real synapse can initialize the journal.", Self);
         }
+
+        await SubscribeTimelineIfNeeded();
+    }
+
+    // A neuron subscribes to the broadcast timeline iff it has a way to react to broadcasts. The default rule
+    // is "declares at least one IHandle<T>"; dynamic hosts (GeneratedNeuron, whose handled types come from an
+    // embodied pack's manifest, not static interfaces) override this to subscribe unconditionally.
+    protected virtual bool ShouldSubscribeToTimeline => SynapseDispatch.HandledTypes(GetType()).Count > 0;
+
+    // Subscribe to the broadcast timeline when ShouldSubscribeToTimeline says so, so point-to-point-only
+    // neurons are unaffected. Explicit subscriptions survive deactivation (Orleans streaming contract), so
+    // a reactivated neuron resumes via GetAllSubscriptionHandles + ResumeAsync rather than re-subscribing
+    // (avoids duplicate deliveries). Silos that don't register the timeline provider (minimal/legacy test
+    // hosts) degrade gracefully: the neuron activates without broadcast reception instead of failing.
+    private async Task SubscribeTimelineIfNeeded()
+    {
+        if (!ShouldSubscribeToTimeline)
+            return;
+
+        IAsyncStream<Synapse> stream;
+        try
+        {
+            stream = this.GetStreamProvider(SynapseStream.ProviderName).Timeline();
+        }
+        catch (KeyNotFoundException)
+        {
+            Logger.LogDebug("Timeline provider '{Provider}' not registered for {Neuron}; broadcast reception disabled.", SynapseStream.ProviderName, Self);
+            return;
+        }
+
+        var existing = await stream.GetAllSubscriptionHandles();
+        if (existing.Count == 0)
+        {
+            _timelineSubscription = await stream.SubscribeAsync(this);
+            return;
+        }
+
+        _timelineSubscription = await existing[0].ResumeAsync(this);
+        for (var i = 1; i < existing.Count; i++)
+            await existing[i].UnsubscribeAsync();
+    }
+
+    // Default broadcast reception: dispatch only synapse types this neuron statically declares IHandle<T> for.
+    // Dynamic hosts override to filter through their own runtime manifest instead.
+    public virtual Task OnNextAsync(Synapse item, StreamSequenceToken? token = null) =>
+        SynapseDispatch.HandledTypes(GetType()).Contains(item.GetType())
+            ? SynapseDispatch.DispatchAsync(this, Logger, Self, item)
+            : Task.CompletedTask;
+
+    public Task OnCompletedAsync() => Task.CompletedTask;
+
+    public Task OnErrorAsync(Exception ex)
+    {
+        Logger.LogError(ex, "Timeline stream error in {Neuron}", Self);
+        return Task.CompletedTask;
     }
 
     public async ValueTask FireAsync<T>(T payload) where T : Synapse
@@ -101,6 +158,7 @@ public abstract class Neuron : DurableGrain, INeuron
 
         if (stamped.IsBroadcast)
         {
+            await this.GetStreamProvider(SynapseStream.ProviderName).Timeline().OnNextAsync(stamped);
         }
         else if (stamped.Receiver is not null)
         {
@@ -115,6 +173,8 @@ public abstract class Neuron : DurableGrain, INeuron
         NeuronInstrumentation.SynapsesOut.Add(1);
         Logger.LogInformation("Fired {Type} from {Self}", typeof(T).Name, Self);
     }
+
+    protected Task Broadcast(Synapse s) => FireAsync(s with { IsBroadcast = true }).AsTask();
 
     public Task<IReadOnlyList<Synapse>> GetTimelineAsync() =>
         Task.FromResult<IReadOnlyList<Synapse>>(OutgoingJournal.ToList());

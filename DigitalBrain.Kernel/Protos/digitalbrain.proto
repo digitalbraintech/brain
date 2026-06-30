@@ -12,6 +12,23 @@ service DigitalBrainGateway {
   rpc Timeline(TimelineRequest) returns (TimelineReply);
   // Server-driven UI: stream Remote Flutter Widgets cards as neurons broadcast them to the Home feed.
   rpc WatchHomeFeed(WatchHomeFeedRequest) returns (stream RfwCardEnvelope);
+  // Egress for external transports: stream broadcast Signals filtered by type name (empty filter = all).
+  rpc WatchSynapses(WatchSynapsesRequest) returns (stream SynapseEnvelope);
+  // Point-to-point pull of a pack's stored (decrypted) config over the internal channel.
+  // Secrets are returned here, never on the broadcast timeline/egress.
+  rpc GetPackConfig(GetPackConfigRequest) returns (PackConfigReply);
+}
+
+message GetPackConfigRequest {
+  string scope = 1;
+  string pack = 2;
+}
+message PackConfigReply {
+  map<string, string> values = 2;
+}
+
+message WatchSynapsesRequest {
+  repeated string type_filter = 1;
 }
 
 message SynapseEnvelope {

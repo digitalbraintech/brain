@@ -19,8 +19,17 @@ var ctx = builder.AddDigitalBrain("digitalbrain", options =>
 .WithOrleansDashboard(8080)
 .WithMcp();
 
+// Service-to-service secret gating the secrets-returning GetPackConfig RPC. Shared (same value) between the
+// kernel and any internal transport that pulls pack config; NEVER injected into the Flutter client config, so a
+// browser/untrusted gRPC client on the same external ingress cannot present it. Auto-generated when absent.
+var internalServiceKey = builder.AddParameter(
+    "internal-service-key",
+    () => builder.Configuration["Parameters:internal-service-key"] ?? Guid.NewGuid().ToString("N"),
+    secret: true);
+
 var kernel = builder.AddProject<Projects.DigitalBrain_Kernel>("kernel");
 ctx.WireKernelSilo(kernel);  // Provides kernel cool features out of box (marketplace, surfaces, journals, 3 replicas HA, LLM for built-ins) via the Aspire package.
+kernel.WithEnvironment("DigitalBrain__InternalServiceKey", internalServiceKey);
 
 var startUi = builder.AddProject<Projects.DigitalBrain_Cli>("start-ui")
     .WithReference(ctx.OrleansClient)
@@ -87,8 +96,18 @@ if (ctx.EnableMcp)
 
 if (IsEnabled("DIGITALBRAIN_ENABLE_TELEGRAM"))
 {
-    // Optional packed integration. Keep it out of the default product path until a real host replaces the placeholder.
-    ctx.AddTelegramBot("telegram-bot");
+    // Telegram transport: bridges Telegram updates to the kernel gateway over gRPC. It boots no-op without a
+    // token, so it is safe to make always-present in production (the spec's "install from marketplace, no
+    // restart" intent). Kept behind DIGITALBRAIN_ENABLE_TELEGRAM here so the default product path is unchanged;
+    // to enable the experience without an AppHost restart, set DIGITALBRAIN_ENABLE_TELEGRAM=true (or drop this gate).
+    // The token is an optional secret parameter — supplied at startup (config/user-secrets/env: Parameters:telegram-bot-token)
+    // OR later via the in-app config flow. Empty default keeps it optional: no token -> transport boots no-op.
+    var telegramBotToken = builder.AddParameter(
+        "telegram-bot-token",
+        () => builder.Configuration["Parameters:telegram-bot-token"] ?? string.Empty,
+        secret: true);
+    var telegramTransport = builder.AddProject<Projects.DigitalBrain_Telegram_Transport>("telegram-bot");
+    ctx.WireTelegramTransport(telegramTransport, kernel, telegramBotToken, internalServiceKey);
 }
 
 if (IsEnabled("DIGITALBRAIN_ENABLE_DIAGNOSTIC_GATEWAY"))

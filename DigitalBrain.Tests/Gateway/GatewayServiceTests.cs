@@ -34,6 +34,7 @@ public class GatewayServiceTests : IAsyncLifetime
 
     private GatewayService NewService() =>
         new(_cluster.GrainFactory, new ConfigurationBuilder().Build(), _homeFeedBus,
+            new SignalEgressBus(),
             new FakeHostEnvironment(),
             NullLogger<GatewayService>.Instance);
 
@@ -155,6 +156,7 @@ public class GatewayServiceTests : IAsyncLifetime
             .AddMemoryGrainStorageAsDefault()
             .AddMemoryStreams("Default")
             .AddMemoryStreams("HomeFeed")
+            .AddMemoryStreams("DigitalBrainTimeline")
             .AddMemoryGrainStorage("PubSubStore")
             .ConfigureServices(services =>
             {

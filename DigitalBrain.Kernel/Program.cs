@@ -1,7 +1,9 @@
 using System.IO;
+using Azure.Storage.Blobs;
 using DigitalBrain.Core;
 using DigitalBrain.Kernel;
 using DigitalBrain.Kernel.Company;
+using DigitalBrain.Kernel.Config;
 using DigitalBrain.Kernel.Foundry;
 using DigitalBrain.Kernel.Llm;
 using DigitalBrain.Kernel.Ui;
@@ -68,6 +70,13 @@ builder.Services.AddCors(options => options.AddPolicy("browser", policy => polic
 // MemoryStream so cards broadcast on any silo reach all replicas.
 builder.Services.AddSingleton<HomeFeedBus>();
 
+// Signal egress fanout: neurons broadcast Signals on the timeline; WatchSynapses gRPC subscribers stream them
+// filtered by type name. The per-silo SignalEgressStreamSubscriber (wired into the silo below) forwards Signals
+// from the DigitalBrainTimeline stream to the SignalEgressBus. Like HomeFeed (proven in
+// HomeFeedCrossSiloTests), Orleans MemoryStream explicit subscriptions deliver cluster-wide — every silo's
+// subscriber receives every Signal regardless of which replica it was broadcast on.
+builder.Services.AddSingleton<SignalEgressBus>();
+
 // Co-host the MCP tool surface in-process. Only read-only tools are exposed over HTTP (remotely reachable);
 // mutation tools are stdio-only (local/trusted) pending a remote auth decision.
 builder.Services
@@ -86,12 +95,28 @@ if (isAspireHosted)
 
     builder.AddKeyedAzureTableServiceClient(clusteringServiceKey);
     builder.AddKeyedAzureBlobServiceClient(grainStorageServiceKey);
+
+    // Non-keyed BlobServiceClient from grain storage for pack-config key ring persistence and blob backing.
+    // Uses the same Azurite account as grain state but stores in a separate "pack-config" container.
+    builder.AddAzureBlobServiceClient("grainstate");
 }
 
 builder.Services.AddDigitalBrainChat(builder.Configuration);
+builder.Services.AddSingleton<DigitalBrain.Kernel.Llm.IScopedChatClientFactory, DigitalBrain.Kernel.Llm.ScopedChatClientFactory>();
 builder.Services.AddKernelSecurity(builder.Configuration, builder.Environment);
 builder.Services.AddEconomics(builder.Configuration);
 builder.Services.AddContextStore(builder.Configuration);
+
+// Aspire path: supply a BlobServiceClient so DataProtection keys are shared across all 3 HA replicas.
+// Non-Aspire (local/test): no blobs → ephemeral key ring (single process only).
+BlobServiceClient? packConfigBlobs = null;
+if (isAspireHosted)
+{
+    var grainStateConnStr = builder.Configuration.GetConnectionString("grainstate");
+    if (!string.IsNullOrEmpty(grainStateConnStr))
+        packConfigBlobs = new BlobServiceClient(grainStateConnStr);
+}
+builder.Services.AddPackConfigStore(packConfigBlobs);
 builder.Services.AddSingleton<ProcessCrystallizer>(sp => new ProcessCrystallizer(sp.GetService<IChatClient>()));
 builder.Services.AddSingleton<SkillPackSynthesizer>();
 
@@ -136,8 +161,10 @@ builder.UseOrleans(siloBuilder =>
     }
 
     siloBuilder.AddMemoryStreams("HomeFeed");
+    siloBuilder.AddMemoryStreams("DigitalBrainTimeline");
     siloBuilder.AddMemoryGrainStorage("PubSubStore");
     siloBuilder.ConfigureServices(services => services.AddHomeFeedStreamSubscriber());
+    siloBuilder.ConfigureServices(services => services.AddSignalEgressStreamSubscriber());
     siloBuilder.AddFoundry();
 });
 
@@ -193,6 +220,12 @@ if (grainFactory != null)
                 await grainFactory.GetGrain<IDbSupportNeuron>("db-main").GetTimelineAsync();
                 await grainFactory.GetGrain<IDataVisualizationNeuron>("chart-main").GetTimelineAsync();
                 await grainFactory.GetGrain<IUserSessionNeuron>("session-main").GetTimelineAsync();
+
+                // Activate the singleton LLM responder so it subscribes to the timeline at startup.
+                // Broadcasts only reach already-activated grains; without this the AskLlm -> reply Signal
+                // chain (e.g. the Telegram experience) would silently never fire in production. GetTimelineAsync
+                // is idempotent — a no-op if the grain is already active.
+                await grainFactory.GetGrain<ILlmResponderNeuron>(ILlmResponderNeuron.SingletonKey).GetTimelineAsync();
             }
             catch (Exception ex)
             {

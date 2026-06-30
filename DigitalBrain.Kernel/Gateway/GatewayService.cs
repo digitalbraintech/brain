@@ -1,4 +1,5 @@
 using DigitalBrain.Core;
+using DigitalBrain.Core.Config;
 using DigitalBrain.Runtime.Grpc;
 using DigitalBrain.Kernel;
 using Grpc.Core;
@@ -12,8 +13,10 @@ public sealed class GatewayService(
     IGrainFactory grains,
     IConfiguration configuration,
     HomeFeedBus homeFeedBus,
+    SignalEgressBus signalEgressBus,
     IHostEnvironment environment,
-    ILogger<GatewayService> logger) : DigitalBrainGateway.DigitalBrainGatewayBase
+    ILogger<GatewayService> logger,
+    IPackConfigStore? packConfigStore = null) : DigitalBrainGateway.DigitalBrainGatewayBase
 {
     public override async Task<SynapseEnvelope> Send(SynapseEnvelope request, ServerCallContext context)
     {
@@ -64,6 +67,49 @@ public sealed class GatewayService(
                 return request;
             }
 
+            // A submitted config form round-trips here. Persist the field values for the pack via the encrypted
+            // config store. The values may include secrets, so they are NEVER logged.
+            if (request.TypeName == nameof(ConfigurationProvided))
+            {
+                if (packConfigStore is null)
+                    throw new RpcException(new Status(StatusCode.FailedPrecondition, "Pack config store is not configured."));
+
+                var payloadStr = System.Text.Encoding.UTF8.GetString(request.Payload.ToArray());
+                var p = CaseInsensitive(System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object?>>(payloadStr));
+                string? Field(string key) => p.TryGetValue(key, out var v) ? v?.ToString() : null;
+
+                var pack = Field("pack") ?? Field("packName") ?? request.CorrelationId;
+                // The storage scope MUST be one the readers actually look under. The responder pack,
+                // LlmResponderNeuron, and the Telegram transport all read scope "default", so honor an explicit
+                // "scope" field when supplied and otherwise fall back to "default" — never a per-session/buyer
+                // scope, which would silently strand the configured token/key where no reader ever looks.
+                var scope = Field("scope") ?? "default";
+
+                var controlKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    "pack", "packName", "scope", "sessionId", "buyerId", "userId", "synapseType", "eventName"
+                };
+                var values = p
+                    .Where(kv => !controlKeys.Contains(kv.Key))
+                    .ToDictionary(kv => kv.Key, kv => kv.Value?.ToString() ?? string.Empty);
+
+                await packConfigStore.SetAsync(scope, pack, values);
+                logger.LogInformation("Stored configuration for pack {Pack} ({FieldCount} fields).", pack, values.Count);
+
+                // Non-secret notification only: subscribers learn config changed and re-PULL the values
+                // point-to-point via GetPackConfig. The stored values (which may be secrets) are NOT broadcast.
+                var notifyKey = string.IsNullOrWhiteSpace(request.CorrelationId)
+                    ? $"pack-configured-{scope}-{pack}"
+                    : request.CorrelationId;
+                var notifyIngress = grains.GetGrain<IIngressNeuron>(notifyKey);
+                await notifyIngress.IngestAsync("PackConfigured", new Dictionary<string, object?>
+                {
+                    ["pack"] = pack,
+                    ["scope"] = scope
+                });
+                return request;
+            }
+
             if (request.TypeName == nameof(InoRequest) || request.TypeName.Contains("InoRequest", StringComparison.OrdinalIgnoreCase))
             {
                 var ino = grains.GetGrain<IInoNeuron>("ino-main");
@@ -109,16 +155,25 @@ public sealed class GatewayService(
                 return request;
             }
 
-            // Fallback to resolver for other surface actions (experience run etc.)
-            try
-            {
-                var neuron = NeuronResolver.Resolve(grains, request.TypeName.Contains("market", StringComparison.OrdinalIgnoreCase) ? "market-main" : "ino-main");
-                await neuron.FireAsync(new DemoMessageSynapse("surface-action:" + request.TypeName));
-                return request;
-            }
-            catch { }
+            // Generic fallback: any unknown type_name becomes a named Signal broadcast on the cluster timeline.
+            // This path is INTERNAL-ONLY. Trusted in-cluster transports (the Telegram transport) present the shared
+            // InternalServiceKey to fire arbitrary named synapses; an untrusted browser on the same external ingress
+            // must not, or it could forge egress/reply signals (e.g. TelegramReplyRequested → arbitrary outbound
+            // Telegram messages) or spoof inbound events. The known surface-action branches above stay open to the
+            // Flutter client; only this arbitrary-type path is gated (same key + fail-closed rules as GetPackConfig).
+            if (string.IsNullOrWhiteSpace(request.TypeName))
+                throw new RpcException(new Status(StatusCode.InvalidArgument, "Empty synapse type"));
 
-            throw new RpcException(new Status(StatusCode.InvalidArgument, "Unsupported synapse envelope type: " + request.TypeName));
+            EnforceInternalCaller(context);
+
+            var payloadJson = System.Text.Encoding.UTF8.GetString(request.Payload.ToArray());
+            var rawProps = string.IsNullOrWhiteSpace(payloadJson)
+                ? new Dictionary<string, object?>()
+                : System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object?>>(payloadJson) ?? new();
+            var signalProps = NormalizeJsonProps(rawProps);
+            var ingress = grains.GetGrain<IIngressNeuron>(request.CorrelationId);
+            await ingress.IngestAsync(request.TypeName, signalProps);
+            return request;
         }
         catch (RpcException)
         {
@@ -149,10 +204,103 @@ public sealed class GatewayService(
         }
     }
 
+    // Egress for external transports: stream broadcast Signals whose Name is in the request filter (empty = all),
+    // until the client disconnects. Each Signal becomes a SynapseEnvelope carrying its Props as UTF-8 JSON.
+    public override async Task WatchSynapses(WatchSynapsesRequest request, IServerStreamWriter<SynapseEnvelope> responseStream, ServerCallContext context)
+    {
+        logger.LogInformation("WatchSynapses opened for {Peer} (filter: {Filter})", context.Peer, string.Join(",", request.TypeFilter));
+        using var subscription = signalEgressBus.Subscribe(request.TypeFilter.ToArray());
+        await foreach (var signal in subscription.Reader.ReadAllAsync(context.CancellationToken))
+        {
+            await responseStream.WriteAsync(new SynapseEnvelope
+            {
+                TypeName = signal.Name,
+                CorrelationId = signal.CorrelationId ?? string.Empty,
+                Payload = Google.Protobuf.ByteString.CopyFrom(
+                    System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(signal.Props))
+            });
+        }
+    }
+
+    // Point-to-point pull of a pack's decrypted config over the internal gRPC channel. Same trust level as the
+    // startup env param — the secret travels here, never on the broadcast timeline/egress. Values are NOT logged.
+    //
+    // SECURITY: this RPC lives on the same DigitalBrainGateway service that the browser/Flutter client reaches on
+    // the external ingress (CORS is not a security boundary). It is therefore gated by a service-to-service secret:
+    // only callers that present the configured InternalServiceKey (the kernel + internal transports — never the
+    // browser, which is not given the key) may pull decrypted secrets.
+    public override async Task<PackConfigReply> GetPackConfig(GetPackConfigRequest request, ServerCallContext context)
+    {
+        EnforceInternalCaller(context);
+
+        if (packConfigStore is null)
+            throw new RpcException(new Status(StatusCode.FailedPrecondition, "Pack config store is not configured."));
+
+        var scope = string.IsNullOrWhiteSpace(request.Scope) ? "default" : request.Scope;
+        var values = await packConfigStore.GetAsync(scope, request.Pack);
+
+        var reply = new PackConfigReply();
+        foreach (var (key, value) in values)
+            reply.Values[key] = value;
+        return reply;
+    }
+
+    // gRPC metadata header carrying the shared service-to-service secret. Lower-case per gRPC ASCII-header rules.
+    internal const string InternalKeyHeader = "x-internal-key";
+
+    // Reject any caller that cannot prove it is an internal transport. The kernel is configured with a shared
+    // InternalServiceKey (injected as an env param to both the kernel and the internal transport); the transport
+    // presents it as the x-internal-key metadata header. Constant-time compare avoids leaking the key by timing.
+    // When NO key is configured: allow only in Development (local "clone + run" convenience), deny otherwise — so a
+    // misconfigured production kernel fails closed rather than exposing secrets to the open ingress.
+    private void EnforceInternalCaller(ServerCallContext context)
+    {
+        var configuredKey = configuration["DigitalBrain:InternalServiceKey"];
+
+        if (string.IsNullOrEmpty(configuredKey))
+        {
+            if (environment.IsDevelopment())
+                return;
+            logger.LogError("GetPackConfig denied: no InternalServiceKey configured outside Development.");
+            throw new RpcException(new Status(StatusCode.Unauthenticated, "internal only"));
+        }
+
+        var presented = context.RequestHeaders.GetValue(InternalKeyHeader);
+        if (presented is null || !FixedTimeEquals(presented, configuredKey))
+            throw new RpcException(new Status(StatusCode.Unauthenticated, "internal only"));
+    }
+
+    private static bool FixedTimeEquals(string a, string b) =>
+        System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(
+            System.Text.Encoding.UTF8.GetBytes(a), System.Text.Encoding.UTF8.GetBytes(b));
+
     // Surface-action payloads arrive from both Flutter (camelCase) and test/native callers (PascalCase).
     // A case-insensitive view lets one set of key lookups serve both without silent misses.
     private static Dictionary<string, object?> CaseInsensitive(Dictionary<string, object?>? source) =>
         new(source ?? new(), StringComparer.OrdinalIgnoreCase);
+
+    // STJ deserializes JSON numbers/booleans as JsonElement when the target type is object?.
+    // Unwrap them to CLR primitives so Signal consumers read int/long/double/bool/string directly.
+    private static Dictionary<string, object?> NormalizeJsonProps(Dictionary<string, object?> raw)
+    {
+        var result = new Dictionary<string, object?>(raw.Count, StringComparer.OrdinalIgnoreCase);
+        foreach (var (key, value) in raw)
+        {
+            result[key] = value is System.Text.Json.JsonElement el ? UnwrapElement(el) : value;
+        }
+        return result;
+    }
+
+    private static object? UnwrapElement(System.Text.Json.JsonElement el) => el.ValueKind switch
+    {
+        System.Text.Json.JsonValueKind.True => true,
+        System.Text.Json.JsonValueKind.False => false,
+        System.Text.Json.JsonValueKind.Null or System.Text.Json.JsonValueKind.Undefined => null,
+        System.Text.Json.JsonValueKind.Number => el.TryGetInt64(out var l) ? (object)l : el.GetDouble(),
+        System.Text.Json.JsonValueKind.Object => el.GetRawText(),
+        System.Text.Json.JsonValueKind.Array => el.GetRawText(),
+        _ => el.GetString()
+    };
 
     private static Task WriteCardAsync(
         IServerStreamWriter<RfwCardEnvelope> responseStream,

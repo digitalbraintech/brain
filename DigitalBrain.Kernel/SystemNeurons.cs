@@ -868,6 +868,25 @@ public class GeneratedNeuron : Neuron, IGeneratedNeuron, IHandle<NeuronTelemetry
 
     public Task HandleAsync(NeuronTelemetry telemetry) => Task.CompletedTask;
 
+    // The generic pack host is a DYNAMIC handler: its handled synapse types come from the embodied pack's
+    // manifest, not from static IHandle<T> declarations. It must subscribe to the timeline unconditionally so
+    // broadcasts can be filtered through the manifest at receive time (the base "has static IHandle<T>" rule
+    // would keep it off the timeline because the host declares none for arbitrary pack synapse types).
+    protected override bool ShouldSubscribeToTimeline => true;
+
+    // Broadcast reception for embodied packs: re-embody from the journal if needed, then let the manifest decide.
+    // TryDispatchEmbodiedAsync runs _embodied.CanHandle (the manifest filter), so a broadcast Signal whose
+    // Name/Type is not in the pack's manifest is ignored. Anything the embodied pack does not claim falls through
+    // to the base (which dispatches only statically-declared IHandle<T> types, e.g. NeuronTelemetry).
+    public override async Task OnNextAsync(Synapse item, Orleans.Streams.StreamSequenceToken? token = null)
+    {
+        EnsureEmbodied();
+        if (await TryDispatchEmbodiedAsync(item))
+            return;
+
+        await base.OnNextAsync(item, token);
+    }
+
     public override Task OnDeactivateAsync(Orleans.DeactivationReason reason, CancellationToken cancellationToken)
     {
         // Unload the ALC (if any) on deactivation. This is necessary but not always sufficient for full collection:
@@ -888,6 +907,7 @@ public class GeneratedNeuron : Neuron, IGeneratedNeuron, IHandle<NeuronTelemetry
         {
             case NeuroPackInstalled installed:
                 TryEmbody(installed.Pack);
+                await EmitConfigFormIfRequiredAsync();
                 return;
         }
 
@@ -932,6 +952,21 @@ public class GeneratedNeuron : Neuron, IGeneratedNeuron, IHandle<NeuronTelemetry
             _embodied = null;
             Logger.LogWarning(ex, "Pack '{Pack}' is not a compilable IPackBehavior; using LLM fallback on use.", pack.Name);
         }
+    }
+
+    // After a successful embodiment, surface the pack's RequiredConfig as an in-app config form the thin client
+    // renders; submitting it round-trips a ConfigurationProvided (persisted via IPackConfigStore in the gateway).
+    private async Task EmitConfigFormIfRequiredAsync()
+    {
+        if (_embodied is null) return;
+
+        var required = _embodied.GetManifest().RequiredConfig;
+        if (required is null || required.Count == 0) return;
+
+        var surface = ConfigFormSurface.Build(_embodied.PackName, required, Self.Value);
+        await FireAsync(surface);
+        ServiceProvider.GetService<HomeFeedBus>()?.Broadcast(UiSurfaceRfwBridge.FromUiSurface(surface, Self.Value));
+        Logger.LogInformation("GeneratedNeuron emitted config form for pack '{Pack}' ({FieldCount} fields).", _embodied.PackName, required.Count);
     }
 
     private void EnsureEmbodied()
@@ -980,7 +1015,11 @@ public class GeneratedNeuron : Neuron, IGeneratedNeuron, IHandle<NeuronTelemetry
         foreach (var output in outputs)
         {
             var normalized = NormalizePackOutput(_embodied.PackName, output);
-            await FireAsync(normalized);
+            // Broadcast (not FireAsync): a non-broadcast no-receiver synapse delivers to SELF only, so pack
+            // outputs like AskLlm would never reach the kernel neuron that fulfils them. Broadcasting puts the
+            // output on the shared timeline so any subscribed handler (e.g. LlmResponderNeuron) reacts, while
+            // still appending to this grain's outgoing journal (Broadcast = FireAsync with IsBroadcast=true).
+            await Broadcast(normalized);
             BroadcastPackSurface(normalized, _embodied.PackName);
         }
 

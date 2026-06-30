@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>true</IsPackable>
+    <PackageId>DigitalBrain.Telegram</PackageId>
+    <Version>0.1.0</Version>
+    <Description>Transport-internal Telegram typed synapses and the TelegramResponderNeuron pack. Depends only on DigitalBrain.Core; the kernel never references this project.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DigitalBrain.Core\DigitalBrain.Core.csproj" />
+  </ItemGroup>
+
+</Project>

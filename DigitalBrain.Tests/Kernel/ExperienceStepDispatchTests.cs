@@ -77,6 +77,8 @@ public class ExperienceStepDispatchTests : IAsyncLifetime
         public void Configure(ISiloBuilder siloBuilder) => siloBuilder
             .AddMemoryGrainStorageAsDefault()
             .AddMemoryStreams("Default")
+            .AddMemoryStreams("DigitalBrainTimeline")
+            .AddMemoryGrainStorage("PubSubStore")
             .ConfigureServices(services =>
             {
                 services.AddKeyedScoped<IDurableList<Synapse>>("in-journal", (_, _) => new InMemoryDurableList<Synapse>());

@@ -102,6 +102,7 @@ namespace DigitalBrain.Kernel;
 [JsonSerializable(typeof(GitReverted))]
 // Distribution / embodiment
 [JsonSerializable(typeof(PackEmission))]
+[JsonSerializable(typeof(ConfigurationProvided))]
 // Company brain knowledge + skills (ingest, crystallize, refund vertical outcomes)
 [JsonSerializable(typeof(IngestCompanySource))]
 [JsonSerializable(typeof(CompanySourceIngested))]
@@ -128,6 +129,9 @@ namespace DigitalBrain.Kernel;
 [JsonSerializable(typeof(PerformKernelSelfUpdate))]
 // Experience domain
 [JsonSerializable(typeof(ExperienceStep))]
+// Generic protocol carriers (pack-defined events and LLM intents)
+[JsonSerializable(typeof(DigitalBrain.Core.Signal))]
+[JsonSerializable(typeof(DigitalBrain.Core.AskLlm))]
 // Task records (universal core protocol, used by kernel grain + INO + MCP)
 [JsonSerializable(typeof(DigitalBrain.Core.TaskCreated))]
 [JsonSerializable(typeof(DigitalBrain.Core.TaskStarted))]

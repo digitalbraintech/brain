@@ -16,6 +16,7 @@
     <ProjectReference Include="..\DigitalBrain.Gateway\DigitalBrain.Gateway.csproj" />
     <ProjectReference Include="..\DigitalBrain.Kernel\DigitalBrain.Kernel.csproj" />
     <ProjectReference Include="..\DigitalBrain.Cli\DigitalBrain.Cli.csproj" />
+    <ProjectReference Include="..\DigitalBrain.Telegram.Transport\DigitalBrain.Telegram.Transport.csproj" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(TargetFramework)' == 'net11.0'">
