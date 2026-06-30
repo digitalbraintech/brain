@@ -149,6 +149,40 @@ public sealed class UiGalleryExperience : KitExperience
         public const string Overlays = "overlays";
     }
 
+    public const string KeywordWatcherPackCode = """
+using System.Collections.Generic;
+using DigitalBrain.Core;
+
+public sealed class KeywordWatcherNeuron : IPackBehavior
+{
+    public PackManifest GetManifest() => new(
+        new[] { new SynapseType("TelegramMessageReceived") },
+        null);
+
+    public string Respond(string input) => input;
+
+    public IReadOnlyList<Synapse> Handle(Synapse synapse)
+    {
+        if (synapse is not Signal s || s.Name != "TelegramMessageReceived")
+            return System.Array.Empty<Synapse>();
+
+        var text = s.Props.TryGetValue("text", out var t) ? t?.ToString() ?? "" : "";
+        if (!text.StartsWith("remind me", System.StringComparison.OrdinalIgnoreCase))
+            return System.Array.Empty<Synapse>();
+
+        return new Synapse[]
+        {
+            new Signal("ReminderScheduled",
+                new Dictionary<string, object?>
+                {
+                    ["chatId"]   = s.Props.TryGetValue("chatId", out var c) ? c : null,
+                    ["reminder"] = text
+                })
+        };
+    }
+}
+""";
+
     public static IReadOnlyList<NeuroPack> LocalUiPacks { get; } =
     [
         new NeuroPack(
@@ -213,6 +247,15 @@ public sealed class UiGalleryExperience : KitExperience
             0.05,
             TelegramResponderPackCode,
             "Telegram bot responder: receives TelegramMessageReceived signals, emits AskLlm to the LLM layer, configurable for Ollama or OpenAI. Install via marketplace, supply token and LLM config."),
+
+        new NeuroPack(
+            "DigitalBrain.Telegram.KeywordWatcher",
+            "1.0.0",
+            "digitalbraintech",
+            false,
+            0.0,
+            KeywordWatcherPackCode,
+            "Keyword watcher: listens for TelegramMessageReceived, emits ReminderScheduled when the text starts with 'remind me'."),
 
         new NeuroPack(
             "hello-world",

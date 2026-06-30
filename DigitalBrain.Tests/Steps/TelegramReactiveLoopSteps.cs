@@ -1,3 +1,4 @@
+using System.Threading.Channels;
 using DigitalBrain.Core;
 using DigitalBrain.Core.Config;
 using DigitalBrain.Runtime.Grpc;
@@ -238,3 +239,200 @@ public sealed class TelegramReactiveLoopSteps : IAsyncDisposable
 
 [CollectionDefinition("telegram-reactive-loop-host", DisableParallelization = true)]
 public sealed class TelegramReactiveLoopHostCollection;
+
+// N+1 reactivity proof: two packs (TelegramResponderNeuron + KeywordWatcherNeuron) both react to ONE
+// TelegramMessageReceived broadcast — proving N+1 handler count with no silo restart.
+[Binding]
+[Collection("telegram-n1-reactivity-host")]
+public sealed class TelegramN1ReactivitySteps : IAsyncDisposable
+{
+    private static IPackConfigStore SharedN1ConfigStore = null!;
+
+    private readonly TestCluster _cluster;
+    private readonly SignalEgressBus _egressBus;
+    private const string ResponderPackName = "TelegramResponderNeuron";
+    private const string WatcherPackName   = "KeywordWatcherNeuron";
+    private const string N1Scope           = "n1-reactivity-user";
+
+    // Signals collected from the egress bus in arrival order; both Then-steps read from this list.
+    private readonly List<Signal> _collectedSignals = new();
+    private SignalEgressBus.Subscription? _egressSubscription;
+
+    public TelegramN1ReactivitySteps()
+    {
+        var configServices = new ServiceCollection();
+        configServices.AddDataProtection().UseEphemeralDataProtectionProvider();
+        configServices.AddSingleton<IPackConfigBackingStore>(new InMemoryPackConfigBackingStore());
+        configServices.AddSingleton<IPackConfigStore, PackConfigStore>();
+        SharedN1ConfigStore = configServices.BuildServiceProvider().GetRequiredService<IPackConfigStore>();
+
+        _egressBus = new SignalEgressBus();
+        TelegramN1SiloConfig.SharedEgressBus = _egressBus;
+
+        var builder = new TestClusterBuilder();
+        builder.AddSiloBuilderConfigurator<TelegramN1SiloConfig>();
+        _cluster = builder.Build();
+        _cluster.DeployAsync().GetAwaiter().GetResult();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _egressSubscription?.Dispose();
+        await _cluster.StopAllSilosAsync();
+    }
+
+    [Given(@"I provide the Telegram configuration token ""(.*)"", provider ""(.*)"", key ""(.*)""")]
+    public async Task GivenN1TelegramConfig(string token, string provider, string key)
+    {
+        var values = new Dictionary<string, string>
+        {
+            ["telegram_token"] = token,
+            ["llm_provider"]   = provider,
+            ["llm_key"]        = key,
+            ["pack"]           = ResponderPackName,
+            ["scope"]          = N1Scope
+        };
+        var payload = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(values);
+
+        var gateway = new GatewayService(
+            _cluster.GrainFactory,
+            new ConfigurationBuilder().Build(),
+            new HomeFeedBus(),
+            new SignalEgressBus(),
+            new FakeHostEnvironment(),
+            NullLogger<GatewayService>.Instance,
+            SharedN1ConfigStore);
+
+        await gateway.Send(new SynapseEnvelope
+        {
+            TypeName = nameof(ConfigurationProvided),
+            Payload  = Google.Protobuf.ByteString.CopyFrom(payload)
+        }, TestServerCallContext.Create());
+    }
+
+    [Given(@"both the Telegram responder and the keyword watcher are installed")]
+    public async Task GivenBothPacksAreInstalled()
+    {
+        var market = _cluster.GrainFactory.GetGrain<IMarketplaceNeuron>("market-n1-proof");
+
+        await market.FireAsync(new PublishToMarketplace(
+            ResponderPackName, "1.0", Code: MarketplaceSeeds.TelegramResponderPackCode,
+            OwnerId: "tester", IsPrivate: false, CommissionRate: 0.0));
+        await market.FireAsync(new InstallFromMarketplace(ResponderPackName, "1.0", BuyerId: N1Scope));
+
+        await market.FireAsync(new PublishToMarketplace(
+            WatcherPackName, "1.0", Code: MarketplaceSeeds.KeywordWatcherPackCode,
+            OwnerId: "tester", IsPrivate: false, CommissionRate: 0.0));
+        await market.FireAsync(new InstallFromMarketplace(WatcherPackName, "1.0", BuyerId: N1Scope));
+    }
+
+    [Given(@"the LLM responder is active and the egress bus is watching ""(.*)"" and ""(.*)""")]
+    public async Task GivenResponderActiveAndEgressWatchingTwo(string type1, string type2)
+    {
+        var responder = _cluster.GrainFactory.GetGrain<ILlmResponderNeuron>("n1-llm-responder");
+        await responder.GetTimelineAsync();
+
+        _egressSubscription = _egressBus.Subscribe(new[] { type1, type2 });
+
+        // Drain the channel into _collectedSignals so both Then-steps can assert without consuming each other's signals.
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await foreach (var signal in _egressSubscription.Reader.ReadAllAsync())
+                    lock (_collectedSignals) _collectedSignals.Add(signal);
+            }
+            catch (OperationCanceledException) { }
+            catch (ChannelClosedException) { }
+        });
+    }
+
+    [When(@"a Telegram message with text ""(.*)"" is ingested for chat (\d+)")]
+    public async Task WhenATelegramMessageIsIngestedForChat(string text, int chatId)
+    {
+        var ingress = _cluster.GrainFactory.GetGrain<IIngressNeuron>("n1-ingress");
+        await ingress.IngestAsync("TelegramMessageReceived",
+            new Dictionary<string, object?> { ["chatId"] = chatId, ["text"] = text });
+    }
+
+    [Then(@"a ""(.*)"" reply for chat (\d+) reaches the egress bus")]
+    public async Task ThenAReplyForChatReachesEgressBus(string signalName, int chatId)
+    {
+        var received = await WaitForSignalAsync(signalName, chatId);
+
+        Assert.NotNull(received);
+        Assert.Equal(signalName, received!.Name);
+        Assert.Equal(chatId, Convert.ToInt32(received.Props.GetValueOrDefault("chatId")));
+
+        if (signalName == "TelegramReplyRequested")
+        {
+            var text = received.Props.GetValueOrDefault("text")?.ToString() ?? "";
+            Assert.StartsWith("ANSWER:", text);
+        }
+    }
+
+    [Then(@"a ""(.*)"" signal for chat (\d+) reaches the egress bus")]
+    public async Task ThenAReminderSignalForChatReachesEgressBus(string signalName, int chatId)
+    {
+        var received = await WaitForSignalAsync(signalName, chatId);
+
+        Assert.NotNull(received);
+        Assert.Equal(signalName, received!.Name);
+        Assert.Equal(chatId, Convert.ToInt32(received.Props.GetValueOrDefault("chatId")));
+        var reminder = received.Props.GetValueOrDefault("reminder")?.ToString() ?? "";
+        Assert.Contains("remind me", reminder, StringComparison.OrdinalIgnoreCase);
+    }
+
+    // Polls _collectedSignals (fed by a background pump) so both assertions read from the same captured list
+    // without consuming each other's signals.
+    private async Task<Signal?> WaitForSignalAsync(string name, int chatId)
+    {
+        var deadline = DateTimeOffset.UtcNow.AddSeconds(15);
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            lock (_collectedSignals)
+            {
+                var match = _collectedSignals.FirstOrDefault(s =>
+                    s.Name == name && Convert.ToInt32(s.Props.GetValueOrDefault("chatId")) == chatId);
+                if (match is not null) return match;
+            }
+            await Task.Delay(50);
+        }
+        return null;
+    }
+
+    private sealed class TelegramN1SiloConfig : ISiloConfigurator
+    {
+        public static SignalEgressBus SharedEgressBus { get; set; } = new();
+
+        public void Configure(ISiloBuilder siloBuilder) => siloBuilder
+            .AddMemoryGrainStorageAsDefault()
+            .AddMemoryStreams("Default")
+            .AddMemoryStreams("HomeFeed")
+            .AddMemoryStreams("DigitalBrainTimeline")
+            .AddMemoryGrainStorage("PubSubStore")
+            .ConfigureServices(services =>
+            {
+                services.AddKeyedScoped<IDurableList<Synapse>>("in-journal", (_, _) => new InMemoryDurableList<Synapse>());
+                services.AddKeyedScoped<IDurableList<Synapse>>("out-journal", (_, _) => new InMemoryDurableList<Synapse>());
+                services.AddScoped<NeuronJournals>();
+                services.AddSingleton<IJournaledStateManager, TestJournaledStateManager>();
+                services.AddSingleton<IPackEmbodiment, PackAlcEmbodier>();
+                services.AddSingleton<HomeFeedBus>();
+                services.AddSingleton<IChatClient, AnswerPrefixChatClient>();
+                services.AddSingleton(SharedEgressBus);
+                services.AddSignalEgressStreamSubscriber();
+                services.AddSingleton(SharedN1ConfigStore);
+                services.AddSingleton<IConfiguration>(
+                    new ConfigurationBuilder()
+                        .AddInMemoryCollection(new Dictionary<string, string?>
+                        {
+                            ["DigitalBrain:Marketplace:RejectUnsignedPacks"] = "false"
+                        })
+                        .Build());
+            });
+    }
+}
+
+[CollectionDefinition("telegram-n1-reactivity-host", DisableParallelization = true)]
+public sealed class TelegramN1ReactivityHostCollection;

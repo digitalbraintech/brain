@@ -107,7 +107,7 @@ namespace DigitalBrain.Tests.Features
         
         private static global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages InitializeCucumberMessages()
         {
-            return new global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages("Features/TelegramExperience.feature.ndjson", 4);
+            return new global::Reqnroll.Formatters.RuntimeSupport.FeatureLevelCucumberMessages("Features/TelegramExperience.feature.ndjson", 5);
         }
         
         async global::System.Threading.Tasks.Task global::Xunit.IAsyncLifetime.InitializeAsync()
@@ -237,6 +237,57 @@ namespace DigitalBrain.Tests.Features
 #line 22
   await testRunner.AndAsync("a \"TelegramReplyRequested\" reply for chat 7 with text \"ANSWER:hi\" reaches the egr" +
                         "ess bus", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
+        
+        [global::Xunit.SkippableFactAttribute(DisplayName="N+1 reactivity - two packs both react to one broadcast with no restart")]
+        [global::Xunit.TraitAttribute("FeatureTitle", "Pack config form on install (Slice 2 - config-driven experience)")]
+        [global::Xunit.TraitAttribute("Description", "N+1 reactivity - two packs both react to one broadcast with no restart")]
+        [global::Xunit.TraitAttribute("Category", "distribution")]
+        [global::Xunit.TraitAttribute("Category", "e2e")]
+        [global::Xunit.TraitAttribute("Category", "n1")]
+        public async global::System.Threading.Tasks.Task N1Reactivity_TwoPacksBothReactToOneBroadcastWithNoRestart()
+        {
+            string[] tagsOfScenario = new string[] {
+                    "distribution",
+                    "e2e",
+                    "n1"};
+            global::System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new global::System.Collections.Specialized.OrderedDictionary();
+            string pickleIndex = "2";
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("N+1 reactivity - two packs both react to one broadcast with no restart", null, tagsOfScenario, argumentsOfScenario, featureTags, pickleIndex);
+            string[] tagsOfRule = ((string[])(null));
+            global::Reqnroll.RuleInfo ruleInfo = null;
+#line 25
+ this.ScenarioInitialize(scenarioInfo, ruleInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                await testRunner.SkipScenarioAsync();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 26
+  await testRunner.GivenAsync("both the Telegram responder and the keyword watcher are installed", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
+#line hidden
+#line 27
+  await testRunner.AndAsync("I provide the Telegram configuration token \"tok-123\", provider \"openai\", key \"sk-" +
+                        "secret\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 28
+  await testRunner.AndAsync("the LLM responder is active and the egress bus is watching \"TelegramReplyRequeste" +
+                        "d\" and \"ReminderScheduled\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 29
+  await testRunner.WhenAsync("a Telegram message with text \"remind me to call mom\" is ingested for chat 7", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+#line 30
+  await testRunner.ThenAsync("a \"TelegramReplyRequested\" reply for chat 7 reaches the egress bus", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+#line 31
+  await testRunner.AndAsync("a \"ReminderScheduled\" signal for chat 7 reaches the egress bus", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
 #line hidden
             }
             await this.ScenarioCleanupAsync();
