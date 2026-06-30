@@ -33,6 +33,7 @@ This file is the single, slim source of guidance for AI agents and contributors.
 - `dotnet test`
 - `aspire doctor` (MCP or CLI)
 - When the plan calls for it: targeted full run + feature specs.
+- **Authoring a bundle:** follow the test-first loop in [`docs/authoring-a-bundle.md`](docs/authoring-a-bundle.md) — define the bundle once as pack source, drive it with `BundleHarness` (fast) and `LiveRenderVerifier` (render).
 
 See plan.md (session) for the detailed before/after analysis of the old rules.
 
