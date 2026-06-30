@@ -39,6 +39,8 @@ public sealed class NeuronTestSiloConfigurator : ISiloConfigurator
                 services.AddSingleton<SkillPackSynthesizer>();
                 services.AddSingleton<HomeFeedBus>();
                 services.AddHomeFeedStreamSubscriber();
+                services.AddSingleton<SignalEgressBus>();
+                services.AddSignalEgressStreamSubscriber();
                 services.AddSingleton<IConfiguration>(
                     new ConfigurationBuilder()
                         .AddInMemoryCollection(new Dictionary<string, string?>

@@ -138,6 +138,7 @@ public class ConfigFormSteps : IAsyncDisposable
             _cluster.GrainFactory,
             new ConfigurationBuilder().Build(),
             new HomeFeedBus(),
+            new SignalEgressBus(),
             new FakeHostEnvironment(),
             NullLogger<GatewayService>.Instance,
             SharedConfigStore);

@@ -34,6 +34,7 @@ public class GatewayServiceTests : IAsyncLifetime
 
     private GatewayService NewService() =>
         new(_cluster.GrainFactory, new ConfigurationBuilder().Build(), _homeFeedBus,
+            new SignalEgressBus(),
             new FakeHostEnvironment(),
             NullLogger<GatewayService>.Instance);
 

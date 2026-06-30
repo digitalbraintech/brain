@@ -13,6 +13,7 @@ public sealed class GatewayService(
     IGrainFactory grains,
     IConfiguration configuration,
     HomeFeedBus homeFeedBus,
+    SignalEgressBus signalEgressBus,
     IHostEnvironment environment,
     ILogger<GatewayService> logger,
     IPackConfigStore? packConfigStore = null) : DigitalBrainGateway.DigitalBrainGatewayBase
@@ -178,6 +179,24 @@ public sealed class GatewayService(
         await foreach (var card in subscription.Reader.ReadAllAsync(context.CancellationToken))
         {
             await WriteCardAsync(responseStream, card);
+        }
+    }
+
+    // Egress for external transports: stream broadcast Signals whose Name is in the request filter (empty = all),
+    // until the client disconnects. Each Signal becomes a SynapseEnvelope carrying its Props as UTF-8 JSON.
+    public override async Task WatchSynapses(WatchSynapsesRequest request, IServerStreamWriter<SynapseEnvelope> responseStream, ServerCallContext context)
+    {
+        logger.LogInformation("WatchSynapses opened for {Peer} (filter: {Filter})", context.Peer, string.Join(",", request.TypeFilter));
+        using var subscription = signalEgressBus.Subscribe(request.TypeFilter.ToArray());
+        await foreach (var signal in subscription.Reader.ReadAllAsync(context.CancellationToken))
+        {
+            await responseStream.WriteAsync(new SynapseEnvelope
+            {
+                TypeName = signal.Name,
+                CorrelationId = signal.CorrelationId ?? string.Empty,
+                Payload = Google.Protobuf.ByteString.CopyFrom(
+                    System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(signal.Props))
+            });
         }
     }
 

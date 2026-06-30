@@ -70,6 +70,11 @@ builder.Services.AddCors(options => options.AddPolicy("browser", policy => polic
 // MemoryStream so cards broadcast on any silo reach all replicas.
 builder.Services.AddSingleton<HomeFeedBus>();
 
+// Signal egress fanout: neurons broadcast Signals on the timeline; WatchSynapses gRPC subscribers stream them
+// filtered by type name. The per-silo SignalEgressStreamSubscriber (wired into the silo below) forwards Signals
+// off the shared DigitalBrainTimeline stream so a Signal broadcast on any silo reaches all replicas.
+builder.Services.AddSingleton<SignalEgressBus>();
+
 // Co-host the MCP tool surface in-process. Only read-only tools are exposed over HTTP (remotely reachable);
 // mutation tools are stdio-only (local/trusted) pending a remote auth decision.
 builder.Services
@@ -156,6 +161,7 @@ builder.UseOrleans(siloBuilder =>
     siloBuilder.AddMemoryStreams("DigitalBrainTimeline");
     siloBuilder.AddMemoryGrainStorage("PubSubStore");
     siloBuilder.ConfigureServices(services => services.AddHomeFeedStreamSubscriber());
+    siloBuilder.ConfigureServices(services => services.AddSignalEgressStreamSubscriber());
     siloBuilder.AddFoundry();
 });
 
