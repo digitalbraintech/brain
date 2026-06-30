@@ -52,6 +52,16 @@ public sealed class PingEmitter : Neuron, IPingEmitter
 
 public class BroadcastReactivityTests
 {
+    private static async Task WaitForCountAsync(Func<Task<int>> getCount, int expected)
+    {
+        for (var attempt = 0; attempt < 40; attempt++)
+        {
+            if (await getCount() >= expected)
+                return;
+            await Task.Delay(50);
+        }
+    }
+
     [Fact]
     public async Task Broadcast_reaches_every_activated_handler()
     {
@@ -67,7 +77,8 @@ public class BroadcastReactivityTests
             await b.EnsureActiveAsync();
             var emitter = cluster.GrainFactory.GetGrain<IPingEmitter>("e");
             await emitter.EmitPingAsync("hello");
-            await Task.Delay(250);
+            await WaitForCountAsync(() => a.ReceivedCountAsync(), 1);
+            await WaitForCountAsync(() => b.ReceivedCountAsync(), 1);
             Assert.Equal(1, await a.ReceivedCountAsync());
             Assert.Equal(1, await b.ReceivedCountAsync());
         }
