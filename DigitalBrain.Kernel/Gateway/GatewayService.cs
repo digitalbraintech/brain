@@ -140,6 +140,9 @@ public sealed class GatewayService(
 
             // Generic fallback: any unknown type_name becomes a named Signal broadcast on the timeline.
             // External clients (e.g. Telegram transport) can fire arbitrary named synapses without kernel knowing their type.
+            if (string.IsNullOrWhiteSpace(request.TypeName))
+                throw new RpcException(new Status(StatusCode.InvalidArgument, "Empty synapse type"));
+
             var payloadJson = System.Text.Encoding.UTF8.GetString(request.Payload.ToArray());
             var rawProps = string.IsNullOrWhiteSpace(payloadJson)
                 ? new Dictionary<string, object?>()
@@ -201,6 +204,8 @@ public sealed class GatewayService(
         System.Text.Json.JsonValueKind.False => false,
         System.Text.Json.JsonValueKind.Null or System.Text.Json.JsonValueKind.Undefined => null,
         System.Text.Json.JsonValueKind.Number => el.TryGetInt64(out var l) ? (object)l : el.GetDouble(),
+        System.Text.Json.JsonValueKind.Object => el.GetRawText(),
+        System.Text.Json.JsonValueKind.Array => el.GetRawText(),
         _ => el.GetString()
     };
 
