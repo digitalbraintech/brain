@@ -7,6 +7,11 @@ namespace DigitalBrain.Telegram;
 // — keeping the kernel/pack layer decoupled from transport specifics.
 public sealed class TelegramResponderNeuron : IPackBehavior
 {
+    // Marketplace NeuroPack name + scope this pack's config is stored under; the responder reads the
+    // user's chosen LLM provider/key from (ConfigScope, ConfigPack) to route the AskLlm.
+    private const string ConfigPack = "DigitalBrain.Telegram.Responder";
+    private const string ConfigScope = "default";
+
     public PackManifest GetManifest() => new(
         new[] { new SynapseType("TelegramMessageReceived") },
         new PackConfigField[]
@@ -32,7 +37,9 @@ public sealed class TelegramResponderNeuron : IPackBehavior
             new AskLlm(
                 text,
                 "TelegramReplyRequested",
-                new Dictionary<string, object?> { ["chatId"] = chatId })
+                new Dictionary<string, object?> { ["chatId"] = chatId },
+                ConfigPack,
+                ConfigScope)
         };
     }
 }

@@ -8,7 +8,15 @@ public record Signal(string Name, IReadOnlyDictionary<string, object?> Props)
     : Synapse(Name, DateTimeOffset.UtcNow);
 
 [GenerateSerializer]
-public record AskLlm(string Prompt, string ReplyType, IReadOnlyDictionary<string, object?> ReplyProps)
+public record AskLlm(
+    [property: Id(0)] string Prompt,
+    [property: Id(1)] string ReplyType,
+    [property: Id(2)] IReadOnlyDictionary<string, object?> ReplyProps,
+    // Optional reference to the pack config that selects which LLM provider/key answers this ask.
+    // When null the global kernel IChatClient is used. Generic — Core ascribes no Telegram meaning here;
+    // only a pack that wants per-scope routing sets these.
+    [property: Id(3)] string? ConfigPack = null,
+    [property: Id(4)] string? ConfigScope = null)
     : Synapse(nameof(AskLlm), DateTimeOffset.UtcNow);
 
 public interface ILlmResponderNeuron : INeuron, IHandle<AskLlm>

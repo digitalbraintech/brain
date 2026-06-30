@@ -101,6 +101,7 @@ if (isAspireHosted)
 }
 
 builder.Services.AddDigitalBrainChat(builder.Configuration);
+builder.Services.AddSingleton<DigitalBrain.Kernel.Llm.IScopedChatClientFactory, DigitalBrain.Kernel.Llm.ScopedChatClientFactory>();
 builder.Services.AddKernelSecurity(builder.Configuration, builder.Environment);
 builder.Services.AddEconomics(builder.Configuration);
 builder.Services.AddContextStore(builder.Configuration);

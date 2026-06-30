@@ -32,6 +32,7 @@ public sealed class NeuronTestSiloConfigurator : ISiloConfigurator
                 services.AddScoped<NeuronJournals>();
                 services.AddSingleton<IJournaledStateManager, TestJournaledStateManager>();
                 services.AddSingleton<IPackEmbodiment, PackAlcEmbodier>();
+                services.AddSingleton<IScopedChatClientFactory, ScopedChatClientFactory>();
                 services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(new NoOpEmbeddingGenerator());
                 services.AddSingleton<IVectorStore, InMemoryVectorStore>();
                 services.AddSingleton<DocumentIngestor>();
