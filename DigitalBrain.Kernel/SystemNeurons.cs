@@ -868,6 +868,25 @@ public class GeneratedNeuron : Neuron, IGeneratedNeuron, IHandle<NeuronTelemetry
 
     public Task HandleAsync(NeuronTelemetry telemetry) => Task.CompletedTask;
 
+    // The generic pack host is a DYNAMIC handler: its handled synapse types come from the embodied pack's
+    // manifest, not from static IHandle<T> declarations. It must subscribe to the timeline unconditionally so
+    // broadcasts can be filtered through the manifest at receive time (the base "has static IHandle<T>" rule
+    // would keep it off the timeline because the host declares none for arbitrary pack synapse types).
+    protected override bool ShouldSubscribeToTimeline => true;
+
+    // Broadcast reception for embodied packs: re-embody from the journal if needed, then let the manifest decide.
+    // TryDispatchEmbodiedAsync runs _embodied.CanHandle (the manifest filter), so a broadcast Signal whose
+    // Name/Type is not in the pack's manifest is ignored. Anything the embodied pack does not claim falls through
+    // to the base (which dispatches only statically-declared IHandle<T> types, e.g. NeuronTelemetry).
+    public override async Task OnNextAsync(Synapse item, Orleans.Streams.StreamSequenceToken? token = null)
+    {
+        EnsureEmbodied();
+        if (await TryDispatchEmbodiedAsync(item))
+            return;
+
+        await base.OnNextAsync(item, token);
+    }
+
     public override Task OnDeactivateAsync(Orleans.DeactivationReason reason, CancellationToken cancellationToken)
     {
         // Unload the ALC (if any) on deactivation. This is necessary but not always sufficient for full collection:

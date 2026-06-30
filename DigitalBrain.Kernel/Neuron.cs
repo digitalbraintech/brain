@@ -97,14 +97,19 @@ public abstract class Neuron : DurableGrain, INeuron, IAsyncObserver<Synapse>
         await SubscribeTimelineIfNeeded();
     }
 
-    // Only neurons that declare IHandle<T> subscribe to the broadcast timeline, so point-to-point-only
+    // A neuron subscribes to the broadcast timeline iff it has a way to react to broadcasts. The default rule
+    // is "declares at least one IHandle<T>"; dynamic hosts (GeneratedNeuron, whose handled types come from an
+    // embodied pack's manifest, not static interfaces) override this to subscribe unconditionally.
+    protected virtual bool ShouldSubscribeToTimeline => SynapseDispatch.HandledTypes(GetType()).Count > 0;
+
+    // Subscribe to the broadcast timeline when ShouldSubscribeToTimeline says so, so point-to-point-only
     // neurons are unaffected. Explicit subscriptions survive deactivation (Orleans streaming contract), so
     // a reactivated neuron resumes via GetAllSubscriptionHandles + ResumeAsync rather than re-subscribing
     // (avoids duplicate deliveries). Silos that don't register the timeline provider (minimal/legacy test
     // hosts) degrade gracefully: the neuron activates without broadcast reception instead of failing.
     private async Task SubscribeTimelineIfNeeded()
     {
-        if (SynapseDispatch.HandledTypes(GetType()).Count == 0)
+        if (!ShouldSubscribeToTimeline)
             return;
 
         IAsyncStream<Synapse> stream;
@@ -130,7 +135,9 @@ public abstract class Neuron : DurableGrain, INeuron, IAsyncObserver<Synapse>
             await existing[i].UnsubscribeAsync();
     }
 
-    public Task OnNextAsync(Synapse item, StreamSequenceToken? token = null) =>
+    // Default broadcast reception: dispatch only synapse types this neuron statically declares IHandle<T> for.
+    // Dynamic hosts override to filter through their own runtime manifest instead.
+    public virtual Task OnNextAsync(Synapse item, StreamSequenceToken? token = null) =>
         SynapseDispatch.HandledTypes(GetType()).Contains(item.GetType())
             ? SynapseDispatch.DispatchAsync(this, Logger, Self, item)
             : Task.CompletedTask;
