@@ -19,7 +19,7 @@ public class LlmResponderNeuron : Neuron, ILlmResponderNeuron
     public async Task HandleAsync(AskLlm ask)
     {
         var chat = ServiceProvider.GetService<IChatClient>();
-        var text = chat is null ? "[no-llm]" : (await chat.GetResponseAsync(ask.Prompt)).Text.Trim();
+        var text = chat is null ? "[no-llm]" : (await chat.GetResponseAsync(ask.Prompt)).Text?.Trim() ?? "[no-llm]";
         var props = new Dictionary<string, object?>(ask.ReplyProps) { ["text"] = text };
         await Broadcast(new Signal(ask.ReplyType, props));
     }

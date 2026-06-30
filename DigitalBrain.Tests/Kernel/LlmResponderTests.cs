@@ -80,10 +80,15 @@ public class LlmResponderTests
             var replyProps = new Dictionary<string, object?> { ["chatId"] = 7 };
             await emitter.BroadcastAskAsync("hi", "ReplyX", replyProps);
 
-            await Task.Delay(250);
-
-            var timeline = await responder.GetTimelineAsync();
-            var signal = timeline.OfType<Signal>().FirstOrDefault(s => s.Name == "ReplyX");
+            // Poll the responder's timeline: stream delivery + grain dispatch cross the silo scheduler,
+            // so a fixed delay is flaky under load. Bounded wait keeps the test fast when it lands quickly.
+            Signal? signal = null;
+            for (var attempt = 0; attempt < 20 && signal is null; attempt++)
+            {
+                await Task.Delay(50);
+                var timeline = await responder.GetTimelineAsync();
+                signal = timeline.OfType<Signal>().FirstOrDefault(s => s.Name == "ReplyX");
+            }
 
             Assert.NotNull(signal);
             Assert.Equal("ReplyX", signal.Name);
