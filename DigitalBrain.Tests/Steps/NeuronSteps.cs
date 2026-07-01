@@ -69,13 +69,6 @@ public class NeuronSteps : IAsyncDisposable
         await _currentGrain.GetTimelineAsync();
     }
 
-    [Given(@"a software10 team neuron ""(.*)""")]
-    public async Task GivenASoftware10TeamNeuron(string id)
-    {
-        _currentGrain = _cluster.GrainFactory.GetGrain<ISoftware10Team>(id);
-        await _currentGrain.GetTimelineAsync();
-    }
-
     [Given(@"a software20 team neuron ""(.*)""")]
     public async Task GivenASoftware20TeamNeuron(string id)
     {

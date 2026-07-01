@@ -425,9 +425,9 @@ blanket "always Context7 first" rule.
 `Reqnroll.xUnit` in the `.csproj`) over a real Orleans `TestCluster` (referenced in 33+ files); the
 shared fixture is `DigitalBrain.Tests/TestSupport/NeuronTestSiloConfigurator.cs`.
 
-`.feature` files are flat under `Features/` — only **6 total**: `AwesomeSoftware10.feature`,
-`AwesomeSoftware20.feature`, `CodeFoundry.feature`, `NeuronCore.feature`,
-`MarketplaceUserFlows.feature`, `TelegramExperience.feature`. Concern-based organization instead lives
+`.feature` files are flat under `Features/` — only **5 total**: `AwesomeSoftware20.feature`,
+`CodeFoundry.feature`, `NeuronCore.feature`, `MarketplaceUserFlows.feature`, `TelegramExperience.feature`.
+Concern-based organization instead lives
 in the plain-C#-test folder structure, not the `.feature` tree: `Kernel/`, `Economics/`, `Context/`,
 `Ui/`, `Mcp/`, `E2E/` (the largest, ~20 files including a `Packs/` subfolder), `Gateway/`, `Trust/`,
 `Distribution/`, `Telegram/`, `Domains/`, `Foundry/`, `Sdk/`, `Awesome/`, `Company/`, `Auth/`, `Llm/`,
