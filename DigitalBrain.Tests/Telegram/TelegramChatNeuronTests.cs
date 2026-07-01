@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using DigitalBrain.Core;
 using DigitalBrain.Kernel;
 using DigitalBrain.TestKit;
+using DigitalBrain.UiKit;
 using Orleans.TestingHost;
 using Xunit;
 

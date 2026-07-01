@@ -20,6 +20,8 @@
   <Project Path="DigitalBrain.Tests/DigitalBrain.Tests.csproj" />
   <Project Path="DigitalBrain.TestKit/DigitalBrain.TestKit.csproj" />
   <Project Path="DigitalBrain.TestKit.Tests/DigitalBrain.TestKit.Tests.csproj" />
+  <Project Path="DigitalBrain.UiKit/DigitalBrain.UiKit.csproj" />
+  <Project Path="DigitalBrain.UiKit.Tests/DigitalBrain.UiKit.Tests.csproj" />
   <Project Path="DigitalBrain.Windows/DigitalBrain.Windows.csproj" />
   <Project Path="DigitalBrain.Windows.Tests/DigitalBrain.Windows.Tests.csproj" />
   <Project Path="DigitalBrain.Mcp/DigitalBrain.Mcp.csproj" />

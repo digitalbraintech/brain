@@ -1,4 +1,5 @@
 using DigitalBrain.Core;
+using DigitalBrain.UiKit;
 
 #pragma warning disable ORLEANSEXP005 // Alpha/experimental journalling APIs
 

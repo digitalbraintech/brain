@@ -1,5 +1,6 @@
 using System.Text.Json;
 using DigitalBrain.Core;
+using DigitalBrain.UiKit;
 
 namespace DigitalBrain.Kernel;
 

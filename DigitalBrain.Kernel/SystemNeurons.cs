@@ -1,5 +1,6 @@
 using DigitalBrain.Core;
 using DigitalBrain.Kernel.Foundry;
+using DigitalBrain.UiKit;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.AI;
 using ModelContextProtocol.Client;
