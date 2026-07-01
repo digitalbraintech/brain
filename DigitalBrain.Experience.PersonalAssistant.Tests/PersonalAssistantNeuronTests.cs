@@ -26,12 +26,17 @@ public class PersonalAssistantNeuronTests
     {
         var pack = new PersonalAssistantNeuron();
         var recalled = new Signal(ContextSignals.RecallCompleted,
-            new Dictionary<string, object?> { ["results"] = new[] { "the launch date is March 5th" } });
+            new Dictionary<string, object?>
+            {
+                ["results"] = new[] { "the launch date is March 5th" },
+                ["chatId"] = 123L
+            });
 
         var outputs = pack.Handle(recalled);
 
         var ask = Assert.IsType<AskLlm>(Assert.Single(outputs));
         Assert.Contains("the launch date is March 5th", ask.Prompt);
+        Assert.Equal(123L, ask.ReplyProps["chatId"]);
     }
 
     [Fact]
@@ -46,6 +51,7 @@ public class PersonalAssistantNeuronTests
         var reply = Assert.IsType<Signal>(Assert.Single(outputs));
         Assert.Equal(TelegramSignals.ReplyRequested, reply.Name);
         Assert.Equal("March 5th", reply.Props["text"]);
+        Assert.Equal(123L, reply.Props["chatId"]);
     }
 
     [Fact]

@@ -43,13 +43,11 @@ public sealed class PersonalAssistantNeuron : IPackBehavior
                 var augmentedPrompt = results.Length > 0
                     ? $"Context: {string.Join("; ", results)}\n\nRespond helpfully."
                     : "Respond helpfully.";
-                // Known gap: ContextSignals.RecallCompleted carries only {results}, not the chatId this
-                // pack passed into RecallRequested, so it cannot be threaded into ReplyProps here. Until
-                // ContextNeuron echoes caller-supplied correlation data back, LlmReplyReady's chatId (and
-                // therefore the final TelegramReplyRequested) resolves to null in a real deployment.
+                var recallChatId = s.Props.TryGetValue("chatId", out var rcc) ? rcc : null;
                 return new Synapse[]
                 {
-                    new AskLlm(augmentedPrompt, PersonalAssistantSignals.LlmReplyReady, new Dictionary<string, object?>(), ConfigPack, ConfigScope)
+                    new AskLlm(augmentedPrompt, PersonalAssistantSignals.LlmReplyReady,
+                        new Dictionary<string, object?> { ["chatId"] = recallChatId }, ConfigPack, ConfigScope)
                 };
 
             case Signal s when s.Name == PersonalAssistantSignals.LlmReplyReady:

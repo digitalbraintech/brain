@@ -28,13 +28,15 @@ public class ContextNeuronTests : IAsyncLifetime
 
         await context.DeliverAsync(new Signal(
             ContextSignals.RecallRequested,
-            new Dictionary<string, object?> { ["query"] = "launch date" })
+            new Dictionary<string, object?> { ["query"] = "launch date", ["chatId"] = 123L })
         { Receiver = new NeuronId("context-signal-test") });
 
         var outgoing = await context.GetTimelineAsync();
         Assert.Contains(outgoing, s => s is Signal reply
             && reply.Name == ContextSignals.RecallCompleted
             && reply.Props.TryGetValue("results", out var r)
-            && r is string[] results && results.Contains("the launch date is March 5th"));
+            && r is string[] results && results.Contains("the launch date is March 5th")
+            && reply.Props.TryGetValue("chatId", out var c) && Equals(c, 123L)
+            && !reply.Props.ContainsKey("query"));
     }
 }

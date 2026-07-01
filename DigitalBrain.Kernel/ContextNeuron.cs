@@ -20,7 +20,9 @@ public class ContextNeuron : Neuron, IContextNeuron, IHandle<Signal>
         if (signal.Name != ContextSignals.RecallRequested) return;
         var query = signal.Props.TryGetValue("query", out var q) ? q?.ToString() ?? "" : "";
         var results = await RecallAsync(query);
-        await FireAsync(new Signal(ContextSignals.RecallCompleted, new Dictionary<string, object?> { ["results"] = results }));
+        var replyProps = new Dictionary<string, object?>(signal.Props) { ["results"] = results };
+        replyProps.Remove("query");
+        await FireAsync(new Signal(ContextSignals.RecallCompleted, replyProps));
     }
 
     public Task<string> GetContextAsync(string contextName)
