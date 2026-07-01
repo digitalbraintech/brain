@@ -20,8 +20,16 @@ public class ChatNeuron : Neuron, IChatNeuron
         });
         var card = new RfwCard("digitalbrain", "DataChartCard", dataJson);
 
-        await FireAsync(card);                               // record in conversation history (journal)
-        ServiceProvider.GetService<HomeFeedBus>()?.Broadcast(card);  // push to the live UI feed
+        await FireAsync(card);  // keep for conversation journal compat
+        // Prefer routing through IFlutterUiNeuron (item 14) for dedicated UI channel + context.
+        var surface = new UiSurface(UiSurfaceKinds.DataChart, new Dictionary<string, object?>
+        {
+            ["prompt"] = request.Prompt,
+            ["data"] = request.DataJson,
+            ["chartHint"] = request.ChartHint
+        });
+        var flutter = GrainFactory.GetGrain<IFlutterUiNeuron>("flutter-ui");
+        await flutter.DeliverAsync(surface.Stamp(Self, CurrentCause));
     }
 
     public Task<RfwCard[]> GetConversationAsync()

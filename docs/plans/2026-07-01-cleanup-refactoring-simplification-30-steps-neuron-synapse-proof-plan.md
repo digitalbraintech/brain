@@ -300,3 +300,14 @@ This is the root-out, delete-heavy, Musk-ordered path to the exact desired syste
 - Targeted tests (DataVisualization|Chart|...): 15 passed / 0 failed.
 - aspire__doctor: 4/4.
 - Tiny focused change in 1 file + plan. Further places (e.g. ChatNeuron) can follow in next tiny slice.
+
+**Item 14 continued (next tiny):**
+- Updated ChatNeuron.HandleAsync (DigitalBrain.Kernel/Ui/ChatNeuron.cs) to create UiSurface for viz and Deliver to IFlutterUiNeuron instead of direct RfwCard + HomeFeedBus.Broadcast (prefer routing).
+  - Kept RfwCard Fire for journal/GetConversation compat (test fix).
+  - Added surface deliver + Stamp for channel neuron routing + context.
+  - Context7 prior.
+- Build: succeeded (0e).
+- Targeted tests (ChatNeuron): 9 passed / 0 failed.
+- aspire__doctor: 4/4.
+- Tiny. GetConversation remains RfwCard-based for now.
+- Plan updated. Advances item 14.
