@@ -9,7 +9,6 @@
   <ItemGroup>
     <!-- MCP tool attributes ([McpServerToolType]/[McpServerTool]); transport packages live in the host projects. -->
     <PackageReference Include="ModelContextProtocol" />
-    <ProjectReference Include="..\DigitalBrain.Context\DigitalBrain.Context.csproj" />
     <ProjectReference Include="..\DigitalBrain.Core\DigitalBrain.Core.csproj" />
   </ItemGroup>
 

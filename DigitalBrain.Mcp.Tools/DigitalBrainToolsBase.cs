@@ -1,5 +1,4 @@
 using DigitalBrain.Core;
-using DigitalBrain.Context;
 using Orleans;
 using System.Text.Json;
 
@@ -72,7 +71,7 @@ public abstract class DigitalBrainToolsBase(IGrainFactory grains)
             "aspire-main" => Grains.GetGrain<IAspireNeuron>(neuronId),
             "closedloop-main" => Grains.GetGrain<IClosedLoopNeuron>(neuronId),
             "compiler-main" => Grains.GetGrain<ICompiler>(neuronId),
-            "context-main" => Grains.GetGrain<IContextNeuron>(neuronId),
+            "context-main" => Grains.GetGrain<INeuron>(neuronId),
             "company-main" => Grains.GetGrain<ICompanyKnowledgeNeuron>(neuronId),
             "company-skill-main" => Grains.GetGrain<ICompanySkillOrchestratorNeuron>(neuronId),
             "chart-main" => Grains.GetGrain<IDataVisualizationNeuron>(neuronId),

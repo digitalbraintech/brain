@@ -1,5 +1,4 @@
 using DigitalBrain.Core;
-using DigitalBrain.Context;
 using ModelContextProtocol.Server;
 using Orleans;
 using System.ComponentModel;
@@ -55,7 +54,7 @@ public sealed class DigitalBrainMutationTools(IGrainFactory grains) : DigitalBra
         [Description("Filter key")] string filter,
         [Description("Value")] string val)
     {
-        var context = Grains.GetGrain<IContextNeuron>("context-main");
+        var context = Grains.GetGrain<INeuron>("context-main");
         await context.FireAsync(new ContextUpdate("filter:" + view, filter, val));
         await context.FireAsync(new FilterChanged(view, filter, val)); // notify for LLM awareness
         return $"Context+Filter updated for {view}. INO/Context now aware.";
