@@ -10,6 +10,14 @@ public static class TelegramSignals
     public const string ReplyRequested = "TelegramReplyRequested";
 }
 
+public static class UiSignals
+{
+    // Central names for UiSurface kinds / events that cross channels (e.g. from Telegram viz to Flutter).
+    // Prefer UiSurfaceKinds / UiSurfaceKeys for most, but these for Signal-level where needed.
+    public const string SurfaceEmitted = "UiSurfaceEmitted";
+    public const string WidgetTreeUpdated = "UiWidgetTreeUpdated";
+}
+
 [GenerateSerializer]
 public record Signal(string Name, IReadOnlyDictionary<string, object?> Props)
     : Synapse(Name, DateTimeOffset.UtcNow);

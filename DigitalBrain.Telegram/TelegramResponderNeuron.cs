@@ -36,7 +36,7 @@ public sealed class TelegramResponderNeuron : IPackBehavior
         {
             new AskLlm(
                 text,
-                "TelegramReplyRequested",
+                TelegramSignals.ReplyRequested,
                 new Dictionary<string, object?> { ["chatId"] = chatId },
                 ConfigPack,
                 ConfigScope)

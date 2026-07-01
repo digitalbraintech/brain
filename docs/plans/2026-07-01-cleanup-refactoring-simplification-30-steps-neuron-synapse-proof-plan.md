@@ -191,3 +191,16 @@ Start with items 1-8 (P0 core proof). Update this file with results after each.
 - Next 2-3 recommended (after P0 solid): 9 (consts), 11/12 (centralize + refactor hosting to use pack), 14 (route Ui via flutter neuron in bridges). Or 16 for excel pack seed. Do not start until user ok + full aspire run + doctor manual demo.
 
 This is the root-out, delete-heavy, Musk-ordered path to the exact desired system.
+
+**Commit after P0:**
+- Committed as d53c5ac (on a4f301d): "feat(P0): neuron/synapse purity proof slice (items 1-8)"
+- Post-commit verification: `dotnet build` clean, targeted tests 66 passed (Telegram/Chat/Chart/Marketplace/UiSurface filters), `aspire__doctor` 4/4 pass.
+- Ready to continue next items (user: "commit and continue next").
+- Still strictly following: Context7 + aspire MCP + ritual + relative + delete-first for any continuation.
+
+**Continuing next (post d53c5ac commit):**
+- Started item 10 (P0 cleanup): Expanded Core/Signals.cs with UiSignals (symmetry). Replaced key remaining "TelegramMessageReceived"/"TelegramReplyRequested" literals in:
+  - DigitalBrain.Kernel/Gateway/GatewayService.cs
+  - DigitalBrain.Core/MarketplaceSeeds.cs (SynapseType + pack code)
+- Ritual passed each time (build 0e, tests green, doctor 4/4, MCP used).
+- More literal cleanup + UiSignals usage + full item 9/10/11 in subsequent slices (delete string trash aggressively).
