@@ -77,20 +77,65 @@ The stale docs at `docs/superpowers/specs/2026-06-30-telegram-llm-experience-des
 
 ### 1.3 Project graph
 
-Solution `Brain.slnx` lists 12 projects plus the Flutter client folder reference (`../app/Flutter.proj`).
+Solution `Brain.slnx` lists 29 projects plus the Flutter client folder reference (`../app/Flutter.proj`).
 
 | Project | Purpose |
 |---|---|
-| `DigitalBrain.Core` | Pure protocol layer — `INeuron`, `Synapse`, `IHandle<T>`, `NeuronId`/`TaskId`, `IPackBehavior`, checkpoint/trust/UI-surface contracts, marketplace seeds. Only depends on `Microsoft.Orleans.Core.Abstractions`/`Serialization`. Kept dependency-light so `Mcp.Tools` can reference only this. |
-| `DigitalBrain.Kernel` | The Orleans runtime (formerly "Silo"). `Microsoft.NET.Sdk.Web`, container-packaged. Subfolders: `Auth, Awesome, Company, Config, Context, Economics, Foundry, Gateway, Generated, Ino, Kernel, Llm, Marketplace, Protos, Sandbox, Sdk, Ui`. Owns embodiment (Foundry/Sandbox), LLM (Microsoft.Extensions.AI + Ollama/Azure OpenAI), Economics (Stripe + ECDSA licenses), Context (Qdrant), server-driven UI (`Ui`/`Protos`, bidirectional gRPC `UiGateway`), HA self-update. |
+| `DigitalBrain.Core` | Pure protocol layer — `INeuron`, `Synapse`, `IHandle<T>`, `NeuronId`/`TaskId`, `IPackBehavior`, checkpoint/trust/UI-surface contracts, marketplace seeds. Only depends on `Microsoft.Orleans.Core.Abstractions`/`Serialization`. Kept dependency-light so `Mcp.Tools` can reference only this. Zero references to any specific integration/vendor type (Google, Gmail, Winget, Git, Roslyn, Flutter UI, Telegram chat, Context grain, …) — only generic `*Signals` string-constant registries, which are name registries, not type contracts. |
+| `DigitalBrain.Kernel` | The Orleans runtime (formerly "Silo"). `Microsoft.NET.Sdk.Web`, container-packaged. Subfolders: `Auth, Awesome, Company, Config, Context, Economics, Foundry, Gateway, Generated, Ino, Kernel, Llm, Marketplace, Protos, Sandbox, Sdk, Ui`. Owns embodiment (Foundry/Sandbox), LLM (Microsoft.Extensions.AI + Ollama/Azure OpenAI), Economics (Stripe + ECDSA licenses), Context (Qdrant), server-driven UI (`Ui`/`Protos`, bidirectional gRPC `UiGateway`), HA self-update. References every isolated ino project below for their interfaces/logic, and hosts the concrete `Neuron`-derived grain classes for Windows/Developer/Context/UiKit/Telegram.Channel/Google (see §1.3a). |
 | `DigitalBrain.Aspire` | Hosting SDK: `AddDigitalBrain`, `WireKernelSilo`, `WithMcp`, `WithOrleansDashboard`, `AddFlutterClient`, `WireTelegramTransport` — all in `DigitalBrainBuilderExtensions.cs`. Not itself an Aspire project resource (`IsAspireProjectResource=false`). |
 | `DigitalBrain.Gateway` | Thin/legacy HTTP entry point; Orleans client + clustering only. Gated behind `DIGITALBRAIN_ENABLE_DIAGNOSTIC_GATEWAY` in the AppHost — the kernel hosts the product gRPC/surface gateway by default now. |
 | `DigitalBrain.Mcp` / `DigitalBrain.Mcp.Tools` | MCP server (`Mcp`, an `Exe`, co-hosted on the kernel's Kestrel) exposing neuron tools defined in `Mcp.Tools` (`DigitalBrainMutationTools.cs`, `DigitalBrainReadTools.cs`) — `Mcp.Tools` references only `Core`. |
 | `DigitalBrain.Cli` | Spectre.Console TUI, `start-ui` resource, `.WithExplicitStart()` — not auto-started with the rest of the graph. |
-| `DigitalBrain.Telegram` | Pure shared library: transport-internal synapses (`TelegramMessageReceived`, `TelegramReplyRequested` — explicitly *not* journaled through the kernel) and `TelegramResponderNeuron`, a pure `IPackBehavior` pack. |
+| `DigitalBrain.Telegram` | Pure shared library: transport-internal synapses (`TelegramMessageReceived`, `TelegramReplyRequested` — explicitly *not* journaled through the kernel) and `TelegramResponderNeuron`, a pure `IPackBehavior` pack. Fully self-contained — never derives from `Neuron`. |
 | `DigitalBrain.Telegram.Transport` | The actual ASP.NET Core webhook host — `/webhook` POST ingress, `/health`, gRPC-clients the kernel gateway. Deployed as its own container app (see 1.6). |
+| `DigitalBrain.TestKit` | `IDigitalBrain` facade over a real Orleans `TestCluster`, depends on Core + Kernel + every real-grain ino below. Gives each isolated ino's `.Tests` sibling a zero-boilerplate way to spin a cluster and resolve grains without depending on `DigitalBrain.Tests`. |
+| `DigitalBrain.Windows` (+ `.Tests`) | Real-grain ino. `IFileSystemNeuron`/`IWingetNeuron`/`IShellNeuron` interfaces, `ProcessRunner`, `FileSystemOperations` (real `System.IO` calls) — Core-only dependency. Grain classes stay in Kernel (§1.3a). |
+| `DigitalBrain.Developer` (+ `.Tests`) | Real-grain ino. `IGitNeuron`/`IDotNetNeuron`/`INuGetNeuron`/`IRoslynNeuron` interfaces plus real, Orleans-independent logic (e.g. `RoslynAnalysisService` via `MSBuildWorkspace`) — Core-only. Grain classes stay in Kernel. |
+| `DigitalBrain.Context` (+ `.Tests`) | Real-grain ino. `IContextNeuron` interface plus the Qdrant memory subsystem (`ContextServices`, `DocumentIngestor`, `HybridScorer`, `QdrantVectorStore`, `VectorStore`) — Core-only. `ContextNeuron` grain class stays in Kernel. |
+| `DigitalBrain.UiKit` (+ `.Tests`) | Real-grain ino, interface-only (see §1.3a honest limitation). `IFlutterUiNeuron` interface — Core-only. `FlutterUiNeuron` grain class, `HomeFeedBus`, `SignalEgressBus`, `UiSurfaceRfwBridge` all stay in Kernel as cross-cutting broadcast infra. |
+| `DigitalBrain.Telegram.Channel` (+ `.Tests`) | Real-grain ino, interface-only (see §1.3a honest limitation). `ITelegramChatNeuron` interface — Core-only. `TelegramChatNeuron` grain class (stateful, journal-derived binding/routing) stays in Kernel. |
+| `DigitalBrain.Google` (+ `.Tests`) | Real-grain ino. `IGmailNeuron`/`IGoogleDriveNeuron`/`IGoogleCalendarNeuron` interfaces, `I*ApiClient` wrapper interfaces + real `Google*ApiClient` implementations, `GoogleCredentialFactory` — Core + `Google.Apis.*` only. Grain classes (`GmailNeuron`, `GoogleDriveNeuron`, `GoogleCalendarNeuron`, `GoogleAuthNeuron`) live in Kernel, not this project (the one correction the neuron-placement amendment made to the base spec). |
+| `DigitalBrain.Experience.PersonalAssistant` (+ `.Tests`) | Pure-pack ino. `PersonalAssistantNeuron : IPackBehavior` — multi-hop: recall Context → augmented `AskLlm` → text reply or visualize, composing Telegram+Context+LLM via generic `Signal` names. Fully self-contained — never derives from `Neuron`. Core-only. Its source is embedded into `DigitalBrain.Core` and seeded into the marketplace at runtime (`MarketplaceSeeds.PersonalAssistantPackCode`). |
 | `NeuroOSPrototype.AppHost` + `NeuroOSPrototype.ServiceDefaults` | The Aspire host resource graph (below) and standard OTel/health/resilience defaults. |
 | `DigitalBrain.Tests` | Reqnroll BDD + xUnit over a real Orleans `TestCluster`. See Part 2. |
+
+### 1.3a Isolated inos: every integration's contract is a peer, not a Kernel internal
+
+As of the 2026-07-01 isolated-ino migration (design: `docs/superpowers/specs/2026-07-01-isolated-testable-marketplace-inos-design.md`;
+amended by `docs/superpowers/specs/2026-07-01-real-grain-ino-neuron-placement-amendment.md`), every
+marketplace integration that used to live entirely inside `DigitalBrain.Kernel` now has its public
+interface (and, where genuinely Orleans-independent, its real capability logic) extracted into its own
+Core-only peer project — `DigitalBrain.Windows`, `.Developer`, `.Context`, `.UiKit`, `.Telegram.Channel`,
+`.Google`, plus the pure-pack `.Telegram` and `.Experience.PersonalAssistant`. `DigitalBrain.Kernel`
+references each of these (the dependency direction is unchanged: Kernel depends on the inos, not the
+reverse), and `DigitalBrain.Core` has zero awareness of any of them — verified by grepping `DigitalBrain.Core`
+for every moved type name.
+
+The split is **not** "each ino hosts its own grain." `Neuron`/`NeuronJournals` are built on Orleans's alpha
+`Journaling`/`DurableGrain` APIs and live in `DigitalBrain.Kernel` only — they always have, and this
+migration does not move them. So the concrete `Neuron`-derived grain classes for Windows, Developer,
+Context, UiKit, Telegram.Channel, and Google all stay in (or, for Google, moved into)
+`DigitalBrain.Kernel`, which constructor-injects and delegates to the ino's extracted logic where one
+exists. Only two ino families are fully self-contained `IPackBehavior` packs with no Kernel-side grain at
+all: `DigitalBrain.Telegram` (`TelegramResponderNeuron`) and `DigitalBrain.Experience.PersonalAssistant`
+(`PersonalAssistantNeuron`) — neither ever derived from `Neuron`, so neither was blocked by the
+Orleans-dependency issue the amendment addresses.
+
+How much real logic actually moved out varies by ino, per the amendment's own "honest limitation":
+- **Windows / Developer / Context / Google** — a genuine win: real capability logic (file I/O, git/dotnet/
+  nuget process wrapping, Qdrant vector-store calls, Gmail/Drive/Calendar HTTP calls) is fully isolated and
+  independently unit-testable with zero Orleans infrastructure.
+- **UiKit / Telegram.Channel** — a smaller win: these grains' bodies are inherently Kernel-coupled
+  (`HomeFeedBus`, `SignalEgressBus`, `UiSurfaceRfwBridge`, journal-derived routing state all stay in
+  Kernel as cross-cutting broadcast infra), so their ino projects hold only the public interface. Still
+  worthwhile — it gives other consumers a small, generic-free dependency surface — but not the same
+  "capability logic fully out of Kernel" outcome as the first group.
+
+`DigitalBrain.TestKit` (Task 1) is the shared foundation all of this rests on: an `IDigitalBrain` facade
+over a real Orleans `TestCluster`, depended on by Kernel and by every real-grain ino's `.Tests` sibling, so
+each isolated project gets its own fast, direct grain-resolution tests without routing through the central
+`DigitalBrain.Tests` project (which remains the broadest cross-cutting E2E safety net).
 
 Target framework: **net11.0** (`DigitalBrain.Core.csproj:4`). Key pinned versions
 (`Directory.Packages.props`, captured 2026-06-21 per its own header comment): Aspire.* **13.4.6**
