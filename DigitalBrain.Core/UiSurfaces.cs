@@ -833,6 +833,74 @@ public static class UiSurfaceLiveData
                 }));
     }
 
+    public static UiSurface MarketplaceTreeSurface(
+        IReadOnlyList<NeuroPack> published,
+        IReadOnlyList<NeuroPack> installed,
+        string? tierFilter,
+        string? channelFilter,
+        string emitter,
+        string title = "Marketplace",
+        string userId = "anonymous",
+        string? sessionId = null)
+    {
+        // Reuse the existing per-pack projection (name/version/description/installed/tier/channels/entryExperienceId).
+        var listSurface = MarketplaceListFromPacks(published, installed, userId, sessionId);
+        var allItems = (Dictionary<string, object?>[])listSurface.Props["packs"]!;
+
+        bool Matches(Dictionary<string, object?> item)
+        {
+            if (tierFilter is not null && item.GetValueOrDefault("tier")?.ToString() != tierFilter) return false;
+            if (channelFilter is not null)
+            {
+                var channels = item.GetValueOrDefault("channels") as string[] ?? Array.Empty<string>();
+                if (!channels.Contains(channelFilter)) return false;
+            }
+            return true;
+        }
+
+        var filtered = allItems.Where(Matches).ToArray();
+
+        var tiers = allItems
+            .Select(i => i.GetValueOrDefault("tier")?.ToString())
+            .Where(t => !string.IsNullOrEmpty(t))
+            .Distinct()
+            .ToList();
+        var channelNames = allItems
+            .SelectMany(i => i.GetValueOrDefault("channels") as string[] ?? Array.Empty<string>())
+            .Distinct()
+            .ToList();
+
+        UiWidgetTree FacetButton(string label, string? tier, string? channel) =>
+            new(NeuronUiKit.ActionButton, new Dictionary<string, object?>
+            {
+                [UiSurfaceKeys.Label] = label,
+                [UiSurfaceKeys.SynapseType] = nameof(FilterMarketplace),
+                [UiSurfaceKeys.Props] = (IReadOnlyDictionary<string, object?>)new Dictionary<string, object?> { ["tier"] = tier, ["channel"] = channel }
+            });
+
+        var facetButtons = new List<UiWidgetTree> { FacetButton("All", null, null) };
+        facetButtons.AddRange(tiers.Select(t => FacetButton(t!, t, null)));
+        facetButtons.AddRange(channelNames.Select(c => FacetButton(c, null, c)));
+
+        var tree = new UiWidgetTree("column", new Dictionary<string, object?>(), new List<UiWidgetTree>
+        {
+            new UiWidgetTree("row", new Dictionary<string, object?>(), facetButtons),
+            new UiWidgetTree("list", new Dictionary<string, object?> { ["items"] = filtered })
+        });
+
+        return new UiSurface(UiSurfaceKinds.MarketplaceList, new Dictionary<string, object?>
+        {
+            ["tree"] = tree,
+            ["packs"] = filtered,
+            [UiSurfaceKeys.Title] = title,
+            [UiSurfaceKeys.Emitter] = emitter,
+            ["userId"] = userId,
+            ["sessionId"] = sessionId,
+            ["activeTier"] = tierFilter,
+            ["activeChannel"] = channelFilter
+        });
+    }
+
     public static UiSurface InstalledBundlesFromPacks(
         IReadOnlyList<NeuroPack> publishedPacks,
         IReadOnlyList<NeuroPack> installedPacks,

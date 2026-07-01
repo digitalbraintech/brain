@@ -34,6 +34,12 @@ public record Synapse(
 }
 
 [GenerateSerializer]
+public record FilterMarketplace(
+    [property: Id(0)] string? Tier = null,
+    [property: Id(1)] string? Channel = null
+) : Synapse(nameof(FilterMarketplace), DateTimeOffset.UtcNow);
+
+[GenerateSerializer]
 public record ListPublished() : Synapse(nameof(ListPublished), DateTimeOffset.UtcNow);
 
 [GenerateSerializer]
