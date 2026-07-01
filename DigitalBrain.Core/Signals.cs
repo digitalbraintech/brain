@@ -2,6 +2,13 @@ namespace DigitalBrain.Core;
 
 // Generic protocol carriers for pack-defined events and LLM intents.
 // Name/props let pack code ride the wire as a named event bag without polluting Core with domain types.
+// Channel-specific names live here so they are first-class datatypes (usable from packs that compile against Core only).
+
+public static class TelegramSignals
+{
+    public const string MessageReceived = "TelegramMessageReceived";
+    public const string ReplyRequested = "TelegramReplyRequested";
+}
 
 [GenerateSerializer]
 public record Signal(string Name, IReadOnlyDictionary<string, object?> Props)

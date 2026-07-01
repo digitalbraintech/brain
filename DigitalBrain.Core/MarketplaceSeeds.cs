@@ -16,7 +16,7 @@ public sealed class TelegramResponderNeuron : IPackBehavior
     private const string ConfigScope = "default";
 
     public PackManifest GetManifest() => new(
-        new[] { new SynapseType("TelegramMessageReceived") },
+        new[] { new SynapseType(TelegramSignals.MessageReceived) },
         new PackConfigField[]
         {
             new("telegram_token", "Bot token",    PackConfigFieldKind.Secret),
@@ -29,7 +29,7 @@ public sealed class TelegramResponderNeuron : IPackBehavior
 
     public IReadOnlyList<Synapse> Handle(Synapse synapse)
     {
-        if (synapse is not Signal s || s.Name != "TelegramMessageReceived")
+        if (synapse is not Signal s || s.Name != TelegramSignals.MessageReceived)
             return System.Array.Empty<Synapse>();
 
         var text   = s.Props.TryGetValue("text",   out var t) ? t?.ToString() ?? "" : "";
@@ -45,6 +45,11 @@ public sealed class TelegramResponderNeuron : IPackBehavior
                 ConfigScope)
         };
     }
+
+    public BundleManifest? GetBundleManifest() => new(
+        BundleTier.Channel,
+        null,
+        new[] { BundleChannel.Telegram });
 }
 """;
 
@@ -170,7 +175,7 @@ public sealed class KeywordWatcherNeuron : IPackBehavior
 
     public IReadOnlyList<Synapse> Handle(Synapse synapse)
     {
-        if (synapse is not Signal s || s.Name != "TelegramMessageReceived")
+        if (synapse is not Signal s || s.Name != TelegramSignals.MessageReceived)
             return System.Array.Empty<Synapse>();
 
         var text = s.Props.TryGetValue("text", out var t) ? t?.ToString() ?? "" : "";
@@ -187,6 +192,11 @@ public sealed class KeywordWatcherNeuron : IPackBehavior
                 })
         };
     }
+
+    public BundleManifest? GetBundleManifest() => new(
+        BundleTier.Channel,
+        null,
+        new[] { BundleChannel.Telegram });
 }
 """;
 

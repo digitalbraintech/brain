@@ -9,8 +9,8 @@ namespace DigitalBrain.Kernel;
 [GrainType("digitalbrain.telegram-chat.v1")]
 public sealed class TelegramChatNeuron : Neuron, ITelegramChatNeuron, IHandle<Signal>
 {
-    private const string InboundName = "TelegramMessageReceived";
-    private const string ReplyName = "TelegramReplyRequested";
+    private const string InboundName = TelegramSignals.MessageReceived;
+    private const string ReplyName = TelegramSignals.ReplyRequested;
     private const string StartPrefix = "/start";
 
     // Purely point-to-point driven (fed by the gateway via DeliverAsync). It EMITS broadcasts
