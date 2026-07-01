@@ -41,6 +41,9 @@ public sealed class PackEmbodimentRendersE2ETests(DigitalBrainBrowserFixture fix
         await node.WaitForAsync(new() { Timeout = 30_000 });
         Assert.Equal(1, await node.CountAsync());
 
+        // E2E continue: use fixture helper to assert context for routed surface (placeholder for tg origin etc).
+        await _fx.AssertSurfaceContext($"[flt-semantics-identifier=\"{surfaceId}\"]", "originChannel", "telegram");
+
         var shot = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"e2e-render-{surfaceId}.png");
         await _fx.Page.ScreenshotAsync(new() { Path = shot });
     }

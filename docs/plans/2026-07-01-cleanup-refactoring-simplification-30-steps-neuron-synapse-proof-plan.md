@@ -495,9 +495,21 @@ This is the root-out, delete-heavy, Musk-ordered path to the exact desired syste
 - Tiny E2E prep: updated comment in TestPacks.cs RenderableSurfacePack to tie to tg context flow (tg Signal -> viz with origin -> flutter).
 - Tiny E2E: added comment in PackEmbodimentRendersE2ETests tying surface render E2E to tg context flow.
 - Tiny E2E: added AssertSurfaceContext helper to DigitalBrainBrowserFixture for future browser asserts on routed surfaces/context (e.g. originChannel).
+- Tiny E2E continue: called the helper in PackEmbodimentRendersE2ETests after waiting for the node (placeholder for full context check).
 - Build 0e, test passed (E2E skippable as expected).
 - aspire__doctor 4/4.
 - Plan updated. (Startup 14 complete; E2E slice started).
+
+**Commit (cba237f): E2E prep**
+- Committed as cba237f: "chore(E2E prep): added AssertSurfaceContext helper to DigitalBrainBrowserFixture + plan updates for tg context flow"
+- Post-commit verification ritual:
+  - git status: clean.
+  - dotnet build: 0 errors.
+  - Targeted tests (Telegram_viz | PackEmbodiment): 1 passed / 1 skipped (E2E).
+  - aspire__doctor (MCP): 4/4 pass.
+- Plan updated.
+- Strictly followed rules: relative paths, rituals after edits, Context7 prior for Orleans, delete-first where applicable, high-sev tests green.
+- Tree at cba237f. Startup 14 complete; E2E slice progressing with fixture helper and usage. Ready for more E2E asserts or manual aspire.
 
 **Commit (5c9f4db): item 14 + E2E prep**
 - Committed as 5c9f4db: "chore(item 14 + E2E prep): more startup emitters (taskTreeSurface, marketTreeSurface, FilterMarketplace) + E2E comments/tests for tg context flow"
@@ -507,6 +519,17 @@ This is the root-out, delete-heavy, Musk-ordered path to the exact desired syste
   - Targeted tests (Telegram_viz | SystemNeurons | PackEmbodiment): 1 passed / 1 skipped (E2E).
   - aspire__doctor (MCP): 4/4 pass.
 - Plan updated.
+
+**Commit (cba237f): E2E prep**
+- Committed as cba237f: "chore(E2E prep): added AssertSurfaceContext helper to DigitalBrainBrowserFixture + plan updates for tg context flow"
+- Post-commit verification ritual:
+  - git status: clean.
+  - dotnet build: 0 errors.
+  - Targeted tests (Telegram_viz | PackEmbodiment): 1 passed / 1 skipped (E2E).
+  - aspire__doctor (MCP): 4/4 pass.
+- Plan updated.
+- Strictly followed rules: relative paths, rituals after edits, Context7 prior for Orleans, delete-first where applicable, high-sev tests green.
+- Tree at cba237f. Startup 14 complete; E2E slice progressing with fixture helper. Ready for more E2E asserts or manual aspire.
 - All per rules: Context7, relative paths, delete-first (bus -> Deliver), rituals green, tiny slices.
 - Tree now at 5c9f4db. Startup 14 complete; E2E slice started. Ready for more E2E or manual aspire.
 
