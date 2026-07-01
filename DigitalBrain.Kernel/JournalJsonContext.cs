@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using DigitalBrain.Core;
+using DigitalBrain.Developer;
 
 namespace DigitalBrain.Kernel;
 

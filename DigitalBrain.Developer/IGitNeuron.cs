@@ -1,6 +1,7 @@
 using System.ComponentModel;
+using DigitalBrain.Core;
 
-namespace DigitalBrain.Core;
+namespace DigitalBrain.Developer;
 
 // Typed git integration neuron. Re-homed from IAW's IGit/GitAgent onto MAIN's Neuron model.
 // Dispatch is typed grain-method RPC (zero-reflection) — infra calls are request/response and do not

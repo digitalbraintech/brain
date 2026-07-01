@@ -1,6 +1,7 @@
 using System.ComponentModel;
+using DigitalBrain.Core;
 
-namespace DigitalBrain.Core;
+namespace DigitalBrain.Developer;
 
 // Typed NuGet operations via the dotnet CLI. Re-homed from IAW's INuGet onto Neuron; supersedes the untyped
 // NuGetManagerNeuron.

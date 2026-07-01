@@ -1,6 +1,7 @@
 using System.ComponentModel;
+using DigitalBrain.Core;
 
-namespace DigitalBrain.Core;
+namespace DigitalBrain.Developer;
 
 // Typed .NET CLI operations (build/test/version/list). Re-homed from IAW's IDotNet onto Neuron.
 public interface IDotNetNeuron : INeuronAgent

@@ -44,6 +44,7 @@
     <PackageReference Include="Microsoft.Orleans.Streaming" />
     <!-- Microsoft.Orleans.Dashboard added for .WithOrleansDashboard() - run 'dotnet add package Microsoft.Orleans.Dashboard' if needed for full UI -->
     <ProjectReference Include="..\DigitalBrain.Core\DigitalBrain.Core.csproj" />
+    <ProjectReference Include="..\DigitalBrain.Developer\DigitalBrain.Developer.csproj" />
     <ProjectReference Include="..\DigitalBrain.Mcp.Tools\DigitalBrain.Mcp.Tools.csproj" />
     <ProjectReference Include="..\DigitalBrain.Windows\DigitalBrain.Windows.csproj" />
     <ProjectReference Include="..\NeuroOSPrototype.ServiceDefaults\NeuroOSPrototype.ServiceDefaults.csproj" />

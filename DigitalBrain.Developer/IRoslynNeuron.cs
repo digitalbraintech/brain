@@ -1,6 +1,7 @@
 using System.ComponentModel;
+using DigitalBrain.Core;
 
-namespace DigitalBrain.Core;
+namespace DigitalBrain.Developer;
 
 // Typed Roslyn code-intelligence. Wraps the real MSBuildWorkspace solution analysis that previously lived in the
 // untyped RoslynArchitectNeuron (reuse-first), behind a typed contract with static-virtual metadata.
