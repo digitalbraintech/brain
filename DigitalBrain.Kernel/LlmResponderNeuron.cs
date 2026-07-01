@@ -8,13 +8,10 @@ using Microsoft.Extensions.AI;
 namespace DigitalBrain.Kernel;
 
 [GrainType("digitalbrain.llm-responder")]
-public class LlmResponderNeuron : Neuron, ILlmResponderNeuron
+public class LlmResponderNeuron(ILogger<LlmResponderNeuron> logger, NeuronJournals journals) : Neuron(logger, journals), ILlmResponderNeuron
 {
     // Cache scoped clients per (provider, key) so a chatty pack does not rebuild a client per message.
     private readonly Dictionary<(string Provider, string? Key), IChatClient> _scopedClients = new();
-
-    public LlmResponderNeuron(ILogger<LlmResponderNeuron> logger, NeuronJournals journals)
-        : base(logger, journals) { }
 
     public async Task HandleAsync(AskLlm ask)
     {

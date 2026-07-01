@@ -8,10 +8,8 @@ namespace DigitalBrain.Kernel;
 // each grant in its journal; entitlement (HasLicense) is journal-derived. The signing key pair is persisted in
 // the journal on first use (prod should source it from Key Vault).
 [GrainType("digitalbrain.license.v1")]
-public class LicenseNeuron : Neuron, ILicenseNeuron
+public class LicenseNeuron(ILogger<LicenseNeuron> logger, NeuronJournals journals) : Neuron(logger, journals), ILicenseNeuron
 {
-    public LicenseNeuron(ILogger<LicenseNeuron> logger, NeuronJournals journals) : base(logger, journals) { }
-
     public async Task<string> IssueLicenseAsync(string bundleId, string userId)
     {
         var (privateKey, _) = await EnsureKeysAsync();

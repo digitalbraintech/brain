@@ -5,14 +5,9 @@ using Microsoft.CodeAnalysis;
 namespace DigitalBrain.Kernel;
 
 [GrainType("digitalbrain.generated")]
-public class GeneratedNeuron : Neuron, IGeneratedNeuron, IHandle<NeuronTelemetry>
+public class GeneratedNeuron(ILogger<GeneratedNeuron> logger, NeuronJournals journals) : Neuron(logger, journals), IGeneratedNeuron, IHandle<NeuronTelemetry>
 {
     private EmbodiedPack? _embodied;
-
-    public GeneratedNeuron(ILogger<GeneratedNeuron> logger, NeuronJournals journals)
-        : base(logger, journals)
-    {
-    }
 
     public Task HandleAsync(NeuronTelemetry telemetry) => Task.CompletedTask;
 

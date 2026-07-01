@@ -6,10 +6,8 @@ namespace DigitalBrain.Kernel;
 
 // Typed NuGet neuron via the dotnet CLI; supersedes the untyped NuGetManagerNeuron.
 [GrainType("digitalbrain.sdk.nuget.v1")]
-public class NuGetNeuron : Neuron, INuGetNeuron
+public class NuGetNeuron(ILogger<NuGetNeuron> logger, NeuronJournals journals) : Neuron(logger, journals), INuGetNeuron
 {
-    public NuGetNeuron(ILogger<NuGetNeuron> logger, NeuronJournals journals) : base(logger, journals) { }
-
     public Task<CommandResult> ListPackagesAsync(string project, CancellationToken ct = default)
         => ProcessRunner.RunAsync("dotnet", $"list \"{project}\" package", ct: ct);
 

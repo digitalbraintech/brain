@@ -2,10 +2,8 @@ using DigitalBrain.Core;
 namespace DigitalBrain.Kernel;
 
 [GrainType("ino.code.editor.v1")]
-public class InoCodeEditorNeuron : Neuron, IInoCodeEditor
+public class InoCodeEditorNeuron(ILogger<InoCodeEditorNeuron> logger, NeuronJournals journals) : Neuron(logger, journals), IInoCodeEditor
 {
-    public InoCodeEditorNeuron(ILogger<InoCodeEditorNeuron> logger, NeuronJournals journals) : base(logger, journals) { }
-
     public async Task HandleAsync(InoCodeEdit cmd)
     {
         Logger.LogInformation("INO Code Editor edit for {Id}", cmd.EditorId);

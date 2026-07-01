@@ -12,22 +12,16 @@ namespace DigitalBrain.Kernel;
 // re-pushing identical cards.
 // With multiple HA silo replicas, Broadcast publishes to a shared Orleans MemoryStream ("HomeFeed") so every silo's
 // HomeFeedStreamSubscriber picks it up and fans it locally — delivering to clients connected to any replica.
-public sealed class HomeFeedBus
+public sealed class HomeFeedBus(IClusterClient? clusterClient = null, ILogger<HomeFeedBus>? logger = null)
 {
     private const int MaxSeenEntries = 5_000;
     private readonly ConcurrentDictionary<Guid, Channel<RfwCard>> _subscribers = new();
     private readonly HashSet<string> _seen = new();
     private readonly Queue<string> _seenOrder = new();
     private readonly object _seenLock = new();
-    private readonly IClusterClient? _clusterClient;
-    private readonly ILogger<HomeFeedBus>? _logger;
+    private readonly IClusterClient? _clusterClient = clusterClient;
+    private readonly ILogger<HomeFeedBus>? _logger = logger;
     private IAsyncStream<RfwCard>? _stream;
-
-    public HomeFeedBus(IClusterClient? clusterClient = null, ILogger<HomeFeedBus>? logger = null)
-    {
-        _clusterClient = clusterClient;
-        _logger = logger;
-    }
 
     public Subscription Subscribe()
     {

@@ -3,10 +3,8 @@ using DigitalBrain.Core;
 namespace DigitalBrain.Kernel;
 
 [GrainType("db.support.v1")]
-public class DbSupportNeuron : Neuron, IDbSupportNeuron
+public class DbSupportNeuron(ILogger<DbSupportNeuron> logger, NeuronJournals journals) : Neuron(logger, journals), IDbSupportNeuron
 {
-    public DbSupportNeuron(ILogger<DbSupportNeuron> logger, NeuronJournals journals) : base(logger, journals) { }
-
     public async Task HandleAsync(DbConnect cmd)
     {
         Logger.LogInformation("DB connected {Name} via {Provider}", cmd.ConnectionName, cmd.Provider);

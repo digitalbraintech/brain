@@ -6,10 +6,8 @@ namespace DigitalBrain.Kernel;
 // string-templating teams. Handles a content review (ReviewRequest) and a kernel-local project review
 // (ReviewProjectRequest), emitting a typed ReviewResult.
 [GrainType("awesome.se.reviewer.v1")]
-public class SoftwareEngineeringReviewerNeuron : Neuron, ISoftwareEngineeringReviewer
+public class SoftwareEngineeringReviewerNeuron(ILogger<SoftwareEngineeringReviewerNeuron> logger, NeuronJournals journals) : Neuron(logger, journals), ISoftwareEngineeringReviewer
 {
-    public SoftwareEngineeringReviewerNeuron(ILogger<SoftwareEngineeringReviewerNeuron> logger, NeuronJournals journals) : base(logger, journals) { }
-
     public async Task HandleAsync(ReviewProjectRequest request)
     {
         var review = ProjectReview.Analyze(request.Path);

@@ -5,10 +5,8 @@ using DigitalBrain.Core;
 namespace DigitalBrain.Kernel.Foundry;
 
 [GrainType("digitalbrain.foundry.loop.v1")]
-public class CodeFoundryClosedLoopNeuron : Neuron, ICodeFoundryLoopNeuron
+public class CodeFoundryClosedLoopNeuron(ILogger<CodeFoundryClosedLoopNeuron> logger, NeuronJournals journals) : Neuron(logger, journals), ICodeFoundryLoopNeuron
 {
-    public CodeFoundryClosedLoopNeuron(ILogger<CodeFoundryClosedLoopNeuron> logger, NeuronJournals journals) : base(logger, journals) { }
-
     public async Task HandleAsync(FoundryRequest request)
     {
         var checkpoint = await CreateCheckpointAsync();

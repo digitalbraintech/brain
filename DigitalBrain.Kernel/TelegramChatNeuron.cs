@@ -8,7 +8,7 @@ namespace DigitalBrain.Kernel;
 // so binding needs no separate state store. A bound chat routes normal messages point-to-point to the bound
 // bundle's generated neuron; an unbound chat broadcasts (today's behaviour → the seeded Responder handles it).
 [GrainType("digitalbrain.telegram-chat.v1")]
-public sealed class TelegramChatNeuron : Neuron, ITelegramChatNeuron, IHandle<Signal>
+public sealed class TelegramChatNeuron(ILogger<TelegramChatNeuron> logger, NeuronJournals journals) : Neuron(logger, journals), ITelegramChatNeuron, IHandle<Signal>
 {
     private const string InboundName = TelegramSignals.MessageReceived;
     private const string ReplyName = TelegramSignals.ReplyRequested;
@@ -18,9 +18,6 @@ public sealed class TelegramChatNeuron : Neuron, ITelegramChatNeuron, IHandle<Si
     // (confirmation, unbound fallback) but must never RECEIVE timeline echoes — otherwise its own
     // broadcast of a TelegramSignals.MessageReceived signal would loop back into HandleAsync.
     protected override bool ShouldSubscribeToTimeline => false;
-
-    public TelegramChatNeuron(ILogger<TelegramChatNeuron> logger, NeuronJournals journals)
-        : base(logger, journals) { }
 
     public Task<string?> GetBoundBundleAsync() => Task.FromResult(BoundBundle());
 

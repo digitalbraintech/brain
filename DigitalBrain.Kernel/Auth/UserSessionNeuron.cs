@@ -4,15 +4,10 @@ using DigitalBrain.Core;
 namespace DigitalBrain.Kernel;
 
 [GrainType("digitalbrain.user-session.v1")]
-public sealed class UserSessionNeuron : Neuron, IUserSessionNeuron
+public sealed class UserSessionNeuron(ILogger<UserSessionNeuron> logger, NeuronJournals journals) : Neuron(logger, journals), IUserSessionNeuron
 {
     private const int PasswordHashIterations = 100_000;
     private static readonly TimeSpan SessionLifetime = TimeSpan.FromHours(12);
-
-    public UserSessionNeuron(ILogger<UserSessionNeuron> logger, NeuronJournals journals)
-        : base(logger, journals)
-    {
-    }
 
     public override async Task OnActivateAsync(CancellationToken ct)
     {

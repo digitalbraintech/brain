@@ -6,11 +6,9 @@ using Microsoft.AspNetCore.Mvc.Testing;
 namespace DigitalBrain.Tests.Kernel;
 
 [Collection("silo-host")]
-public class KernelGrpcWebTests : IClassFixture<WebApplicationFactory<Program>>
+public class KernelGrpcWebTests(WebApplicationFactory<Program> factory) : IClassFixture<WebApplicationFactory<Program>>
 {
-    private readonly WebApplicationFactory<Program> _factory;
-
-    public KernelGrpcWebTests(WebApplicationFactory<Program> factory) => _factory = factory;
+    private readonly WebApplicationFactory<Program> _factory = factory;
 
     [Fact]
     public async Task Health_Over_GrpcWeb_Succeeds()

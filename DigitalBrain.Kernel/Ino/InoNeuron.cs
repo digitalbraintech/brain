@@ -7,10 +7,8 @@ namespace DigitalBrain.Kernel.Ino;
 // Uses dual journals as primary memory (recent + full history), spawns KernelTasks for actions,
 // can drive checkpoints/branches for planning. Context is multi-scale via recency + LLM summary.
 [GrainType("ino.personal.v1")]
-public class InoNeuron : Neuron, IInoNeuron
+public class InoNeuron(ILogger<InoNeuron> logger, NeuronJournals journals) : Neuron(logger, journals), IInoNeuron
 {
-    public InoNeuron(ILogger<InoNeuron> logger, NeuronJournals journals) : base(logger, journals) { }
-
     public override async Task OnActivateAsync(CancellationToken ct)
     {
         await base.OnActivateAsync(ct);

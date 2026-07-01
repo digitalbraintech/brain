@@ -107,14 +107,9 @@ public sealed class LiveRenderVerifier
 
 // Back-compat alias during transition. New code should prefer LiveRenderVerifier.
 [Obsolete("Use LiveRenderVerifier for clarity. This alias will be removed.")]
-public sealed class ExperienceFlowDriver
+public sealed class ExperienceFlowDriver(DigitalBrainBrowserFixture fixture, string pack, string experienceId)
 {
-    private readonly LiveRenderVerifier _inner;
-
-    public ExperienceFlowDriver(DigitalBrainBrowserFixture fixture, string pack, string experienceId)
-    {
-        _inner = new LiveRenderVerifier(fixture, pack, experienceId);
-    }
+    private readonly LiveRenderVerifier _inner = new LiveRenderVerifier(fixture, pack, experienceId);
 
     public Task PublishAndInstallAsync(string code, string description, string version = "1.0", string buyer = "e2e", double commissionRate = 0.0)
         => _inner.PublishAndInstallAsync(code, description, version, buyer, commissionRate);

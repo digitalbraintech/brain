@@ -6,11 +6,8 @@ using DigitalBrain.UiKit;
 namespace DigitalBrain.Kernel;
 
 [GrainType("digitalbrain.flutter-ui.v1")]
-public sealed class FlutterUiNeuron : Neuron, IFlutterUiNeuron
+public sealed class FlutterUiNeuron(ILogger<FlutterUiNeuron> logger, NeuronJournals journals) : Neuron(logger, journals), IFlutterUiNeuron
 {
-    public FlutterUiNeuron(ILogger<FlutterUiNeuron> logger, NeuronJournals journals)
-        : base(logger, journals) { }
-
     public async Task HandleAsync(UiSurface surface)
     {
         var bus = ServiceProvider.GetService<HomeFeedBus>();

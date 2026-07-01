@@ -5,10 +5,8 @@ using DigitalBrain.Windows;
 namespace DigitalBrain.Kernel;
 
 [GrainType("digitalbrain.sdk.dotnet.v1")]
-public class DotNetNeuron : Neuron, IDotNetNeuron
+public class DotNetNeuron(ILogger<DotNetNeuron> logger, NeuronJournals journals) : Neuron(logger, journals), IDotNetNeuron
 {
-    public DotNetNeuron(ILogger<DotNetNeuron> logger, NeuronJournals journals) : base(logger, journals) { }
-
     public Task<CommandResult> BuildAsync(string projectOrSolution, CancellationToken ct = default)
         => ProcessRunner.RunAsync("dotnet", $"build \"{projectOrSolution}\" --nologo", ct: ct);
 

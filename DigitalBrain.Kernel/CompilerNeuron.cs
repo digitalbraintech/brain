@@ -3,13 +3,8 @@ using Microsoft.Extensions.AI;
 namespace DigitalBrain.Kernel;
 
 [GrainType("digitalbrain.compiler.v1")]
-public class CompilerNeuron : Neuron, ICompiler
+public class CompilerNeuron(ILogger<CompilerNeuron> logger, NeuronJournals journals) : Neuron(logger, journals), ICompiler
 {
-    public CompilerNeuron(ILogger<CompilerNeuron> logger, NeuronJournals journals)
-        : base(logger, journals)
-    {
-    }
-
     public async Task HandleAsync(CreateNeuronRequest req)
     {
         Logger.LogInformation("Compiler generating for: {Desc}", req.Description);

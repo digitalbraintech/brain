@@ -5,10 +5,8 @@ using Microsoft.Extensions.AI;
 namespace DigitalBrain.Kernel;
 
 [GrainType("context.manager.v1")]
-public class ContextNeuron : Neuron, IContextNeuron, IHandle<Signal>
+public class ContextNeuron(ILogger<ContextNeuron> logger, NeuronJournals journals) : Neuron(logger, journals), IContextNeuron, IHandle<Signal>
 {
-    public ContextNeuron(ILogger<ContextNeuron> logger, NeuronJournals journals) : base(logger, journals) { }
-
     public async Task HandleAsync(ContextUpdate cmd)
     {
         Logger.LogInformation("Context updated: {Name}.{Key} = {Val}", cmd.ContextName, cmd.Key, cmd.Value);

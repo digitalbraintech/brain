@@ -6,10 +6,8 @@ namespace DigitalBrain.Kernel;
 // Typed git integration neuron. Re-homed from IAW's GitAgent onto MAIN's Neuron base; process-exec is delegated
 // to the shared ProcessRunner. Reached by typed RPC; metrics are journal-derived (MAIN idiom).
 [GrainType("digitalbrain.sdk.git.v1")]
-public class GitNeuron : Neuron, IGitNeuron
+public class GitNeuron(ILogger<GitNeuron> logger, NeuronJournals journals) : Neuron(logger, journals), IGitNeuron
 {
-    public GitNeuron(ILogger<GitNeuron> logger, NeuronJournals journals) : base(logger, journals) { }
-
     public async Task<string> StatusAsync(string repoPath, CancellationToken ct = default)
         => (await ProcessRunner.RunAsync("git", "status", repoPath, ct: ct)).Output;
 

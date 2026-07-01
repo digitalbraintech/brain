@@ -6,10 +6,9 @@ using GatewayProgram = GatewayAssembly::Program;
 
 namespace DigitalBrain.Tests.Gateway;
 
-public class GatewayEndpointsTests : IClassFixture<WebApplicationFactory<GatewayProgram>>
+public class GatewayEndpointsTests(WebApplicationFactory<GatewayProgram> factory) : IClassFixture<WebApplicationFactory<GatewayProgram>>
 {
-    private readonly WebApplicationFactory<GatewayProgram> _factory;
-    public GatewayEndpointsTests(WebApplicationFactory<GatewayProgram> factory) => _factory = factory;
+    private readonly WebApplicationFactory<GatewayProgram> _factory = factory;
 
     [Fact]
     public async Task Health_Returns200()

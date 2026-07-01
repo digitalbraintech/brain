@@ -3,11 +3,9 @@ using Microsoft.AspNetCore.Mvc.Testing;
 namespace DigitalBrain.Tests.Gateway;
 
 [Collection("silo-host")]
-public class GatewayCorsTests : IClassFixture<WebApplicationFactory<Program>>
+public class GatewayCorsTests(WebApplicationFactory<Program> factory) : IClassFixture<WebApplicationFactory<Program>>
 {
-    private readonly WebApplicationFactory<Program> _factory;
-
-    public GatewayCorsTests(WebApplicationFactory<Program> factory) => _factory = factory;
+    private readonly WebApplicationFactory<Program> _factory = factory;
 
     [Fact]
     public async Task Preflight_FromBrowserOrigin_AllowsOriginOnGrpcRoute()

@@ -7,14 +7,9 @@ namespace DigitalBrain.Kernel.Marketplace;
 /// In production this becomes an HttpClient/gRPC client to the private marketplace service.
 /// Registered only when UseRemote=true.
 /// </summary>
-public class RemoteMarketplaceClientStub : IRemoteMarketplaceClient
+public class RemoteMarketplaceClientStub(ILogger<RemoteMarketplaceClientStub> logger) : IRemoteMarketplaceClient
 {
-    private readonly ILogger<RemoteMarketplaceClientStub> _logger;
-
-    public RemoteMarketplaceClientStub(ILogger<RemoteMarketplaceClientStub> logger)
-    {
-        _logger = logger;
-    }
+    private readonly ILogger<RemoteMarketplaceClientStub> _logger = logger;
 
     public Task PublishAsync(PublishToMarketplace cmd)
     {

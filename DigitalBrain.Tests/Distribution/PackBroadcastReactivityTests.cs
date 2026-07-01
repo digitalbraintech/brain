@@ -54,10 +54,8 @@ public class PackBroadcastReactivityTests
         Task EmitPingAsync(string note);
     }
 
-    public sealed class PingBroadcaster : Neuron, IPingBroadcaster
+    public sealed class PingBroadcaster(ILogger<PackBroadcastReactivityTests.PingBroadcaster> logger, NeuronJournals journals) : Neuron(logger, journals), IPingBroadcaster
     {
-        public PingBroadcaster(ILogger<PingBroadcaster> logger, NeuronJournals journals) : base(logger, journals) { }
-
         public Task EnsureActiveAsync() => Task.CompletedTask;
 
         public Task EmitPingAsync(string note) =>

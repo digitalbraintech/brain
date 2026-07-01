@@ -5,10 +5,8 @@ namespace DigitalBrain.Kernel;
 
 // NET-NEW: Windows Package Manager neuron. No donor tree had one — built on the shared ProcessRunner.
 [GrainType("digitalbrain.sdk.winget.v1")]
-public class WingetNeuron : Neuron, IWingetNeuron
+public class WingetNeuron(ILogger<WingetNeuron> logger, NeuronJournals journals) : Neuron(logger, journals), IWingetNeuron
 {
-    public WingetNeuron(ILogger<WingetNeuron> logger, NeuronJournals journals) : base(logger, journals) { }
-
     public Task<CommandResult> ListAsync(CancellationToken ct = default)
         => ProcessRunner.RunAsync("winget", "list --disable-interactivity", ct: ct);
 

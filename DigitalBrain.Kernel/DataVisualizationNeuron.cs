@@ -10,14 +10,9 @@ using System.Text.Json;
 namespace DigitalBrain.Kernel;
 
 [GrainType("digitalbrain.data-visualization.v1")]
-public class ChartNeuron : Neuron, IChartNeuron, IDataVisualizationNeuron
+public class ChartNeuron(ILogger<ChartNeuron> logger, NeuronJournals journals) : Neuron(logger, journals), IChartNeuron, IDataVisualizationNeuron
 {
     private readonly ConcurrentDictionary<string, ChartSession> _sessions = new(StringComparer.Ordinal);
-
-    public ChartNeuron(ILogger<ChartNeuron> logger, NeuronJournals journals)
-        : base(logger, journals)
-    {
-    }
 
     public static string AgentDisplayName => "Chart";
     public static string AgentDescription => "First-class interactive grammar-of-graphics charts with analysis and conversational modification.";
@@ -200,9 +195,8 @@ public class ChartNeuron : Neuron, IChartNeuron, IDataVisualizationNeuron
 }
 
 // Backward compat alias for old code / tests / MCP
-public class DataVisualizationNeuron : ChartNeuron
+public class DataVisualizationNeuron(ILogger<DataVisualizationNeuron> logger, NeuronJournals journals) : ChartNeuron(logger, journals)
 {
-    public DataVisualizationNeuron(ILogger<DataVisualizationNeuron> logger, NeuronJournals journals) : base(logger, journals) { }
 }
 
 // Minimal static helpers for reuse (no full original duplication)

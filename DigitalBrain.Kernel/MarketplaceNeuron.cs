@@ -4,14 +4,9 @@ using Microsoft.Extensions.AI;
 namespace DigitalBrain.Kernel;
 
 [GrainType("digitalbrain.marketplace.v1")]
-public class MarketplaceNeuron : Neuron, IMarketplaceNeuron
+public class MarketplaceNeuron(ILogger<MarketplaceNeuron> logger, NeuronJournals journals) : Neuron(logger, journals), IMarketplaceNeuron
 {
     private Dictionary<string, NeuroPack>? _publishedCache;
-
-    public MarketplaceNeuron(ILogger<MarketplaceNeuron> logger, NeuronJournals journals)
-        : base(logger, journals)
-    {
-    }
 
     public async Task HandleAsync(PublishToMarketplace cmd)
     {

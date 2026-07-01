@@ -7,11 +7,9 @@ using Microsoft.CodeAnalysis;
 namespace DigitalBrain.Kernel;
 
 [GrainType("digitalbrain.systemstatus.v1")]
-public class SystemStatusNeuron : Neuron, ISystemStatus
+public class SystemStatusNeuron(ILogger<SystemStatusNeuron> logger, NeuronJournals journals) : Neuron(logger, journals), ISystemStatus
 {
     private McpClient? _mcp;
-
-    public SystemStatusNeuron(ILogger<SystemStatusNeuron> logger, NeuronJournals journals) : base(logger, journals) { }
 
     public override async Task OnActivateAsync(CancellationToken ct)
     {

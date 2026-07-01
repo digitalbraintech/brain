@@ -4,11 +4,9 @@ using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 namespace DigitalBrain.Kernel;
 
-public class SoftwareEngineeringClosedLoopNeuron : Neuron, IClosedLoopNeuron
+public class SoftwareEngineeringClosedLoopNeuron(ILogger<SoftwareEngineeringClosedLoopNeuron> logger, NeuronJournals journals) : Neuron(logger, journals), IClosedLoopNeuron
 {
     private McpClient? _aspireMcp;
-
-    public SoftwareEngineeringClosedLoopNeuron(ILogger<SoftwareEngineeringClosedLoopNeuron> logger, NeuronJournals journals) : base(logger, journals) { }
 
     public async Task HandleAsync(ClosedLoopRequest req)
     {

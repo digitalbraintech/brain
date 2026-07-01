@@ -17,11 +17,11 @@ public sealed class NeuronJournals(
 }
 
 [GrainType("digitalbrain.base.v2")]
-public abstract class Neuron : DurableGrain, INeuron, IAsyncObserver<Synapse>
+public abstract class Neuron(ILogger logger, NeuronJournals journals) : DurableGrain, INeuron, IAsyncObserver<Synapse>
 {
-    protected readonly ILogger Logger;
-    private IDurableList<Synapse>? _incomingSynapses;
-    private IDurableList<Synapse>? _outgoingSynapses;
+    protected readonly ILogger Logger = logger;
+    private IDurableList<Synapse>? _incomingSynapses = journals.Incoming;
+    private IDurableList<Synapse>? _outgoingSynapses = journals.Outgoing;
     private StreamSubscriptionHandle<Synapse>? _timelineSubscription;
 
     // The synapse currently being handled. Synapses fired while handling it are caused by it.
@@ -38,13 +38,6 @@ public abstract class Neuron : DurableGrain, INeuron, IAsyncObserver<Synapse>
     // use this to propagate causation/reply context via existing Stamp + CorrelationId/CausationId patterns.
     // Centralizes without duplication for cross-channel flows (e.g. Telegram viz -> chart UiSurface -> flutter).
     protected Synapse StampCurrent(Synapse s) => s.Stamp(Self, CurrentCause);
-
-    protected Neuron(ILogger logger, NeuronJournals journals)
-    {
-        Logger = logger;
-        _incomingSynapses = journals.Incoming;
-        _outgoingSynapses = journals.Outgoing;
-    }
 
     // Dual journals (self-explanatory names): incoming received via Deliver, outgoing from our Fire calls.
     protected IDurableList<Synapse> IncomingJournal => _incomingSynapses ??= ResolveRequiredJournal("in-journal");

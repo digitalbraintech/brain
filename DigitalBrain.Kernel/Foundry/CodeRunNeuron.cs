@@ -3,10 +3,8 @@ using DigitalBrain.Core;
 namespace DigitalBrain.Kernel.Foundry;
 
 [GrainType("digitalbrain.coderun.v1")]
-public class CodeRunNeuron : Neuron, ICodeRunNeuron
+public class CodeRunNeuron(ILogger<CodeRunNeuron> logger, NeuronJournals journals) : Neuron(logger, journals), ICodeRunNeuron
 {
-    public CodeRunNeuron(ILogger<CodeRunNeuron> logger, NeuronJournals journals) : base(logger, journals) { }
-
     public async Task HandleAsync(RunGeneratedCode cmd)
     {
         var executor = ServiceProvider.GetRequiredService<ICodeExecutor>();

@@ -4,10 +4,8 @@ using Microsoft.Extensions.AI;
 namespace DigitalBrain.Kernel.Foundry;
 
 [GrainType("digitalbrain.codegen.v1")]
-public class CodeGenNeuron : Neuron, ICodeGenNeuron
+public class CodeGenNeuron(ILogger<CodeGenNeuron> logger, NeuronJournals journals) : Neuron(logger, journals), ICodeGenNeuron
 {
-    public CodeGenNeuron(ILogger<CodeGenNeuron> logger, NeuronJournals journals) : base(logger, journals) { }
-
     public async Task HandleAsync(GenerateCode cmd)
     {
         var source = await GenerateSourceAsync(cmd);

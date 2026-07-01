@@ -4,12 +4,10 @@ using Xunit;
 
 namespace DigitalBrain.TestKit;
 
-public sealed class TestDigitalBrain : IDigitalBrain, IAsyncLifetime
+public sealed class TestDigitalBrain(Action<ISiloBuilder>? extend = null) : IDigitalBrain, IAsyncLifetime
 {
-    private readonly Action<ISiloBuilder>? _extend;
+    private readonly Action<ISiloBuilder>? _extend = extend;
     private TestCluster? _cluster;
-
-    public TestDigitalBrain(Action<ISiloBuilder>? extend = null) => _extend = extend;
 
     public async Task InitializeAsync()
     {

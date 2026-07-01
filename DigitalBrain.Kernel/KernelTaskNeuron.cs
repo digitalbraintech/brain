@@ -3,10 +3,8 @@ using Microsoft.Extensions.AI;
 namespace DigitalBrain.Kernel;
 
 [GrainType("kernel.task.v1")]
-public class KernelTaskNeuron : Neuron, IKernelTask
+public class KernelTaskNeuron(ILogger<KernelTaskNeuron> logger, NeuronJournals journals) : Neuron(logger, journals), IKernelTask
 {
-    public KernelTaskNeuron(ILogger<KernelTaskNeuron> logger, NeuronJournals journals) : base(logger, journals) { }
-
     public async Task HandleAsync(RunTask cmd)
     {
         await FireAsync(new TaskCreated(cmd.TaskId, cmd.Description));

@@ -5,13 +5,8 @@ using Microsoft.Extensions.AI;
 namespace DigitalBrain.Kernel.Company;
 
 [GrainType("company.skill.orchestrator.v1")]
-public sealed class CompanySkillOrchestratorNeuron : Neuron, ICompanySkillOrchestratorNeuron
+public sealed class CompanySkillOrchestratorNeuron(ILogger<CompanySkillOrchestratorNeuron> logger, NeuronJournals journals) : Neuron(logger, journals), ICompanySkillOrchestratorNeuron
 {
-    public CompanySkillOrchestratorNeuron(ILogger<CompanySkillOrchestratorNeuron> logger, NeuronJournals journals)
-        : base(logger, journals)
-    {
-    }
-
     public async Task HandleAsync(CreateCompanySkill cmd)
     {
         var processName = cmd.ProcessName;

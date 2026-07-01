@@ -5,11 +5,9 @@ public interface IResourceController
     Task RestartSiloAsync(string reason);
 }
 
-public sealed class AspireResourceController : IResourceController
+public sealed class AspireResourceController(ILogger<AspireResourceController> logger) : IResourceController
 {
-    private readonly ILogger<AspireResourceController> _logger;
-
-    public AspireResourceController(ILogger<AspireResourceController> logger) => _logger = logger;
+    private readonly ILogger<AspireResourceController> _logger = logger;
 
     public Task RestartSiloAsync(string reason)
     {

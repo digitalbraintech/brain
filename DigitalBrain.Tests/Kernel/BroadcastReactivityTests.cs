@@ -23,11 +23,9 @@ public interface IPingEmitter : INeuron
     Task EmitPingAsync(string note);
 }
 
-public sealed class PingSink : Neuron, IPingSink, IHandle<Ping>
+public sealed class PingSink(ILogger<PingSink> logger, NeuronJournals journals) : Neuron(logger, journals), IPingSink, IHandle<Ping>
 {
     private int _received;
-
-    public PingSink(ILogger<PingSink> logger, NeuronJournals journals) : base(logger, journals) { }
 
     public Task EnsureActiveAsync() => Task.CompletedTask;
 
@@ -40,10 +38,8 @@ public sealed class PingSink : Neuron, IPingSink, IHandle<Ping>
     }
 }
 
-public sealed class PingEmitter : Neuron, IPingEmitter
+public sealed class PingEmitter(ILogger<PingEmitter> logger, NeuronJournals journals) : Neuron(logger, journals), IPingEmitter
 {
-    public PingEmitter(ILogger<PingEmitter> logger, NeuronJournals journals) : base(logger, journals) { }
-
     public Task EnsureActiveAsync() => Task.CompletedTask;
 
     public Task EmitPingAsync(string note) => Broadcast(new Ping(note));

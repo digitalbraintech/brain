@@ -13,11 +13,8 @@ public interface IAskLlmEmitter : INeuron
     Task BroadcastAskAsync(string prompt, string replyType, IReadOnlyDictionary<string, object?> replyProps);
 }
 
-public sealed class AskLlmEmitter : Neuron, IAskLlmEmitter
+public sealed class AskLlmEmitter(Microsoft.Extensions.Logging.ILogger<AskLlmEmitter> logger, NeuronJournals journals) : Neuron(logger, journals), IAskLlmEmitter
 {
-    public AskLlmEmitter(Microsoft.Extensions.Logging.ILogger<AskLlmEmitter> logger, NeuronJournals journals)
-        : base(logger, journals) { }
-
     public Task BroadcastAskAsync(string prompt, string replyType, IReadOnlyDictionary<string, object?> replyProps) =>
         Broadcast(new AskLlm(prompt, replyType, replyProps));
 }

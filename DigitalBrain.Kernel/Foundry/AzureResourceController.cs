@@ -1,17 +1,11 @@
 namespace DigitalBrain.Kernel.Foundry;
 
-public sealed class AzureResourceController : IResourceController
+public sealed class AzureResourceController(ILogger<AzureResourceController> logger, bool dryRun = false) : IResourceController
 {
-    private readonly ILogger<AzureResourceController> _logger;
-    private readonly bool _dryRun;
+    private readonly ILogger<AzureResourceController> _logger = logger;
+    private readonly bool _dryRun = dryRun;
 
     public string? LastReason { get; private set; }
-
-    public AzureResourceController(ILogger<AzureResourceController> logger, bool dryRun = false)
-    {
-        _logger = logger;
-        _dryRun = dryRun;
-    }
 
     public Task RestartSiloAsync(string reason)
     {

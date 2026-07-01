@@ -6,18 +6,11 @@ namespace DigitalBrain.Tests.Ui;
 // Compiles a bundle's SHIPPED pack source in-process (same Roslyn/ALC path the kernel uses)
 // and drives ExperienceSteps against it, so the fast model loop and the live-render E2E
 // consume one source of truth. No browser, no Aspire.
-public sealed class BundleHarness : IDisposable
+public sealed class BundleHarness(string packCode, string pack, string experienceId) : IDisposable
 {
-    private readonly EmbodiedPack _pack;
-    private readonly string _experiencePack;
-    private readonly string _experienceId;
-
-    public BundleHarness(string packCode, string pack, string experienceId)
-    {
-        _pack = new PackAlcEmbodier().Embody(pack, packCode);
-        _experiencePack = pack;
-        _experienceId = experienceId;
-    }
+    private readonly EmbodiedPack _pack = new PackAlcEmbodier().Embody(pack, packCode);
+    private readonly string _experiencePack = pack;
+    private readonly string _experienceId = experienceId;
 
     public BundleManifest? Manifest => _pack.GetBundleManifest();
 

@@ -59,11 +59,8 @@ public interface IScopedAskLlmEmitter : INeuron
     Task StoreConfigAsync(string scope, string pack, Dictionary<string, string> values);
 }
 
-public sealed class ScopedAskLlmEmitter : Neuron, IScopedAskLlmEmitter
+public sealed class ScopedAskLlmEmitter(Microsoft.Extensions.Logging.ILogger<ScopedAskLlmEmitter> logger, NeuronJournals journals) : Neuron(logger, journals), IScopedAskLlmEmitter
 {
-    public ScopedAskLlmEmitter(Microsoft.Extensions.Logging.ILogger<ScopedAskLlmEmitter> logger, NeuronJournals journals)
-        : base(logger, journals) { }
-
     public Task BroadcastScopedAskAsync(
         string prompt, string replyType, IReadOnlyDictionary<string, object?> replyProps,
         string? configPack, string? configScope) =>

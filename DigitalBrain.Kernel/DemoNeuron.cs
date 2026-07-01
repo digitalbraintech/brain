@@ -5,13 +5,8 @@ using DigitalBrain.UiKit;
 
 namespace DigitalBrain.Kernel;
 
-public class DemoNeuron : Neuron, IDemoNeuron, IHandle<DemoMessageSynapse>
+public class DemoNeuron(ILogger<DemoNeuron> logger, NeuronJournals journals) : Neuron(logger, journals), IDemoNeuron, IHandle<DemoMessageSynapse>
 {
-    public DemoNeuron(ILogger<DemoNeuron> logger, NeuronJournals journals)
-        : base(logger, journals)
-    {
-    }
-
     public async Task HandleAsync(DemoMessageSynapse synapse)
     {
         Logger.LogInformation("Demo received via IHandle: {Text}", synapse.Text);

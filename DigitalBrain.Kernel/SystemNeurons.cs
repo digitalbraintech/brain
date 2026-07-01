@@ -18,13 +18,8 @@ public static class KernelPack
 public record PerformKernelSelfUpdate(string Version = "", int FailAtReplica = 0) : Synapse(nameof(PerformKernelSelfUpdate), DateTimeOffset.UtcNow);
 
 [GrainType("digitalbrain.kernel.aspire.v1")]
-public class AspireOrchestratorNeuron : Neuron, IAspireNeuron, IHandle<PerformKernelSelfUpdate>
+public class AspireOrchestratorNeuron(ILogger<AspireOrchestratorNeuron> logger, NeuronJournals journals) : Neuron(logger, journals), IAspireNeuron, IHandle<PerformKernelSelfUpdate>
 {
-    public AspireOrchestratorNeuron(ILogger<AspireOrchestratorNeuron> logger, NeuronJournals journals)
-        : base(logger, journals)
-    {
-    }
-
     public async Task HandleAsync(StartDistributedApp cmd)
     {
         Logger.LogInformation("Aspire starting app: {App}", cmd.AppName);
@@ -421,13 +416,8 @@ public class AspireOrchestratorNeuron : Neuron, IAspireNeuron, IHandle<PerformKe
 }
 
 [GrainType("digitalbrain.observability.v1")]
-public class ObservabilityNeuron : Neuron, IObservabilityNeuron
+public class ObservabilityNeuron(ILogger<ObservabilityNeuron> logger, NeuronJournals journals) : Neuron(logger, journals), IObservabilityNeuron
 {
-    public ObservabilityNeuron(ILogger<ObservabilityNeuron> logger, NeuronJournals journals)
-        : base(logger, journals)
-    {
-    }
-
     public Task HandleAsync(UiSurface surface)
     {
         Logger.LogInformation("Observability surface {Kind} correlation={CorrelationId}", surface.Kind, surface.CorrelationId);
@@ -467,13 +457,8 @@ public class ObservabilityNeuron : Neuron, IObservabilityNeuron
 }
 
 [GrainType("digitalbrain.optimizer.v1")]
-public class MetaOptimizerNeuron : Neuron, IMetaOptimizerNeuron
+public class MetaOptimizerNeuron(ILogger<MetaOptimizerNeuron> logger, NeuronJournals journals) : Neuron(logger, journals), IMetaOptimizerNeuron
 {
-    public MetaOptimizerNeuron(ILogger<MetaOptimizerNeuron> logger, NeuronJournals journals)
-        : base(logger, journals)
-    {
-    }
-
     public async Task HandleAsync(NeuronTelemetry telemetry)
     {
         var count = IncomingJournal.Concat(OutgoingJournal).OfType<NeuronTelemetry>().Count();

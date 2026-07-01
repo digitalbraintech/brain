@@ -3,10 +3,8 @@ using DigitalBrain.Core;
 namespace DigitalBrain.Kernel.Foundry;
 
 [GrainType("digitalbrain.codedeploy.v1")]
-public class CodeDeployNeuron : Neuron, ICodeDeployNeuron
+public class CodeDeployNeuron(ILogger<CodeDeployNeuron> logger, NeuronJournals journals) : Neuron(logger, journals), ICodeDeployNeuron
 {
-    public CodeDeployNeuron(ILogger<CodeDeployNeuron> logger, NeuronJournals journals) : base(logger, journals) { }
-
     public async Task HandleAsync(DeployGeneratedCode cmd)
     {
         if (RestartPending())

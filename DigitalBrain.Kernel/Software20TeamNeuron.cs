@@ -3,10 +3,8 @@ using Microsoft.Extensions.AI;
 namespace DigitalBrain.Kernel;
 
 [GrainType("awesome.se.team20.v1")]
-public class Software20TeamNeuron : Neuron, ISoftware20Team
+public class Software20TeamNeuron(ILogger<Software20TeamNeuron> logger, NeuronJournals journals) : Neuron(logger, journals), ISoftware20Team
 {
-    public Software20TeamNeuron(ILogger<Software20TeamNeuron> logger, NeuronJournals journals) : base(logger, journals) { }
-
     public async Task HandleAsync(CreateSimpleApp cmd)
     {
         var name = "Neuro" + cmd.Description.Replace(" ", "").Substring(0, Math.Min(12, cmd.Description.Length));
