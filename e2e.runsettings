@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Solution-wide render-loop defaults for Visual Studio Test Explorer.
+  Wire this up once: Test > Configure Run Settings > Select Solution Wide runsettings File > e2e.runsettings.
+  After that, running any [Trait("Category", "E2E")] test from Test Explorer opts into the render loop
+  automatically — no env vars to remember. CI does not reference this file (see .github/workflows/ci.yml).
+-->
+<RunSettings>
+  <RunConfiguration>
+    <EnvironmentVariables>
+      <RUN_FLUTTER_E2E>true</RUN_FLUTTER_E2E>
+      <FAST_UI_E2E>1</FAST_UI_E2E>
+    </EnvironmentVariables>
+  </RunConfiguration>
+</RunSettings>
