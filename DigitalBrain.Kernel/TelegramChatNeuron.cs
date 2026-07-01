@@ -13,6 +13,11 @@ public sealed class TelegramChatNeuron : Neuron, ITelegramChatNeuron, IHandle<Si
     private const string ReplyName = "TelegramReplyRequested";
     private const string StartPrefix = "/start";
 
+    // Purely point-to-point driven (fed by the gateway via DeliverAsync). It EMITS broadcasts
+    // (confirmation, unbound fallback) but must never RECEIVE timeline echoes — otherwise its own
+    // broadcast of a "TelegramMessageReceived" signal would loop back into HandleAsync.
+    protected override bool ShouldSubscribeToTimeline => false;
+
     public TelegramChatNeuron(ILogger<TelegramChatNeuron> logger, NeuronJournals journals)
         : base(logger, journals) { }
 
@@ -20,6 +25,7 @@ public sealed class TelegramChatNeuron : Neuron, ITelegramChatNeuron, IHandle<Si
 
     public async Task HandleAsync(Signal signal)
     {
+        if (signal.IsBroadcast) return;
         if (signal.Name != InboundName) return;
 
         var text = signal.Props.TryGetValue("text", out var t) ? t?.ToString() ?? "" : "";

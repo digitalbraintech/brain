@@ -141,4 +141,24 @@ public class TelegramChatNeuronTests
         }
         finally { await cluster.StopAllSilosAsync(); }
     }
+
+    [Fact]
+    public async Task Ignores_broadcast_echoes_to_avoid_self_loop()
+    {
+        var cluster = Cluster();
+        await cluster.DeployAsync();
+        try
+        {
+            var chat = cluster.GrainFactory.GetGrain<ITelegramChatNeuron>("tg-chat-106");
+            // A timeline echo arrives as a broadcast-flagged signal; the neuron must not act on it.
+            await chat.DeliverAsync(Inbound(106, "hello") with { IsBroadcast = true });
+
+            var reactions = (await chat.GetOutgoingTimelineAsync())
+                .OfType<Signal>()
+                .Where(s => s.Name == "TelegramMessageReceived" || s.Name == "TelegramReplyRequested")
+                .ToList();
+            Assert.Empty(reactions);
+        }
+        finally { await cluster.StopAllSilosAsync(); }
+    }
 }
