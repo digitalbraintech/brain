@@ -552,6 +552,16 @@ This is the root-out, delete-heavy, Musk-ordered path to the exact desired syste
 - Plan updated.
 - Tree at 4ad787e. Helper improved. E2E slice ready for context asserts. Ready for more E2E or manual.
 
+**Commit (7e25264): plan**
+- Committed as 7e25264: "docs: update plan with E2E helper enhancement and commits"
+- Post-commit verification ritual:
+  - git status: clean.
+  - dotnet build: 0 errors.
+  - Targeted tests (Telegram_viz | PackEmbodiment): 1 passed / 1 skipped (E2E).
+  - aspire__doctor (MCP): 4/4 pass.
+- Plan updated.
+- Tree at 7e25264. All progress committed. E2E slice ready. Ready for more E2E or manual aspire run.
+
 **Commit (b7abbe3): plan**
 - Committed as b7abbe3: "docs: update plan with latest E2E prep and commit sections"
 - Post-commit verification ritual:
