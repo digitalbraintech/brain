@@ -70,6 +70,26 @@ Other useful env flags (set manually, either way, when you want them):
 While iterating visually you can also attach the dart MCP tools (`get_widget_tree`,
 `hot_reload`) to a running debug Flutter app.
 
+### Warm dev cluster (fastest — skips the 30-120s Aspire boot)
+
+Start a long-lived kernel once, outside Aspire, and every render test attaches to it instead of
+booting a fresh cluster:
+
+```sh
+cd brain
+DIGITALBRAIN_WEBROOT=$(pwd)/../app/build/web dotnet run --project DigitalBrain.Kernel
+```
+
+(PowerShell: `$env:DIGITALBRAIN_WEBROOT = (Resolve-Path ../app/build/web); dotnet run --project DigitalBrain.Kernel`)
+
+Leave it running. Render tests probe `http://localhost:8081` at startup; if it responds, they
+attach directly (a few seconds) instead of booting a fresh Aspire stack. If nothing is listening
+there, tests fall back to today's behavior automatically — there is nothing to configure to opt
+out.
+
+State is in-memory. If a dev session's state ever gets confusing, just restart the process —
+there is no persisted store to clean up.
+
 ## Write a new bundle in ~15 minutes
 
 1. Copy `DigitalBrain.Tests/Authoring/StarterBundleSource.cs`; rename the type, `Pack`,
