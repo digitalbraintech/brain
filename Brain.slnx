@@ -16,6 +16,8 @@
   <Project Path="DigitalBrain.Core/DigitalBrain.Core.csproj" />
   <Project Path="DigitalBrain.Developer/DigitalBrain.Developer.csproj" />
   <Project Path="DigitalBrain.Developer.Tests/DigitalBrain.Developer.Tests.csproj" />
+  <Project Path="DigitalBrain.Experience.PersonalAssistant/DigitalBrain.Experience.PersonalAssistant.csproj" />
+  <Project Path="DigitalBrain.Experience.PersonalAssistant.Tests/DigitalBrain.Experience.PersonalAssistant.Tests.csproj" />
   <Project Path="DigitalBrain.Telegram/DigitalBrain.Telegram.csproj" />
   <Project Path="DigitalBrain.Telegram.Channel/DigitalBrain.Telegram.Channel.csproj" />
   <Project Path="DigitalBrain.Telegram.Channel.Tests/DigitalBrain.Telegram.Channel.Tests.csproj" />
