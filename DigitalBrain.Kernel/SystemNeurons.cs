@@ -381,6 +381,9 @@ public class AspireOrchestratorNeuron : Neuron, IAspireNeuron, IHandle<PerformKe
                 ["checkpointId"] = preUpdateCheckpoint.SynapseId
             };
             await FireAsync(new UiSurface(KernelUiSurfaceKinds.RollingDrain, drainProps));
+            // Prefer routing through IFlutterUiNeuron (continue item 14).
+            var flutter = GrainFactory.GetGrain<IFlutterUiNeuron>("flutter-ui");
+            await flutter.DeliverAsync(new UiSurface(KernelUiSurfaceKinds.RollingDrain, drainProps).Stamp(Self, CurrentCause));
             if (bus is not null)
             {
                 bus.Broadcast(new RfwCard("digitalbrain", "KernelRollingDrainCard", System.Text.Json.JsonSerializer.Serialize(new { replica, phase = "draining", version })));

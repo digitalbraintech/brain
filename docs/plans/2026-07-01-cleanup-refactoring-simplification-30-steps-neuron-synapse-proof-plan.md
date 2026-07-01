@@ -386,3 +386,25 @@ This is the root-out, delete-heavy, Musk-ordered path to the exact desired syste
 - aspire__doctor: 4/4.
 - Tiny focused (2 files + plan). Keeps delete-first spirit, neurons/synapses, IChannel context via existing Stamp.
 - Tree now has the polish changes (on top of prior 15/16 start); ready for commit or next (e.g. one more emitter or aspire run).
+
+**Commit after items 15-16 polish (bb2cea8):**
+- Committed as bb2cea8: "chore(items 15-16): polish DataVisualization telegram context (proper merge + visible title); assert originChannel in viz test; ExcelVizPack seed"
+- Post-commit verification ritual:
+  - git status: clean.
+  - dotnet build: 0 errors.
+  - Targeted tests (Telegram_viz... | DataViz | TelegramChat | Marketplace): 27 passed / 0 failed.
+  - aspire__doctor (MCP): 4/4 pass.
+- Plan updated in commit.
+- Strictly followed rules: Context7 before grain edit, relative, ritual after edits, high-sev green.
+- 15/16 now solid with visible context + proof in test.
+- Tree at bb2cea8. Ready for next (more 14 or E2E).
+
+**Additional item 14 continue (post bb2cea8):**
+- Context7 prior (from recent).
+- In SystemNeurons rolling drain: added Deliver of the RollingDrain UiSurface to IFlutterUiNeuron (prefer routing, like previous 14).
+- Build: succeeded 0e.
+- Tests: 27 passed on filter.
+- aspire__doctor: 4/4.
+- Tiny: one emitter surface now routes via channel neuron.
+- Plan updated.
+- Note: plan.md was updated post previous commit, tree had doc change + this emitter.
