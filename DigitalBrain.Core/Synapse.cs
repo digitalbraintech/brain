@@ -71,7 +71,8 @@ public interface IMarketplaceNeuron : IMarketplace { }
 
 // Thin common marker for channel neurons (Telegram, Flutter UI, etc.) per item 13.
 // Allows discovery and shared patterns (e.g. CorrelationId/CausationId for reply context across channels).
-// No methods yet – keeps it thin; specific contracts (ITelegramChatNeuron, IFlutterUiNeuron) remain.
+// No methods yet – keeps it thin; specific contracts now live in their peer ino projects
+// (ITelegramChatNeuron in DigitalBrain.Telegram.Channel, IFlutterUiNeuron in DigitalBrain.UiKit), not Core.
 public interface IChannelNeuron : INeuron
 {
 }

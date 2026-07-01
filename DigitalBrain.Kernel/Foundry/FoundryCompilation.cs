@@ -7,9 +7,24 @@ namespace DigitalBrain.Kernel.Foundry;
 
 public static class FoundryCompilation
 {
+    // Mirrors the SDK-generated GlobalUsings.g.cs for an <ImplicitUsings>enable</ImplicitUsings> non-web
+    // project (Microsoft.NET.Sdk default set). Pack source files are authored as real ino projects with
+    // implicit usings on, so embodying their raw text standalone needs the same usings in scope or bare
+    // `IReadOnlyList<>` / `Array` / `Dictionary<>` references fail to compile outside their project context.
+    private const string ImplicitUsingsPrelude = """
+        global using System;
+        global using System.Collections.Generic;
+        global using System.IO;
+        global using System.Linq;
+        global using System.Net.Http;
+        global using System.Threading;
+        global using System.Threading.Tasks;
+
+        """;
+
     public static CSharpCompilation Create(string assemblyName, string source, IEnumerable<MetadataReference> references)
     {
-        var tree = CSharpSyntaxTree.ParseText(source);
+        var tree = CSharpSyntaxTree.ParseText(ImplicitUsingsPrelude + source);
         var options = new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, optimizationLevel: OptimizationLevel.Release);
         return CSharpCompilation.Create(assemblyName, new[] { tree }, references, options);
     }
@@ -19,7 +34,7 @@ public static class FoundryCompilation
     // v3's InoCompiler reference resolution.
     public static CSharpCompilation CreateWith(string assemblyName, string source, params Assembly[] extraAssemblies)
     {
-        var tree = CSharpSyntaxTree.ParseText(source);
+        var tree = CSharpSyntaxTree.ParseText(ImplicitUsingsPrelude + source);
         var options = new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, optimizationLevel: OptimizationLevel.Release);
         return CSharpCompilation.Create(assemblyName, new[] { tree }, TpaReferences(extraAssemblies), options);
     }
