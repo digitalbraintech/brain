@@ -1,8 +1,6 @@
 using DigitalBrain.Core;
-using DigitalBrain.Tests.Gateway;
 using DigitalBrain.TestKit;
 using Orleans.TestingHost;
-using Xunit;
 
 namespace DigitalBrain.Tests.Auth;
 

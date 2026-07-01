@@ -1,5 +1,3 @@
-using Xunit;
-
 namespace DigitalBrain.Tests.E2E;
 
 [Trait("Category", "E2E")]

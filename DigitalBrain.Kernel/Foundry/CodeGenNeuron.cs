@@ -1,6 +1,5 @@
 using DigitalBrain.Core;
 using Microsoft.Extensions.AI;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace DigitalBrain.Kernel.Foundry;
 

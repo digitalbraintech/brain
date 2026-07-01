@@ -1,5 +1,4 @@
 using DigitalBrain.Core;
-using DigitalBrain.Telegram;
 using Xunit;
 
 namespace DigitalBrain.Telegram.Tests;

@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Logging;
 using DigitalBrain.Core;
 
 namespace DigitalBrain.Kernel;

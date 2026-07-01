@@ -15,7 +15,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Orleans.Journaling;
 using Orleans.TestingHost;
-using Xunit;
 
 namespace DigitalBrain.Tests.Gateway;
 

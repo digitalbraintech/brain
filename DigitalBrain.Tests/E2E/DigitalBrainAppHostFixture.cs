@@ -5,11 +5,7 @@ using DigitalBrain.Core;
 using DigitalBrain.Runtime.Grpc;
 using Google.Protobuf;
 using Grpc.Net.Client;
-using System.Net.Http;
 using System.Reflection;
-using System.Text.Json;
-using System.Threading;
-using Xunit;
 
 namespace DigitalBrain.Tests.E2E;
 

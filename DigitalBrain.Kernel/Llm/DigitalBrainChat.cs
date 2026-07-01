@@ -1,8 +1,6 @@
 using Azure;
 using Azure.AI.OpenAI;
 using Microsoft.Extensions.AI;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using OllamaSharp;
 
 namespace DigitalBrain.Kernel.Llm;

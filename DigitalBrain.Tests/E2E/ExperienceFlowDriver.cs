@@ -1,5 +1,4 @@
 using Microsoft.Playwright;
-using Xunit;
 
 namespace DigitalBrain.Tests.E2E;
 

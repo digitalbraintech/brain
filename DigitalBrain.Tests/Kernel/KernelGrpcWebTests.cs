@@ -2,7 +2,6 @@ using DigitalBrain.Runtime.Grpc;
 using Grpc.Net.Client;
 using Grpc.Net.Client.Web;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Xunit;
 
 namespace DigitalBrain.Tests.Kernel;
 

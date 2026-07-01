@@ -1,5 +1,4 @@
 using DigitalBrain.Core;
-using Orleans.Hosting;
 using Orleans.TestingHost;
 using Xunit;
 

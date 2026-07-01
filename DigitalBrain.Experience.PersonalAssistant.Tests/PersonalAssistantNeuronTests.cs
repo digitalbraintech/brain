@@ -1,5 +1,4 @@
 using DigitalBrain.Core;
-using DigitalBrain.Experience.PersonalAssistant;
 using Xunit;
 
 namespace DigitalBrain.Experience.PersonalAssistant.Tests;

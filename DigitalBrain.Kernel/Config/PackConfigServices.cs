@@ -1,7 +1,6 @@
 using Azure.Storage.Blobs;
 using DigitalBrain.Core.Config;
 using Microsoft.AspNetCore.DataProtection;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace DigitalBrain.Kernel.Config;
 

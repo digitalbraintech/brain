@@ -1,8 +1,6 @@
-using System.Linq;
 using System.Reflection;
 using DigitalBrain.Mcp.Tools;
 using ModelContextProtocol.Server;
-using Xunit;
 
 namespace DigitalBrain.Tests.Mcp;
 

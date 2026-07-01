@@ -1,7 +1,6 @@
 using System.Text;
 using DigitalBrain.Runtime.Grpc;
 using Grpc.Core;
-using Xunit;
 using Xunit.Abstractions;
 
 namespace DigitalBrain.Tests.E2E;

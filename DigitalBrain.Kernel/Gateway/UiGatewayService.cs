@@ -2,7 +2,6 @@ using System.Text.Json;
 using DigitalBrain.Core;
 using DigitalBrain.Runtime.Grpc.Ui;
 using Grpc.Core;
-using Microsoft.Extensions.Logging;
 
 namespace DigitalBrain.Kernel.Gateway;
 

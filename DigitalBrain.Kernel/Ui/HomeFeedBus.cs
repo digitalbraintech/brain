@@ -3,7 +3,6 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Channels;
 using DigitalBrain.Core;
-using Microsoft.Extensions.Logging;
 using Orleans.Streams;
 
 namespace DigitalBrain.Kernel;

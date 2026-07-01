@@ -1,7 +1,6 @@
 using System.Text.Json;
 using DigitalBrain.Core;
 using DigitalBrain.Runtime.Grpc;
-using Telegram.BotAPI;
 using Telegram.BotAPI.AvailableMethods;
 
 namespace DigitalBrain.Telegram.Transport;

@@ -1,4 +1,3 @@
-using DigitalBrain.Core;
 using DigitalBrain.Kernel;
 using DigitalBrain.Kernel.Gateway;
 using DigitalBrain.Runtime.Grpc;
@@ -8,7 +7,6 @@ using DigitalBrain.TestKit;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Orleans.TestingHost;
-using Xunit;
 
 namespace DigitalBrain.Tests.Telegram;
 

@@ -18,7 +18,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Orleans.Journaling;
 using Orleans.TestingHost;
 using Reqnroll;
-using Xunit;
 
 namespace DigitalBrain.Tests.Steps;
 

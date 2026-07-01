@@ -1,5 +1,4 @@
 using DigitalBrain.TestKit;
-using DigitalBrain.Windows;
 using Xunit;
 
 namespace DigitalBrain.Windows.Tests;

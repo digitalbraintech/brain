@@ -1,6 +1,5 @@
 using DigitalBrain.Kernel.Foundry;
 using Microsoft.Extensions.Logging.Abstractions;
-using Xunit;
 
 namespace DigitalBrain.Tests.Foundry;
 

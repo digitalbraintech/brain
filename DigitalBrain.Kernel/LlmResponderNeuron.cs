@@ -2,9 +2,6 @@ using DigitalBrain.Core;
 using DigitalBrain.Core.Config;
 using DigitalBrain.Kernel.Llm;
 using Microsoft.Extensions.AI;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Orleans.Journaling;
 
 #pragma warning disable ORLEANSEXP005 // Alpha/experimental journalling APIs
 

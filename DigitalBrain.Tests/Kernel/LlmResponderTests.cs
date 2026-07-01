@@ -4,7 +4,6 @@ using DigitalBrain.TestKit;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Orleans.TestingHost;
-using Xunit;
 
 namespace DigitalBrain.Tests.Kernel;
 

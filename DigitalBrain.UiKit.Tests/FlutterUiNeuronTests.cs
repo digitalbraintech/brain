@@ -1,6 +1,5 @@
 using DigitalBrain.Core;
 using DigitalBrain.TestKit;
-using DigitalBrain.UiKit;
 using Xunit;
 
 namespace DigitalBrain.UiKit.Tests;

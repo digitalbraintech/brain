@@ -2,7 +2,6 @@ using System.Collections.Concurrent;
 using System.Collections.Frozen;
 using System.Reflection;
 using DigitalBrain.Core;
-using Microsoft.Extensions.Logging;
 
 namespace DigitalBrain.Kernel;
 

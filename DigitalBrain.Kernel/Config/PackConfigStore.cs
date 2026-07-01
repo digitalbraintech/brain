@@ -2,7 +2,6 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using DigitalBrain.Core.Config;
 using Microsoft.AspNetCore.DataProtection;
-using Microsoft.Extensions.Logging;
 
 namespace DigitalBrain.Kernel.Config;
 

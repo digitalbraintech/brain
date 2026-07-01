@@ -1,7 +1,6 @@
 using System.Text.Json;
 using DigitalBrain.Core;
 using DigitalBrain.Kernel;
-using Xunit;
 
 namespace DigitalBrain.Tests.Economics;
 

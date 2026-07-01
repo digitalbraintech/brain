@@ -3,12 +3,10 @@ using DigitalBrain.Kernel;
 using DigitalBrain.Kernel.Foundry;
 using DigitalBrain.Kernel.Gateway;
 using DigitalBrain.Kernel.Ui;
-using DigitalBrain.Tests.TestSupport;
 using DigitalBrain.TestKit;
 using Microsoft.Extensions.DependencyInjection;
 using Orleans.Journaling;
 using Orleans.TestingHost;
-using Xunit;
 
 namespace DigitalBrain.Tests.Gateway;
 

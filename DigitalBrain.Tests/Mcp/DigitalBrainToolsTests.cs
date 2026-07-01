@@ -1,7 +1,6 @@
 using DigitalBrain.Mcp.Tools;
 using DigitalBrain.TestKit;
 using Orleans.TestingHost;
-using Xunit;
 
 namespace DigitalBrain.Tests.Mcp;
 

@@ -1,6 +1,3 @@
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Hosting;
-
 namespace DigitalBrain.Kernel;
 
 // Development-only convenience: a seeded local account whose credentials always authenticate and which

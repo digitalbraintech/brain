@@ -9,7 +9,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System.Text.Json;
-using Xunit;
 using Transport = TransportAssembly::DigitalBrain.Telegram.Transport;
 // The gateway client + SynapseEnvelope used here MUST be the transport's generated
 // copy (not the kernel's), so the forwarder/dispatcher type signatures line up.

@@ -1,5 +1,4 @@
 using DigitalBrain.Core;
-using Microsoft.Extensions.Configuration;
 
 namespace DigitalBrain.Kernel;
 

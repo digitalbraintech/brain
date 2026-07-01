@@ -3,7 +3,6 @@ using DigitalBrain.Kernel;
 using DigitalBrain.TestKit;
 using Microsoft.Extensions.Logging;
 using Orleans.TestingHost;
-using Xunit;
 
 namespace DigitalBrain.Tests.Kernel;
 

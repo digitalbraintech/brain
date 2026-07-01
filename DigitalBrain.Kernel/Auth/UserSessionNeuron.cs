@@ -1,7 +1,5 @@
 using System.Security.Cryptography;
 using DigitalBrain.Core;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Hosting;
 
 namespace DigitalBrain.Kernel;
 

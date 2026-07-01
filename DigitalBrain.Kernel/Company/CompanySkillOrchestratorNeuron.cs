@@ -1,8 +1,6 @@
 using DigitalBrain.Core;
 using DigitalBrain.Context;
 using Microsoft.Extensions.AI;
-using Microsoft.Extensions.DependencyInjection;
-using System.IO;
 
 namespace DigitalBrain.Kernel.Company;
 

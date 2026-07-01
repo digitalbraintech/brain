@@ -1,5 +1,4 @@
 using DigitalBrain.Core;
-using DigitalBrain.Kernel.Foundry;
 using Microsoft.CodeAnalysis;
 
 namespace DigitalBrain.Kernel.Company;

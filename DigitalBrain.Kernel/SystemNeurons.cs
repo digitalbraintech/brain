@@ -1,17 +1,7 @@
 using DigitalBrain.Core;
-using DigitalBrain.Kernel.Foundry;
 using DigitalBrain.UiKit;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.AI;
-using ModelContextProtocol.Client;
-using ModelContextProtocol.Protocol;
-using Orleans.Journaling;
-using Orleans.Runtime;
-using System.Reflection;
-using System.Diagnostics;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.MSBuild;
-using Microsoft.CodeAnalysis.CSharp;
 
 #pragma warning disable ORLEANSEXP005 // Alpha/experimental journalling APIs
 

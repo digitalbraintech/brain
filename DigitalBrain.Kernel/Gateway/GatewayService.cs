@@ -1,12 +1,8 @@
 using DigitalBrain.Core;
 using DigitalBrain.Core.Config;
 using DigitalBrain.Runtime.Grpc;
-using DigitalBrain.Kernel;
 using DigitalBrain.Telegram.Channel;
 using Grpc.Core;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 
 namespace DigitalBrain.Kernel.Gateway;
 

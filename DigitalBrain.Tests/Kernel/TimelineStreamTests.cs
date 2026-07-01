@@ -1,9 +1,7 @@
-using DigitalBrain.Core;
 using DigitalBrain.Kernel;
 using DigitalBrain.TestKit;
 using Microsoft.Extensions.Configuration;
 using Orleans.TestingHost;
-using Xunit;
 
 namespace DigitalBrain.Tests.Kernel;
 

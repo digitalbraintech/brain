@@ -1,5 +1,3 @@
-using Microsoft.Extensions.Logging;
-
 namespace DigitalBrain.Kernel.Foundry;
 
 public sealed class AzureResourceController : IResourceController

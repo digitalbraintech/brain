@@ -1,7 +1,6 @@
 using DigitalBrain.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Orleans.Serialization;
-using Xunit;
 
 namespace DigitalBrain.Tests.Kernel;
 

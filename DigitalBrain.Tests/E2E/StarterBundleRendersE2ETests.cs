@@ -1,5 +1,4 @@
 using DigitalBrain.Tests.Authoring;
-using Xunit;
 
 namespace DigitalBrain.Tests.E2E;
 
