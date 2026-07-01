@@ -134,29 +134,11 @@ public class AspireOrchestratorNeuron : Neuron, IAspireNeuron, IHandle<PerformKe
             bus.Broadcast(UiSurfaceRfwBridge.FromUiSurface(marketList, Self.Value));
         }
 
-        // Server enrichment (#5): emit marketplace-list surface carrying a UiWidgetTree (list primitive).
-        // Client now renders via UiSurfaceTreeRenderer (pure neuron-driven, no client synthesis for packs).
-        var marketPacks = marketList.Props.TryGetValue("packs", out var p) ? p : null;
-        // Buddy search via forui:FAutocomplete (Neuron UI Kit). Static names for demo; select/query fires UiInputSynapse.
-        var acItems = new[] { "DigitalBrain.UIKit.ForUI", "kernel", "INO", "Marketplace", "Tasks" };
-        var acProps = new Dictionary<string, object?> { ["hint"] = "Search buddies / packs", ["items"] = acItems };
-        var marketTree = new UiWidgetTree(
-            "column",
-            new Dictionary<string, object?>(),
-            new List<UiWidgetTree>
-            {
-                new UiWidgetTree(DigitalBrain.Core.NeuronUiKit.Autocomplete, acProps),
-                new UiWidgetTree("list", new Dictionary<string, object?> { ["items"] = marketPacks })
-            });
-        var marketTreeSurface = new UiSurface(
-            UiSurfaceKinds.MarketplaceList,
-            new Dictionary<string, object?>
-            {
-                ["tree"] = marketTree,
-                [UiSurfaceKeys.Title] = marketList.Props.TryGetValue(UiSurfaceKeys.Title, out var t) ? t : "Marketplace",
-                [UiSurfaceKeys.Emitter] = Self.Value,
-                ["packs"] = marketPacks
-            });
+        // Emit faceted marketplace tree (unfiltered): facet-filter row (All + per distinct tier/channel buttons) + pack list.
+        // Seeds have no materialized BundleManifest, so only the All button appears until packs are published.
+        var marketTreeSurface = UiSurfaceLiveData.MarketplaceTreeSurface(
+            publishedForStart, Array.Empty<NeuroPack>(), tierFilter: null, channelFilter: null,
+            emitter: Self.Value, title: "Marketplace");
         await FireAsync(marketTreeSurface);
         if (bus != null)
         {
@@ -685,6 +667,18 @@ public class MarketplaceNeuron : Neuron, IMarketplaceNeuron
         var packs = GetPublishedPacks();
         Logger.LogInformation("Marketplace listing {Count} real packs", packs.Count);
         await FireAsync(new PublishedList(packs));
+    }
+
+    public async Task HandleAsync(FilterMarketplace cmd)
+    {
+        var published = GetPublishedPacks();
+        var surface = UiSurfaceLiveData.MarketplaceTreeSurface(
+            published, published, cmd.Tier, cmd.Channel, Self.Value);
+        await FireAsync(surface);
+
+        var bus = ServiceProvider.GetService<HomeFeedBus>();
+        if (bus is not null)
+            bus.Broadcast(UiSurfaceRfwBridge.FromUiSurface(surface, Self.Value));
     }
 
     private IReadOnlyList<NeuroPack> GetPublishedPacks()

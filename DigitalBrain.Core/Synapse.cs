@@ -67,7 +67,7 @@ public record ExperienceUsed(
 // Core system neuron interfaces (everything is a Neuron)
 public interface IAspire : INeuron, IHandle<StartDistributedApp>, IHandle<RestartResource> { }
 
-public interface IMarketplace : INeuron, IHandle<PublishToMarketplace>, IHandle<InstallFromMarketplace>, IHandle<ListPublished>;
+public interface IMarketplace : INeuron, IHandle<PublishToMarketplace>, IHandle<InstallFromMarketplace>, IHandle<ListPublished>, IHandle<FilterMarketplace>;
 
 public interface ICompiler : INeuron, IHandle<CreateNeuronRequest> { }
 
