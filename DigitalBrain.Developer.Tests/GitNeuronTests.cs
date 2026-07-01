@@ -4,12 +4,8 @@ using Xunit;
 
 namespace DigitalBrain.Developer.Tests;
 
-public class GitNeuronTests : IAsyncLifetime
+public class GitNeuronTests : NeuronTestBase
 {
-    private readonly TestDigitalBrain _brain = new();
-    public Task InitializeAsync() => _brain.InitializeAsync();
-    public Task DisposeAsync() => _brain.DisposeAsync();
-
     [Fact]
     public async Task Status_Works()
     {
@@ -21,7 +17,7 @@ public class GitNeuronTests : IAsyncLifetime
             { WorkingDirectory = dir, UseShellExecute = false, CreateNoWindow = true };
             using (var process = Process.Start(init)!) process.WaitForExit();
 
-            var git = _brain.Grain<IGitNeuron>("git-smoke");
+            var git = Grain<IGitNeuron>("git-smoke");
             var status = await git.StatusAsync(dir);
             Assert.Contains("branch", status, StringComparison.OrdinalIgnoreCase);
         }
