@@ -207,3 +207,36 @@ This is the root-out, delete-heavy, Musk-ordered path to the exact desired syste
 - Ritual passed each time (build 0e, key tests incl. viz chain + Gateway green, doctor 4/4 via MCP, list_apphosts etc.).
 - More literal cleanup + UiSignals usage + full item 9/10/11 in subsequent slices (delete string trash aggressively).
 - Additional commit ca6c4e8 for test const usage. The WatchSynapses "flaky" failure in broad run was environmental (Orleans TestCluster grain placement noise on shutdown); passes cleanly when targeted.
+
+**2026-07-01 signals + early hosting (items 10-12 start, post 5ba029a):**
+- Context7: resolve-library-id + query-docs for /microsoft/aspire (AddExecutable/WithReference/dev clients) and /dotnet/orleans (IGrain/IHandle/Neuron patterns) BEFORE any edits touching hosting, grains, or serialization.
+- aspire MCP: aspire__doctor (multiple), list_apphosts used.
+- Completed item 10 (P0): centralize signals + delete literals (focus source; careful with """ pack seeds).
+  - MarketplaceSeeds.cs: replaced hard-coded "TelegramReplyRequested" (in AskLlm inside TelegramResponderPackCode) and "TelegramMessageReceived" (SynapseType in KeywordWatcherPackCode) with TelegramSignals. consts. Embedded seeds now use centralized names (still compile self-contained via `using DigitalBrain.Core;`).
+  - DigitalBrain.Telegram.Transport/* : added `using DigitalBrain.Core;`, updated const MessageReceivedType/ReplyRequestedType = TelegramSignals.XXX (central, no dupe literals). Added ProjectReference to DigitalBrain.Core.csproj + comment (transport stays thin adapter, never refs Kernel).
+  - UiSignals present in Core/Signals.cs (symmetry for SurfaceEmitted etc.); introduced/positioned for use.
+- Item 11 (P1 start): centralize channel signal names + Ui kinds in Core, delete dupe.
+  - Added KernelUiSurfaceKinds to DigitalBrain.Core/UiSurfaces.cs (single source with UiSurfaceKinds).
+  - Deleted dupe definition + comment from DigitalBrain.Kernel/SystemNeurons.cs; uses resolve via existing `using DigitalBrain.Core;`.
+  - Updated full-qualifer ref in DigitalBrain.Tests/Steps/NeuronSteps.cs to DigitalBrain.Core.KernelUiSurfaceKinds.
+  - Telegram channel names already centralized (Signals.cs); old transport typed records in Telegram/Synapses.cs left (adapter boundary).
+- Item 12 (P1 begin): refactor AppHost + brain.cs + builder ext for clean "dev default" Flutter helper.
+  - Added `AddDefaultDevFlutterClient(this DigitalBrainContext ctx, IResourceBuilder<ProjectResource> kernel)` + private ResolveDev... to DigitalBrain.Aspire/DigitalBrainBuilderExtensions.cs (encapsulates path+AddFlutterClient+WithReference; no vacuous /// docs, small inline only).
+  - NeuroOSPrototype.AppHost/AppHost.cs: replaced resolve+Add call with `ctx.AddDefaultDevFlutterClient(kernel) ?? throw...` ; DELETED entire ~35 line local ResolveFlutterAppPath (dupe delete).
+  - brain.cs: replaced with `_ = ctx.AddDefaultDevFlutterClient(kernel);` (helper unifies the kernel ref too); DELETED local Resolve + dead `bool withFlutter = true;` line.
+  - Root-out kept: default thin client for dev ergonomics; real UI surfaces routed via IFlutterUiNeuron + synapses; pack "DigitalBrain.UI.AspireFlutter" can provide/override resource bits later.
+  - Delete > add: removed duplicated ~70+ LOC path logic. Self-explanatory helper name.
+- Files changed: DigitalBrain.Core/MarketplaceSeeds.cs, DigitalBrain.Core/UiSurfaces.cs, DigitalBrain.Kernel/SystemNeurons.cs, DigitalBrain.Aspire/DigitalBrainBuilderExtensions.cs, NeuroOSPrototype.AppHost/AppHost.cs, brain.cs, DigitalBrain.Telegram.Transport/*.cs + .csproj, DigitalBrain.Tests/Steps/NeuronSteps.cs, plan.md. (tiny focused slices)
+- After EVERY change: dotnet build, targeted dotnet test, aspire__doctor, this plan update.
+- Build (baseline + after each): succeeded (0 errors). Note: added Core ref to Transport required for const usage (first build caught, fixed, re-green).
+- Tests (high severity targeted filters covering Telegram/Marketplace/Rolling/UiSurface/Gateway/Signals/KernelUi + specific Responder): 79+ passed (0 failed) across runs; 2/2 on narrow seed test; skips are E2E placeholders. Aspire.dev integration tests remain green. Flaky Watch not hit.
+- aspire__doctor (via MCP): 4/4 pass every ritual (cli 13.5p, net11, certs, docker).
+- Strictly followed: relative paths, delete-first, Context7 pre-touch, aspire MCP for doctor, no direct coupling, neurons/synapses, tiny changes, no vacuous docs added.
+- No jump to large P1 refactors. Signals cleanup + early hosting unification solid + green.
+
+**Next 2-3 recommended items (once user confirms + manual aspire run green):**
+- Finish any stragglers in 10/11 (e.g. audit for more signal literals in non-seed source, consider if more UiSignals usages in Gateway/Llm for surface events).
+- Solidify item 12: perhaps expose resolve as public helper or move path logic; update any remaining comments/dupe notes; ensure "pack can override" documented in ext + AppHost.
+- Item 13/14: Create thin IChannelNeuron marker (or reuse); make TelegramChatNeuron + FlutterUiNeuron share reply/context via Correlation/CausationId. Or item 14: prefer routing UiSurfaceRfwBridge / HomeFeed via FlutterUiNeuron.
+- After: item 15/16 for more cross viz proof + pack seeds if needed. Full manual `aspire run` + doctor + targeted E2E before bigger slices.
+- Update plan + commit after next slice.

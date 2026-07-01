@@ -35,49 +35,9 @@ var startUi = builder.AddProject<Projects.DigitalBrain_Cli>("start-ui")
     .WithReference(ctx.OrleansClient)
     .WithExplicitStart();
 
-// Default Windows Flutter thin client on local `aspire run` (P0).
-// Full UI logic remains in marketplace NeuroPack/bundle. Thin host only.
-// Always start for local dev (no --flutter, no env gate, no conditional).
-var flutterUiPath = ResolveFlutterAppPath(builder) ?? throw new InvalidOperationException("Flutter app path not resolved for default windows client. Ensure 'app' folder with pubspec.yaml is sibling or set DIGITALBRAIN_FLUTTER_APP_PATH.");
-ctx.AddFlutterClient("flutter-ui", flutterUiPath, "windows")
-    .WithReference(kernel);
-
-static string? ResolveFlutterAppPath(IDistributedApplicationBuilder b)
-{
-    // 1. Explicit override (highest priority)
-    var flutterPathEnv = Environment.GetEnvironmentVariable("DIGITALBRAIN_FLUTTER_APP_PATH");
-    if (!string.IsNullOrWhiteSpace(flutterPathEnv) && System.IO.Directory.Exists(flutterPathEnv))
-        return System.IO.Path.GetFullPath(flutterPathEnv);
-
-    // 2. Common relative locations from AppHost
-    var appHostDir = b.AppHostDirectory;
-    var candidates = new[]
-    {
-        System.IO.Path.GetFullPath(System.IO.Path.Combine(appHostDir, "..", "..", "app")),   // typical: brain/Neuro... -> root/app
-        System.IO.Path.GetFullPath(System.IO.Path.Combine(appHostDir, "..", "app")),
-        System.IO.Path.GetFullPath(System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), "..", "app")),
-        System.IO.Path.GetFullPath(System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), "..", "..", "app")),
-    };
-
-    foreach (var c in candidates)
-    {
-        if (System.IO.Directory.Exists(c) && System.IO.File.Exists(System.IO.Path.Combine(c, "pubspec.yaml")))
-            return c;
-    }
-
-    // 3. Walk up from AppHostDirectory looking for an "app" folder with Flutter marker
-    var dir = new System.IO.DirectoryInfo(appHostDir);
-    for (int i = 0; i < 6 && dir != null; i++)
-    {
-        var candidate = System.IO.Path.Combine(dir.FullName, "app");
-        if (System.IO.Directory.Exists(candidate) && System.IO.File.Exists(System.IO.Path.Combine(candidate, "pubspec.yaml")))
-            return System.IO.Path.GetFullPath(candidate);
-
-        dir = dir.Parent;
-    }
-
-    return null;
-}
+// Default Windows Flutter thin client on local `aspire run` (P0 item 1+12).
+// Full UI logic remains in marketplace NeuroPack. Uses shared dev default helper (extracted to Aspire ext; pack can override later).
+var flutter = ctx.AddDefaultDevFlutterClient(kernel) ?? throw new InvalidOperationException("Flutter app path not resolved for default windows client. Ensure 'app' folder with pubspec.yaml is sibling or set DIGITALBRAIN_FLUTTER_APP_PATH.");
 
 if (ctx.EnableMcp)
 {

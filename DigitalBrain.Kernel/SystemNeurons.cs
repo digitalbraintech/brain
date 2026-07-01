@@ -16,19 +16,8 @@ using Microsoft.CodeAnalysis.CSharp;
 
 namespace DigitalBrain.Kernel;
 
-// Kernel-owned surface kinds for kernel status, dashboard, and rolling self-update phases.
-// Kernel is a versioned pack; its surfaces and pack identity live here (not Core).
-public static class KernelUiSurfaceKinds
-{
-    public const string Dashboard = "kernel-dashboard";
-    public const string Rolling = "kernel-rolling";
-    public const string RollingDrain = "kernel-rolling-drain";
-    public const string RollingVerify = "kernel-rolling-verify";
-    public const string RollingComplete = "kernel-rolling-complete";
-    public const string RollingRollback = "kernel-rolling-rollback";
-}
-
 // Kernel pack identity (first-class pack for self-update via marketplace + rolling).
+// KernelUiSurfaceKinds centralized to DigitalBrain.Core (UiSurfaces.cs) to eliminate dupe per item 11.
 public static class KernelPack
 {
     public const string Name = "kernel";

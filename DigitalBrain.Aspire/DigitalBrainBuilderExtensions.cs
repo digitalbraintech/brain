@@ -202,6 +202,48 @@ public static class DigitalBrainBuilderExtensions
 
         return transport;
     }
+
+    // Dev default helper (item 12). Path resolve + AddFlutterClient + kernel ref. Returns null if no Flutter app found.
+    public static IResourceBuilder<ExecutableResource>? AddDefaultDevFlutterClient(this DigitalBrainContext ctx, IResourceBuilder<ProjectResource> kernel)
+    {
+        var flutterPath = ResolveDevFlutterAppPath(ctx.Resource.ApplicationBuilder);
+        if (string.IsNullOrEmpty(flutterPath))
+            return null;
+        return ctx.AddFlutterClient("flutter-ui", flutterPath, "windows")
+            .WithReference(kernel);
+    }
+
+    private static string? ResolveDevFlutterAppPath(IDistributedApplicationBuilder b)
+    {
+        var flutterPathEnv = Environment.GetEnvironmentVariable("DIGITALBRAIN_FLUTTER_APP_PATH");
+        if (!string.IsNullOrWhiteSpace(flutterPathEnv) && System.IO.Directory.Exists(flutterPathEnv))
+            return System.IO.Path.GetFullPath(flutterPathEnv);
+
+        var appHostDir = b.AppHostDirectory;
+        var candidates = new[]
+        {
+            System.IO.Path.GetFullPath(System.IO.Path.Combine(appHostDir, "..", "..", "app")),
+            System.IO.Path.GetFullPath(System.IO.Path.Combine(appHostDir, "..", "app")),
+            System.IO.Path.GetFullPath(System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), "..", "app")),
+            System.IO.Path.GetFullPath(System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), "..", "..", "app")),
+        };
+
+        foreach (var c in candidates)
+        {
+            if (System.IO.Directory.Exists(c) && System.IO.File.Exists(System.IO.Path.Combine(c, "pubspec.yaml")))
+                return c;
+        }
+
+        var dir = new System.IO.DirectoryInfo(appHostDir);
+        for (int i = 0; i < 6 && dir != null; i++)
+        {
+            var candidate = System.IO.Path.Combine(dir.FullName, "app");
+            if (System.IO.Directory.Exists(candidate) && System.IO.File.Exists(System.IO.Path.Combine(candidate, "pubspec.yaml")))
+                return System.IO.Path.GetFullPath(candidate);
+            dir = dir.Parent;
+        }
+        return null;
+    }
 }
 
 public sealed class DigitalBrainOptions

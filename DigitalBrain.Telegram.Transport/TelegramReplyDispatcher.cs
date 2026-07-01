@@ -1,4 +1,5 @@
 using System.Text.Json;
+using DigitalBrain.Core;
 using DigitalBrain.Runtime.Grpc;
 using Telegram.BotAPI;
 using Telegram.BotAPI.AvailableMethods;
@@ -19,7 +20,7 @@ public sealed class TelegramReplyDispatcher(
     TelegramTransportOptions options,
     ILogger<TelegramReplyDispatcher> logger)
 {
-    public const string ReplyRequestedType = "TelegramReplyRequested";
+    public const string ReplyRequestedType = TelegramSignals.ReplyRequested;
     public const string PackConfiguredType = "PackConfigured";
 
     // Must match GatewayService.InternalKeyHeader on the kernel side.

@@ -14,6 +14,11 @@
     <PackageReference Include="Grpc.Tools" PrivateAssets="All" />
   </ItemGroup>
 
+  <!-- Core for centralized signal consts (TelegramSignals). Transport is thin adapter only; never references Kernel. -->
+  <ItemGroup>
+    <ProjectReference Include="..\DigitalBrain.Core\DigitalBrain.Core.csproj" />
+  </ItemGroup>
+
   <!--
     gRPC CLIENT for the same digitalbrain.proto the kernel gateway hosts as Server.
     Linking the proto keeps one source of truth on disk so the transport's wire

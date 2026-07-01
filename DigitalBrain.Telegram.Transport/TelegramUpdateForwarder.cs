@@ -1,3 +1,4 @@
+using DigitalBrain.Core;
 using DigitalBrain.Runtime.Grpc;
 using Google.Protobuf;
 using Telegram.BotAPI.GettingUpdates;
@@ -13,7 +14,7 @@ public sealed class TelegramUpdateForwarder(
     TelegramTransportOptions options,
     ILogger<TelegramUpdateForwarder> logger)
 {
-    public const string MessageReceivedType = "TelegramMessageReceived";
+    public const string MessageReceivedType = TelegramSignals.MessageReceived;
 
     // Must match GatewayService.InternalKeyHeader on the kernel side. The inbound generic Send is internal-only,
     // so the transport presents the shared service-to-service key the same way the reply dispatcher does for the

@@ -39,7 +39,7 @@ public sealed class TelegramResponderNeuron : IPackBehavior
         {
             new AskLlm(
                 text,
-                "TelegramReplyRequested",
+                TelegramSignals.ReplyRequested,
                 new Dictionary<string, object?> { ["chatId"] = chatId },
                 ConfigPack,
                 ConfigScope)
@@ -168,7 +168,7 @@ using DigitalBrain.Core;
 public sealed class KeywordWatcherNeuron : IPackBehavior
 {
     public PackManifest GetManifest() => new(
-        new[] { new SynapseType("TelegramMessageReceived") },
+        new[] { new SynapseType(TelegramSignals.MessageReceived) },
         null);
 
     public string Respond(string input) => input;

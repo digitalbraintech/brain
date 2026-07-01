@@ -1583,3 +1583,15 @@ public record IdeSurface(
     ["code"] = InitialCode,
     ["language"] = Language
 });
+
+// Kernel-owned surface kinds centralized here (with all other Ui kinds) per item 11.
+// Kernel surfaces remain versioned with the kernel pack but names are single-sourced in Core.
+public static class KernelUiSurfaceKinds
+{
+    public const string Dashboard = "kernel-dashboard";
+    public const string Rolling = "kernel-rolling";
+    public const string RollingDrain = "kernel-rolling-drain";
+    public const string RollingVerify = "kernel-rolling-verify";
+    public const string RollingComplete = "kernel-rolling-complete";
+    public const string RollingRollback = "kernel-rolling-rollback";
+}
