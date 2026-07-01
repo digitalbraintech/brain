@@ -201,6 +201,8 @@ This is the root-out, delete-heavy, Musk-ordered path to the exact desired syste
 **Continuing next (post d53c5ac commit):**
 - Started item 10 (P0 cleanup): Expanded Core/Signals.cs with UiSignals (symmetry). Replaced key remaining "TelegramMessageReceived"/"TelegramReplyRequested" literals in:
   - DigitalBrain.Kernel/Gateway/GatewayService.cs
-  - DigitalBrain.Core/MarketplaceSeeds.cs (SynapseType + pack code)
-- Ritual passed each time (build 0e, tests green, doctor 4/4, MCP used).
+  - DigitalBrain.Telegram/TelegramResponderNeuron.cs
+- (Seeds embedded pack source + transport left using literals to preserve self-contained pack compilation and adapter boundaries.)
+- Additional commit 33a1817.
+- Ritual passed each time (build 0e, key tests incl. viz chain + Gateway green, doctor 4/4 via MCP, list_apphosts etc.).
 - More literal cleanup + UiSignals usage + full item 9/10/11 in subsequent slices (delete string trash aggressively).

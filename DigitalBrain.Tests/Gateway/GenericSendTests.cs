@@ -47,7 +47,7 @@ public class GenericSendTests : IAsyncLifetime
         var payload = System.Text.Encoding.UTF8.GetBytes("{\"chatId\":7,\"text\":\"hi\"}");
         await NewService().Send(new SynapseEnvelope
         {
-            TypeName = "TelegramMessageReceived",
+            TypeName = TelegramSignals.MessageReceived,
             CorrelationId = "test-generic-1",
             Payload = Google.Protobuf.ByteString.CopyFrom(payload)
         }, TestServerCallContext.Create());
@@ -63,8 +63,8 @@ public class GenericSendTests : IAsyncLifetime
         }
 
         Assert.NotNull(received);
-        var signal = Assert.Single(received, s => s.Name == "TelegramMessageReceived");
-        Assert.Equal("TelegramMessageReceived", signal.Name);
+        var signal = Assert.Single(received, s => s.Name == TelegramSignals.MessageReceived);
+        Assert.Equal(TelegramSignals.MessageReceived, signal.Name);
         Assert.True(signal.Props.TryGetValue("chatId", out var chatId), "Props should contain 'chatId'");
         Assert.True(chatId is 7 or 7L, $"chatId should be 7 (numeric), was {chatId} ({chatId?.GetType().Name})");
         Assert.Equal("hi", signal.Props["text"]);
@@ -89,7 +89,7 @@ public class GenericSendTests : IAsyncLifetime
         // No x-internal-key header → forged egress injection rejected.
         var ex = await Assert.ThrowsAsync<RpcException>(() => prodService.Send(new SynapseEnvelope
         {
-            TypeName = "TelegramReplyRequested",
+            TypeName = TelegramSignals.ReplyRequested,
             CorrelationId = "attacker-1",
             Payload = payload
         }, TestServerCallContext.Create()));
@@ -98,7 +98,7 @@ public class GenericSendTests : IAsyncLifetime
         // Correct internal key → trusted in-cluster transport is admitted.
         var accepted = await prodService.Send(new SynapseEnvelope
         {
-            TypeName = "TelegramMessageReceived",
+            TypeName = TelegramSignals.MessageReceived,
             CorrelationId = "transport-1",
             Payload = payload
         }, TestServerCallContext.WithHeaders(("x-internal-key", "the-key")));

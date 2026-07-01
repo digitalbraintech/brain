@@ -35,10 +35,10 @@ public class WatchSynapsesTests : IAsyncLifetime
     [Fact]
     public async Task BroadcastSignal_ReachesEgressBus_FilteredByTypeName()
     {
-        using var subscription = _egressBus.Subscribe(new[] { "TelegramReplyRequested" });
+        using var subscription = _egressBus.Subscribe(new[] { TelegramSignals.ReplyRequested });
 
         var emitter = _cluster.GrainFactory.GetGrain<IIngressNeuron>("egress-emitter-1");
-        await emitter.IngestAsync("TelegramReplyRequested",
+        await emitter.IngestAsync(TelegramSignals.ReplyRequested,
             new Dictionary<string, object?> { ["chatId"] = 7L, ["text"] = "yo" });
         await emitter.IngestAsync("Other", new Dictionary<string, object?>());
 
@@ -54,7 +54,7 @@ public class WatchSynapsesTests : IAsyncLifetime
         }
 
         Assert.NotNull(received);
-        Assert.Equal("TelegramReplyRequested", received!.Name);
+        Assert.Equal(TelegramSignals.ReplyRequested, received!.Name);
         Assert.True(received.Props.TryGetValue("chatId", out var chatId), "Props should contain 'chatId'");
         Assert.True(chatId is 7 or 7L, $"chatId should be 7 (numeric), was {chatId} ({chatId?.GetType().Name})");
         Assert.Equal("yo", received.Props["text"]);

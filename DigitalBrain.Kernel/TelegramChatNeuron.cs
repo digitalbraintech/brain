@@ -15,7 +15,7 @@ public sealed class TelegramChatNeuron : Neuron, ITelegramChatNeuron, IHandle<Si
 
     // Purely point-to-point driven (fed by the gateway via DeliverAsync). It EMITS broadcasts
     // (confirmation, unbound fallback) but must never RECEIVE timeline echoes — otherwise its own
-    // broadcast of a "TelegramMessageReceived" signal would loop back into HandleAsync.
+    // broadcast of a TelegramSignals.MessageReceived signal would loop back into HandleAsync.
     protected override bool ShouldSubscribeToTimeline => false;
 
     public TelegramChatNeuron(ILogger<TelegramChatNeuron> logger, NeuronJournals journals)
