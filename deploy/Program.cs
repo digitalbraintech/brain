@@ -15,8 +15,8 @@ namespace DigitalBrain.Deploy;
 
 // Minimal Pulumi program for DigitalBrain / NeuroOS. Provisions only what the runtime actually uses:
 // a resource group, one StorageV2 account (Orleans Table clustering + Blob grain/journal), Azure OpenAI
-// (gpt-4o-mini "chat"), Log Analytics + App Insights, an ACA managed environment, and a single kernel
-// container app with an external Auto-transport ingress (browser gRPC-Web + native gRPC on port 8080).
+// (gpt-4o-mini "chat"), Log Analytics + App Insights, an ACA managed environment, a kernel container app
+// with an external Auto-transport ingress, and a Telegram transport container app (external /webhook ingress).
 // Replaces the vendored DeploymentKit.
 internal static class Program
 {
@@ -25,14 +25,19 @@ internal static class Program
     private const string EnvSuffix = "prod";
     private const string ChatDeploymentName = "chat";
 
-    // Silo image lives in public Docker Hub. ACA pulls it without registry creds because the repo is public;
-    // otherwise add an AppInputs.RegistryCredentialsArgs (server=docker.io) with a Docker Hub access-token secret.
+    // Images live in public Docker Hub. ACA pulls without registry creds because the repos are public;
+    // otherwise add AppInputs.RegistryCredentialsArgs (server=docker.io) with a Docker Hub access-token secret.
     private const string SiloImageRepository = "docker.io/vhorbachov/digitalbrain-silo";
+    private const string TelegramImageRepository = "docker.io/vhorbachov/digitalbrain-telegram";
 
     // Container App secret names backing the NeuroOS runtime contract.
     private const string StorageConnectionSecret = "digitalbrain-storage-connection";
     private const string OpenAiKeySecret = "digitalbrain-openai-key";
     private const string CheckpointKeySecret = "digitalbrain-checkpoint-key";
+
+    // Telegram transport secrets — bot token + shared internal service key.
+    private const string TelegramBotTokenSecret = "telegram-bot-token";
+    private const string InternalServiceKeySecret = "digitalbrain-internal-service-key";
 
     // The env + silo were previously created under DeploymentKit's "app-runtime" component. Alias to that old
     // parent URN so Pulumi re-parents them to the stack root in place instead of replacing the live resources.
@@ -56,6 +61,13 @@ internal static class Program
             ?? throw new System.InvalidOperationException(
                 "Checkpoint key required: set env DIGITALBRAIN_CHECKPOINT_KEY (CI secret) " +
                 "or `pulumi config set --secret digitalbrain-deploy:checkpointKey <base64-32-bytes>` (local).");
+
+        // Telegram transport secrets. GetSecret returns null when not set so a token-less deploy boots idle
+        // (transport skips webhook setup when BotToken is empty — same contract as Aspire dev wiring).
+        // Set via: pulumi config set --secret telegramBotToken <value>
+        //          pulumi config set --secret internalServiceKey <value>
+        var telegramBotToken = config.GetSecret("telegramBotToken") ?? Output.CreateSecret(string.Empty);
+        var internalServiceKey = config.GetSecret("internalServiceKey") ?? Output.CreateSecret(string.Empty);
 
         var resourceGroup = new ResourceGroup(ResourceGroupName, new ResourceGroupArgs
         {
@@ -178,6 +190,7 @@ internal static class Program
         }, AliasOldRuntimeParent());
 
         var siloImage = Output.Format($"{SiloImageRepository}:{imageTag}");
+        var telegramImage = Output.Format($"{TelegramImageRepository}:{imageTag}");
 
         var silo = new App.ContainerApp("digitalbrain-jobs", new App.ContainerAppArgs
         {
@@ -230,6 +243,60 @@ internal static class Program
             Tags = StandardTags("container-app-jobs")
         }, AliasOldRuntimeParent());
 
+        // The Telegram transport calls the kernel's gRPC gateway. The silo's external FQDN is reachable from
+        // within the same ACA environment, so we build the address from LatestRevisionFqdn. Must be HTTPS
+        // because ACA external ingress always terminates TLS. Same key the Aspire dev wiring sets:
+        // "DigitalBrain:GatewayAddress" (colon separator, mirrored in transport Program.cs).
+        var kernelGatewayAddress = silo.LatestRevisionFqdn.Apply(fqdn => $"https://{fqdn}");
+
+        var telegramTransport = new App.ContainerApp("digitalbrain-telegram", new App.ContainerAppArgs
+        {
+            ContainerAppName = "digitalbrain-telegram",
+            ResourceGroupName = resourceGroup.Name,
+            Location = Region,
+            ManagedEnvironmentId = containerEnvironment.Id,
+            Configuration = new AppInputs.ConfigurationArgs
+            {
+                // External ingress so Telegram's servers can POST to /webhook.
+                Ingress = new AppInputs.IngressArgs
+                {
+                    External = true,
+                    TargetPort = 8080,
+                    Transport = "Http"
+                },
+                Secrets =
+                {
+                    new AppInputs.SecretArgs { Name = TelegramBotTokenSecret, Value = telegramBotToken },
+                    new AppInputs.SecretArgs { Name = InternalServiceKeySecret, Value = internalServiceKey }
+                }
+            },
+            Template = new AppInputs.TemplateArgs
+            {
+                Containers =
+                {
+                    new AppInputs.ContainerArgs
+                    {
+                        Name = "telegram",
+                        Image = telegramImage,
+                        Resources = new AppInputs.ContainerResourcesArgs { Cpu = 0.25, Memory = "0.5Gi" },
+                        Env =
+                        {
+                            new AppInputs.EnvironmentVarArgs { Name = "ASPNETCORE_ENVIRONMENT", Value = "Production" },
+                            new AppInputs.EnvironmentVarArgs { Name = "ASPNETCORE_HTTP_PORTS", Value = "8080" },
+                            // Same keys read by transport Program.cs and set by WireTelegramTransport for dev parity.
+                            new AppInputs.EnvironmentVarArgs { Name = "DigitalBrain__GatewayAddress", Value = kernelGatewayAddress },
+                            new AppInputs.EnvironmentVarArgs { Name = "Telegram__BotToken", SecretRef = TelegramBotTokenSecret },
+                            new AppInputs.EnvironmentVarArgs { Name = "DigitalBrain__InternalServiceKey", SecretRef = InternalServiceKeySecret },
+                            new AppInputs.EnvironmentVarArgs { Name = "Telegram__PackName", Value = "DigitalBrain.Telegram.Responder" },
+                            new AppInputs.EnvironmentVarArgs { Name = "Telegram__ConfigScope", Value = "default" }
+                        }
+                    }
+                },
+                Scale = new AppInputs.ScaleArgs { MinReplicas = 1, MaxReplicas = 3 }
+            },
+            Tags = StandardTags("container-app-telegram")
+        });
+
         return new Dictionary<string, object?>
         {
             ["resourceGroup"] = resourceGroup.Name,
@@ -237,6 +304,8 @@ internal static class Program
             ["openAiEndpoint"] = openAiEndpoint,
             ["chatDeployment"] = ChatDeploymentName,
             ["siloApp"] = silo.Name,
+            ["telegramApp"] = telegramTransport.Name,
+            ["telegramFqdn"] = telegramTransport.LatestRevisionFqdn,
             ["imageTag"] = imageTag,
             ["environment"] = EnvSuffix
         };
