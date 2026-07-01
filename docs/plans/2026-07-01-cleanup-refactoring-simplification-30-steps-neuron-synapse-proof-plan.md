@@ -267,3 +267,14 @@ This is the root-out, delete-heavy, Musk-ordered path to the exact desired syste
 - Signals + early hosting unification now solid (items 10 complete, 11 core done, 12 helper extracted + documented + dupes deleted + comments cleaned).
 - Ready for next: start light item 13/14 or remaining 12 polish (e.g. make resolve logic reusable or expose a public TryResolveDevFlutterPath if pack needs it). Will pick 1-2 tiny verifiable slices next. Full manual aspire run + doctor recommended before heavier work.
 - Recommendation reminder: 12 solidify + 13 (IChannel marker + causation sharing) or 14 (stronger FlutterUiNeuron routing). Do not expand until next user "continue" + green checks.
+
+**Item 12 solidify (tiny slice, this continue):**
+- Context7 (Aspire resolve + query on builder extensions / reusable resource helpers) performed before edit.
+- Changed private ResolveDevFlutterAppPath to public in DigitalBrain.Aspire/DigitalBrainBuilderExtensions.cs + added one-line comment explaining pack reuse.
+- This allows future "DigitalBrain.UI.AspireFlutter" pack or other code to call the resolver directly for overrides without duplication.
+- Build: 0 errors (after killing locks).
+- Targeted tests (Marketplace|Telegram|UiSurface + Journal+Filter): 56+ passed (some env host crashes but no functional failures; 3/3 on Journal/MarketplaceFilter green).
+- aspire__doctor: 4/4.
+- aspire list_resources attempted (no running host, as expected).
+- Plan updated. This is the "make resolve logic reusable" step.
+- No behavior change. Tiny visibility + comment only.

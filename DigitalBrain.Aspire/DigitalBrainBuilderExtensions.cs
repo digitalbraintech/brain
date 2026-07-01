@@ -214,7 +214,8 @@ public static class DigitalBrainBuilderExtensions
             .WithReference(kernel);
     }
 
-    private static string? ResolveDevFlutterAppPath(IDistributedApplicationBuilder b)
+    // Public so packs / other extensions can reuse the dev path resolution logic or provide alternatives.
+    public static string? ResolveDevFlutterAppPath(IDistributedApplicationBuilder b)
     {
         var flutterPathEnv = Environment.GetEnvironmentVariable("DIGITALBRAIN_FLUTTER_APP_PATH");
         if (!string.IsNullOrWhiteSpace(flutterPathEnv) && System.IO.Directory.Exists(flutterPathEnv))
