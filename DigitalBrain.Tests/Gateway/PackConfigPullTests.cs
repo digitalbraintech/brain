@@ -7,6 +7,7 @@ using DigitalBrain.Kernel.Gateway;
 using DigitalBrain.Kernel.Ui;
 using DigitalBrain.Runtime.Grpc;
 using DigitalBrain.Tests.TestSupport;
+using DigitalBrain.TestKit;
 using Grpc.Core;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Configuration;

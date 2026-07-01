@@ -1,6 +1,6 @@
 using DigitalBrain.Core;
 using DigitalBrain.Tests.Gateway;
-using DigitalBrain.Tests.TestSupport;
+using DigitalBrain.TestKit;
 using Orleans.TestingHost;
 using Xunit;
 

@@ -11,7 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Orleans.Journaling;
 using Orleans.TestingHost;
 
-namespace DigitalBrain.Tests.TestSupport;
+namespace DigitalBrain.TestKit;
 
 // No-op scoped factory for shared test clusters: always defers to the global IChatClient by returning null.
 // Prevents shared-config tests from acquiring a hidden Ollama/OpenAI network dependency.
@@ -60,4 +60,3 @@ public sealed class NeuronTestSiloConfigurator : ISiloConfigurator
             });
     }
 }
-

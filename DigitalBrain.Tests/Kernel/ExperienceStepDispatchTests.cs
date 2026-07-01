@@ -3,6 +3,7 @@ using DigitalBrain.Kernel;
 using DigitalBrain.Kernel.Foundry;
 using DigitalBrain.Tests.E2E;
 using DigitalBrain.Tests.TestSupport;
+using DigitalBrain.TestKit;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Orleans.Journaling;

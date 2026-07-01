@@ -4,6 +4,7 @@ using DigitalBrain.Kernel.Foundry;
 using DigitalBrain.Kernel.Gateway;
 using DigitalBrain.Runtime.Grpc;
 using DigitalBrain.Tests.TestSupport;
+using DigitalBrain.TestKit;
 using Grpc.Core;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

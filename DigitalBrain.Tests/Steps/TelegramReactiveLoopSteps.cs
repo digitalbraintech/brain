@@ -9,6 +9,7 @@ using DigitalBrain.Kernel.Gateway;
 using DigitalBrain.Kernel.Ui;
 using DigitalBrain.Tests.Kernel;
 using DigitalBrain.Tests.TestSupport;
+using DigitalBrain.TestKit;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;

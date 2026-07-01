@@ -1,7 +1,7 @@
 using System.Linq;
 using DigitalBrain.Core;
 using DigitalBrain.Kernel;
-using DigitalBrain.Tests.TestSupport;
+using DigitalBrain.TestKit;
 using Orleans.TestingHost;
 using Xunit;
 

@@ -6,6 +6,7 @@ using DigitalBrain.Kernel.Config;
 using DigitalBrain.Kernel.Foundry;
 using DigitalBrain.Kernel.Gateway;
 using DigitalBrain.Tests.TestSupport;
+using DigitalBrain.TestKit;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

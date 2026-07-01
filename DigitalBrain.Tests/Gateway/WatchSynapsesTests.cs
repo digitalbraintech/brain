@@ -4,6 +4,7 @@ using DigitalBrain.Kernel.Foundry;
 using DigitalBrain.Kernel.Gateway;
 using DigitalBrain.Kernel.Ui;
 using DigitalBrain.Tests.TestSupport;
+using DigitalBrain.TestKit;
 using Microsoft.Extensions.DependencyInjection;
 using Orleans.Journaling;
 using Orleans.TestingHost;

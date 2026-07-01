@@ -3,7 +3,7 @@ using Orleans.Journaling;
 
 #pragma warning disable ORLEANSEXP005 // Alpha/experimental journaling - only for tests/prototype
 
-namespace DigitalBrain.Tests.TestSupport;
+namespace DigitalBrain.TestKit;
 
 /// <summary>
 /// Prototype in-memory implementations.

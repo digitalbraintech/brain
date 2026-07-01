@@ -14,6 +14,8 @@
   <Project Path="DigitalBrain.Telegram.Transport/DigitalBrain.Telegram.Transport.csproj" />
   <Project Path="DigitalBrain.Kernel/DigitalBrain.Kernel.csproj" />
   <Project Path="DigitalBrain.Tests/DigitalBrain.Tests.csproj" />
+  <Project Path="DigitalBrain.TestKit/DigitalBrain.TestKit.csproj" />
+  <Project Path="DigitalBrain.TestKit.Tests/DigitalBrain.TestKit.Tests.csproj" />
   <Project Path="DigitalBrain.Mcp/DigitalBrain.Mcp.csproj" />
   <Project Path="DigitalBrain.Mcp.Tools/DigitalBrain.Mcp.Tools.csproj" />
   <Project Path="NeuroOSPrototype.AppHost/NeuroOSPrototype.AppHost.csproj" />

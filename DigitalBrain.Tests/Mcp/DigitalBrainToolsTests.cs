@@ -1,5 +1,5 @@
 using DigitalBrain.Mcp.Tools;
-using DigitalBrain.Tests.TestSupport;
+using DigitalBrain.TestKit;
 using Orleans.TestingHost;
 using Xunit;
 

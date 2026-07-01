@@ -3,7 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using DigitalBrain.Core;
 using DigitalBrain.Kernel;
-using DigitalBrain.Tests.TestSupport;
+using DigitalBrain.TestKit;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Orleans.TestingHost;

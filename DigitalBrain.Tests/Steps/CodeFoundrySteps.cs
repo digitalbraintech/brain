@@ -1,6 +1,7 @@
 using DigitalBrain.Core;
 using DigitalBrain.Kernel.Foundry;
 using DigitalBrain.Tests.TestSupport;
+using DigitalBrain.TestKit;
 using Microsoft.Extensions.DependencyInjection;
 using Orleans.TestingHost;
 using Reqnroll;

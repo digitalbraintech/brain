@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <!-- Allow alpha/experimental Orleans Journaling APIs for harness -->
+    <NoWarn>$(NoWarn);ORLEANSEXP005</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DigitalBrain.Core\DigitalBrain.Core.csproj" />
+    <ProjectReference Include="..\DigitalBrain.Kernel\DigitalBrain.Kernel.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Orleans.TestingHost" />
+    <PackageReference Include="xunit" />
+  </ItemGroup>
+
+</Project>

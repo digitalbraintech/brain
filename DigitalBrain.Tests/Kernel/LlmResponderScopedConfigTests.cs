@@ -3,7 +3,7 @@ using DigitalBrain.Core.Config;
 using DigitalBrain.Kernel;
 using DigitalBrain.Kernel.Config;
 using DigitalBrain.Kernel.Llm;
-using DigitalBrain.Tests.TestSupport;
+using DigitalBrain.TestKit;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Orleans.TestingHost;
