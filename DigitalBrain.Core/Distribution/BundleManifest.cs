@@ -1,7 +1,9 @@
 namespace DigitalBrain.Core;
 
+[GenerateSerializer]
 public enum BundleTier { Substrate, Channel, Content }
 
+[GenerateSerializer]
 public enum BundleChannel { InApp, Telegram, Web }
 
 [GenerateSerializer]

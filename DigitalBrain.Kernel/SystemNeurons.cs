@@ -519,7 +519,7 @@ public class MarketplaceNeuron : Neuron, IMarketplaceNeuron
 
         // Update view for fast subsequent queries. The Publish synapse itself is journaled by the caller Fire.
         EnsureCache();
-        _publishedCache![KeyFor(cmd.PackName, cmd.Version)] = ToNeuroPack(cmd);
+        _publishedCache![KeyFor(cmd.PackName, cmd.Version)] = MaterializeManifest(ToNeuroPack(cmd));
 
         // Emit refreshed marketplace surface so thin NeuroUI hosts (Flutter + future) see the update live from the neuron.
         var bus = ServiceProvider.GetService<HomeFeedBus>();
@@ -536,6 +536,30 @@ public class MarketplaceNeuron : Neuron, IMarketplaceNeuron
 
     private static NeuroPack ToNeuroPack(PublishToMarketplace p) =>
         new(p.PackName, p.Version, p.OwnerId, p.IsPrivate, p.CommissionRate, p.Code, p.Description, p.AuthorPublicKeyBase64, p.SignatureBase64, p.Price);
+
+    // Best-effort: embody the pack once to read its in-code BundleManifest so the catalog can facet without
+    // recompiling at list time. A compile/embody failure is logged and the pack lists without bundle metadata —
+    // materialization is never a publish gate (publish-on-green hard-gating pairs with the trust gate in 1b).
+    private NeuroPack MaterializeManifest(NeuroPack pack)
+    {
+        if (string.IsNullOrEmpty(pack.Code)) return pack;
+
+        var embodiment = ServiceProvider.GetService<IPackEmbodiment>();
+        if (embodiment is null) return pack;
+
+        try
+        {
+            using var embodied = embodiment.Embody(pack.Name, pack.Code);
+            var manifest = embodied.GetBundleManifest();
+            return manifest is null ? pack : pack with { Manifest = manifest };
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Manifest materialization failed for pack {Name}@{Ver}; listing without bundle metadata",
+                pack.Name, pack.Version);
+            return pack;
+        }
+    }
 
     public async Task HandleAsync(InstallFromMarketplace cmd)
     {
