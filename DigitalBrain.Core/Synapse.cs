@@ -69,11 +69,6 @@ public interface IAspireNeuron : IAspire { }
 
 public interface IMarketplaceNeuron : IMarketplace { }
 
-public interface ITelegramChatNeuron : IChannelNeuron
-{
-    Task<string?> GetBoundBundleAsync();
-}
-
 // Thin common marker for channel neurons (Telegram, Flutter UI, etc.) per item 13.
 // Allows discovery and shared patterns (e.g. CorrelationId/CausationId for reply context across channels).
 // No methods yet – keeps it thin; specific contracts (ITelegramChatNeuron, IFlutterUiNeuron) remain.

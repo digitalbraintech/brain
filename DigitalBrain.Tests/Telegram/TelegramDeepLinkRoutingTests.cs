@@ -2,6 +2,7 @@ using DigitalBrain.Core;
 using DigitalBrain.Kernel;
 using DigitalBrain.Kernel.Gateway;
 using DigitalBrain.Runtime.Grpc;
+using DigitalBrain.Telegram.Channel;
 using DigitalBrain.Tests.TestSupport;
 using DigitalBrain.TestKit;
 using Microsoft.Extensions.Configuration;

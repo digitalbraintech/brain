@@ -1,4 +1,5 @@
 using DigitalBrain.Core;
+using DigitalBrain.Telegram.Channel;
 
 namespace DigitalBrain.Kernel;
 

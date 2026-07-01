@@ -15,6 +15,8 @@
   <Project Path="DigitalBrain.Developer/DigitalBrain.Developer.csproj" />
   <Project Path="DigitalBrain.Developer.Tests/DigitalBrain.Developer.Tests.csproj" />
   <Project Path="DigitalBrain.Telegram/DigitalBrain.Telegram.csproj" />
+  <Project Path="DigitalBrain.Telegram.Channel/DigitalBrain.Telegram.Channel.csproj" />
+  <Project Path="DigitalBrain.Telegram.Channel.Tests/DigitalBrain.Telegram.Channel.Tests.csproj" />
   <Project Path="DigitalBrain.Telegram.Transport/DigitalBrain.Telegram.Transport.csproj" />
   <Project Path="DigitalBrain.Kernel/DigitalBrain.Kernel.csproj" />
   <Project Path="DigitalBrain.Tests/DigitalBrain.Tests.csproj" />
