@@ -171,6 +171,16 @@ public sealed class GatewayService(
                 ? new Dictionary<string, object?>()
                 : System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object?>>(payloadJson) ?? new();
             var signalProps = NormalizeJsonProps(rawProps);
+
+            if (string.Equals(request.TypeName, "TelegramMessageReceived", StringComparison.Ordinal)
+                && signalProps.TryGetValue("chatId", out var chatIdValue) && chatIdValue is not null)
+            {
+                var chatKey = "tg-chat-" + System.Convert.ToInt64(chatIdValue);
+                var chat = grains.GetGrain<ITelegramChatNeuron>(chatKey);
+                await chat.DeliverAsync(new Signal(request.TypeName, signalProps));
+                return request;
+            }
+
             var ingress = grains.GetGrain<IIngressNeuron>(request.CorrelationId);
             await ingress.IngestAsync(request.TypeName, signalProps);
             return request;
