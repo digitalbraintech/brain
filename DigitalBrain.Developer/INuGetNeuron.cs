@@ -5,17 +5,17 @@ namespace DigitalBrain.Developer;
 
 // Typed NuGet operations via the dotnet CLI. Re-homed from IAW's INuGet onto Neuron; supersedes the untyped
 // NuGetManagerNeuron.
-public interface INuGetNeuron : INeuronAgent
+public interface INuGetNeuron : IAgent
 {
-    static string INeuronAgent.AgentDisplayName => "NuGet";
+    static string IAgent.AgentDisplayName => "NuGet";
 
-    static string INeuronAgent.AgentDescription =>
+    static string IAgent.AgentDescription =>
         "List, restore, add, and check for outdated NuGet packages on a project via the dotnet CLI.";
 
-    static string[] INeuronAgent.AgentCapabilities =>
+    static string[] IAgent.AgentCapabilities =>
         ["nuget", "package", "restore", "outdated", "dependencies"];
 
-    static string INeuronAgent.AgentInstructions => """
+    static string IAgent.AgentInstructions => """
         You are NuGet, the package specialist. Manage package references and report outdated dependencies.
         Run operations immediately; report exit code and the relevant CLI output.
         """;

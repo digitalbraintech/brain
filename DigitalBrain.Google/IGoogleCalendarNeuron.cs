@@ -3,17 +3,17 @@ using DigitalBrain.Core;
 
 namespace DigitalBrain.Google;
 
-public interface IGoogleCalendarNeuron : INeuronAgent
+public interface IGoogleCalendarNeuron : IAgent
 {
-    static string INeuronAgent.AgentDisplayName => "Google Calendar";
+    static string IAgent.AgentDisplayName => "Google Calendar";
 
-    static string INeuronAgent.AgentDescription =>
+    static string IAgent.AgentDescription =>
         "List, create, and delete events on the authenticated Google Calendar account.";
 
-    static string[] INeuronAgent.AgentCapabilities =>
+    static string[] IAgent.AgentCapabilities =>
         ["calendar", "google", "event", "schedule"];
 
-    static string INeuronAgent.AgentInstructions => """
+    static string IAgent.AgentInstructions => """
         You are Google Calendar, the scheduling specialist. List, create, and delete events on the
         primary calendar. Create and delete mutate the user's calendar — confirm intent before those calls.
         """;

@@ -4,17 +4,17 @@ using DigitalBrain.Core;
 namespace DigitalBrain.Windows;
 
 // Typed filesystem operations. Re-homed from IAW's IFileSystem/FileSystemAgent onto Neuron (core ops subset).
-public interface IFileSystemNeuron : INeuronAgent
+public interface IFileSystemNeuron : IAgent
 {
-    static string INeuronAgent.AgentDisplayName => "FileSystem";
+    static string IAgent.AgentDisplayName => "FileSystem";
 
-    static string INeuronAgent.AgentDescription =>
+    static string IAgent.AgentDescription =>
         "Read, write, list, copy, move, delete, and inspect files anywhere on the host.";
 
-    static string[] INeuronAgent.AgentCapabilities =>
+    static string[] IAgent.AgentCapabilities =>
         ["file", "read", "write", "copy", "move", "delete", "list", "filesystem"];
 
-    static string INeuronAgent.AgentInstructions => """
+    static string IAgent.AgentInstructions => """
         You are FileSystem, the file operations specialist.
 
         RULES:

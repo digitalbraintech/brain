@@ -5,17 +5,17 @@ namespace DigitalBrain.Windows;
 
 // Typed shell/PowerShell execution. Re-homed from IAW's IShell/ShellAgent onto Neuron; the process mechanics
 // (timeout, kill-tree, block-list, base64 pwsh, output truncation) live in the shared ProcessRunner.
-public interface IShellNeuron : INeuronAgent
+public interface IShellNeuron : IAgent
 {
-    static string INeuronAgent.AgentDisplayName => "Shell";
+    static string IAgent.AgentDisplayName => "Shell";
 
-    static string INeuronAgent.AgentDescription =>
+    static string IAgent.AgentDescription =>
         "Executes shell and PowerShell commands with timeout enforcement, output capture, and a safety block-list.";
 
-    static string[] INeuronAgent.AgentCapabilities =>
+    static string[] IAgent.AgentCapabilities =>
         ["execute", "shell", "powershell", "command", "script", "process"];
 
-    static string INeuronAgent.AgentInstructions => """
+    static string IAgent.AgentInstructions => """
         You are Shell, the command execution specialist. You run CLI commands, scripts, and non-.NET tools.
 
         RULES:

@@ -3,17 +3,17 @@ using DigitalBrain.Core;
 
 namespace DigitalBrain.Google;
 
-public interface IGoogleDriveNeuron : INeuronAgent
+public interface IGoogleDriveNeuron : IAgent
 {
-    static string INeuronAgent.AgentDisplayName => "Google Drive";
+    static string IAgent.AgentDisplayName => "Google Drive";
 
-    static string INeuronAgent.AgentDescription =>
+    static string IAgent.AgentDescription =>
         "List, upload, download, and delete files in the authenticated Google Drive account.";
 
-    static string[] INeuronAgent.AgentCapabilities =>
+    static string[] IAgent.AgentCapabilities =>
         ["drive", "google", "file", "upload", "download", "delete"];
 
-    static string INeuronAgent.AgentInstructions => """
+    static string IAgent.AgentInstructions => """
         You are Google Drive, the cloud file specialist. List, upload, download, and delete files.
         Delete and upload mutate the user's Drive — confirm intent before those calls.
         """;

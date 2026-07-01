@@ -7,17 +7,17 @@ namespace DigitalBrain.Developer;
 // Dispatch is typed grain-method RPC (zero-reflection) — infra calls are request/response and do not
 // need the synapse/journal causality story. Metrics ARE journal-derived (MAIN idiom): each successful
 // commit/revert fires a typed synapse, and GetMetricsAsync reads them back from the outgoing journal.
-public interface IGitNeuron : INeuronAgent
+public interface IGitNeuron : IAgent
 {
-    static string INeuronAgent.AgentDisplayName => "Git";
+    static string IAgent.AgentDisplayName => "Git";
 
-    static string INeuronAgent.AgentDescription =>
+    static string IAgent.AgentDescription =>
         "Manages git version control operations: status, commit, diff, log, revert.";
 
-    static string[] INeuronAgent.AgentCapabilities =>
+    static string[] IAgent.AgentCapabilities =>
         ["git", "commit", "diff", "log", "revert", "version-control", "repository"];
 
-    static string INeuronAgent.AgentInstructions => """
+    static string IAgent.AgentInstructions => """
         You are Git, the version control specialist. You manage commits, diffs, log, and revert.
 
         RULES:

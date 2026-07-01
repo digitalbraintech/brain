@@ -4,17 +4,17 @@ using DigitalBrain.Core;
 namespace DigitalBrain.Developer;
 
 // Typed .NET CLI operations (build/test/version/list). Re-homed from IAW's IDotNet onto Neuron.
-public interface IDotNetNeuron : INeuronAgent
+public interface IDotNetNeuron : IAgent
 {
-    static string INeuronAgent.AgentDisplayName => "DotNet";
+    static string IAgent.AgentDisplayName => "DotNet";
 
-    static string INeuronAgent.AgentDescription =>
+    static string IAgent.AgentDescription =>
         "Build, test, and inspect .NET projects and solutions via the dotnet CLI.";
 
-    static string[] INeuronAgent.AgentCapabilities =>
+    static string[] IAgent.AgentCapabilities =>
         ["dotnet", "build", "test", "msbuild", "project", "solution"];
 
-    static string INeuronAgent.AgentInstructions => """
+    static string IAgent.AgentInstructions => """
         You are DotNet, the .NET build specialist. Build and test projects/solutions and report diagnostics.
         Run operations immediately; report exit code and the relevant build/test output.
         """;

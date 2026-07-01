@@ -3,17 +3,17 @@ using DigitalBrain.Core;
 
 namespace DigitalBrain.Windows;
 
-public interface IWingetNeuron : INeuronAgent
+public interface IWingetNeuron : IAgent
 {
-    static string INeuronAgent.AgentDisplayName => "Winget";
+    static string IAgent.AgentDisplayName => "Winget";
 
-    static string INeuronAgent.AgentDescription =>
+    static string IAgent.AgentDescription =>
         "Manage Windows applications via winget: list installed, search, install, and upgrade all.";
 
-    static string[] INeuronAgent.AgentCapabilities =>
+    static string[] IAgent.AgentCapabilities =>
         ["winget", "windows", "package", "install", "upgrade", "apps"];
 
-    static string INeuronAgent.AgentInstructions => """
+    static string IAgent.AgentInstructions => """
         You are Winget, the Windows package specialist. Install, upgrade, and search applications via winget.
         Run operations immediately and report exit code + output. Mutating installs/upgrades change the host —
         confirm intent before UpgradeAll/Install.

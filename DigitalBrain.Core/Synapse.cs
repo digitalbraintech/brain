@@ -451,7 +451,7 @@ public record ChartInteraction(string SurfaceId, string Kind, IReadOnlyDictionar
 public interface IDataVisualizationNeuron : INeuron, IHandle<VisualizeDataRequest> { }
 
 // Chart neuron supports agent metadata for routing + full conversational + selection driven updates.
-public interface IChartNeuron : INeuronAgent, IHandle<VisualizeDataRequest>, IHandle<ChartCommand>, IHandle<ChartInteraction> { }
+public interface IChartNeuron : IAgent, IHandle<VisualizeDataRequest>, IHandle<ChartCommand>, IHandle<ChartInteraction> { }
 
 // Closed loops for marketplace (UI authoring via Dart MCP + widget tree; SoftwareEngineering runtime mod via Aspire MCP + LLM)
 

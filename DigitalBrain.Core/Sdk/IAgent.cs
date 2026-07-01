@@ -6,7 +6,7 @@ namespace DigitalBrain.Core;
 // NeuronAgentMetadata.ReadFrom<TContract>() with no reflection at the call site.
 // Pattern harvested from IAW (E:\DigitalBrainTech\IAW Core/Contracts/IAgent.cs), slimmed to drop the
 // LLM-chat/scheduling surface — infra neurons are request/response, not conversational.
-public interface INeuronAgent : INeuron
+public interface IAgent : INeuron
 {
     static virtual string AgentDisplayName => "";
     static virtual string AgentDescription => "";
@@ -23,7 +23,7 @@ public readonly record struct NeuronAgentMetadata(
     string[] RoutingExamples)
 {
     // Zero-reflection: the compiler resolves the static abstract members at this call site.
-    public static NeuronAgentMetadata ReadFrom<TContract>() where TContract : INeuronAgent =>
+    public static NeuronAgentMetadata ReadFrom<TContract>() where TContract : IAgent =>
         new(
             TContract.AgentDisplayName,
             TContract.AgentDescription,

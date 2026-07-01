@@ -3,17 +3,17 @@ using DigitalBrain.Core;
 
 namespace DigitalBrain.Google;
 
-public interface IGmailNeuron : INeuronAgent
+public interface IGmailNeuron : IAgent
 {
-    static string INeuronAgent.AgentDisplayName => "Gmail";
+    static string IAgent.AgentDisplayName => "Gmail";
 
-    static string INeuronAgent.AgentDescription =>
+    static string IAgent.AgentDescription =>
         "List, read, and send Gmail messages for the authenticated Google account.";
 
-    static string[] INeuronAgent.AgentCapabilities =>
+    static string[] IAgent.AgentCapabilities =>
         ["gmail", "email", "google", "list", "read", "send"];
 
-    static string INeuronAgent.AgentInstructions => """
+    static string IAgent.AgentInstructions => """
         You are Gmail, the email specialist. List, read, and send messages via the connected Google account.
         Sending mutates the user's mailbox — confirm intent before SendMessageAsync.
         """;
