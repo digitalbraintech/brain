@@ -1,14 +1,11 @@
 using DigitalBrain.Core;
-using DigitalBrain.Kernel.Foundry;
 using DigitalBrain.Telegram;
 using Xunit;
 
-namespace DigitalBrain.Tests.Telegram;
+namespace DigitalBrain.Telegram.Tests;
 
-public class ResponderPackTests
+public class TelegramResponderNeuronTests
 {
-    // ---- Unit tests: work against the compiled type in DigitalBrain.Telegram ----
-
     [Fact]
     public void GetManifest_Handles_TelegramMessageReceived()
     {
@@ -52,31 +49,5 @@ public class ResponderPackTests
         var signal = new Signal("SomeOtherSignal", new Dictionary<string, object?> { ["x"] = 1 });
 
         Assert.Empty(neuron.Handle(signal));
-    }
-
-    // ---- Embodiment test: prove the pack-source string in MarketplaceSeeds compiles via real Roslyn/ALC ----
-
-    [Fact]
-    public void TelegramResponderPackCode_Compiles_And_Embodies_Via_PackAlcEmbodier()
-    {
-        var embodier = new PackAlcEmbodier();
-        var embodied = embodier.Embody("TelegramResponderNeuron", MarketplaceSeeds.TelegramResponderPackCode);
-
-        Assert.NotNull(embodied);
-
-        // Sanity: manifest survives the ALC boundary
-        var manifest = embodied.GetManifest();
-        Assert.Contains(new SynapseType("TelegramMessageReceived"), manifest.HandledSynapseTypes);
-
-        embodied.Dispose();
-    }
-
-    [Fact]
-    public void TelegramResponderPackCode_Passes_CapabilityGate()
-    {
-        // CapabilityGate rejects System.Net / Process / Reflection.Emit. Successful Embody proves it passes.
-        var embodier = new PackAlcEmbodier();
-        var embodied = embodier.Embody("TelegramResponderNeuron", MarketplaceSeeds.TelegramResponderPackCode);
-        embodied.Dispose();
     }
 }

@@ -109,5 +109,32 @@ public class PackAlcEmbodierTests
         var ex = Assert.Throws<PackEmbodimentException>(() => _embodier.Embody("EvilPack", code));
         Assert.Contains("capability gate", ex.Message, System.StringComparison.OrdinalIgnoreCase);
     }
+
+    // Moved from DigitalBrain.Tests/Telegram/ResponderPackTests.cs (Task 7): these two prove the
+    // TelegramResponderPackCode source string embodies via the real Roslyn/ALC + CapabilityGate path.
+    // They stay here (not in DigitalBrain.Telegram.Tests) because PackAlcEmbodier lives in
+    // DigitalBrain.Kernel.Foundry, which pulls in Orleans — moving them would break the zero-infra
+    // guarantee of the new sibling test project.
+    [Fact]
+    public void TelegramResponderPackCode_Compiles_And_Embodies_Via_PackAlcEmbodier()
+    {
+        var embodied = _embodier.Embody("TelegramResponderNeuron", DigitalBrain.Core.MarketplaceSeeds.TelegramResponderPackCode);
+
+        Assert.NotNull(embodied);
+
+        // Sanity: manifest survives the ALC boundary
+        var manifest = embodied.GetManifest();
+        Assert.Contains(new DigitalBrain.Core.SynapseType("TelegramMessageReceived"), manifest.HandledSynapseTypes);
+
+        embodied.Dispose();
+    }
+
+    [Fact]
+    public void TelegramResponderPackCode_Passes_CapabilityGate()
+    {
+        // CapabilityGate rejects System.Net / Process / Reflection.Emit. Successful Embody proves it passes.
+        var embodied = _embodier.Embody("TelegramResponderNeuron", DigitalBrain.Core.MarketplaceSeeds.TelegramResponderPackCode);
+        embodied.Dispose();
+    }
 }
 
