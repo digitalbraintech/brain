@@ -26,6 +26,12 @@ public static class GoogleSignals
     public const string GmailMessagesReady = "GmailMessagesReady";
 }
 
+public static class ContextSignals
+{
+    public const string RecallRequested = "ContextRecallRequested";
+    public const string RecallCompleted = "ContextRecallCompleted";
+}
+
 [GenerateSerializer]
 public record Signal(string Name, IReadOnlyDictionary<string, object?> Props)
     : Synapse(Name, DateTimeOffset.UtcNow);

@@ -5,7 +5,7 @@ using Microsoft.Extensions.AI;
 namespace DigitalBrain.Kernel;
 
 [GrainType("context.manager.v1")]
-public class ContextNeuron : Neuron, IContextNeuron
+public class ContextNeuron : Neuron, IContextNeuron, IHandle<Signal>
 {
     public ContextNeuron(ILogger<ContextNeuron> logger, NeuronJournals journals) : base(logger, journals) { }
 
@@ -13,6 +13,14 @@ public class ContextNeuron : Neuron, IContextNeuron
     {
         Logger.LogInformation("Context updated: {Name}.{Key} = {Val}", cmd.ContextName, cmd.Key, cmd.Value);
         await FireAsync(cmd);
+    }
+
+    public async Task HandleAsync(Signal signal)
+    {
+        if (signal.Name != ContextSignals.RecallRequested) return;
+        var query = signal.Props.TryGetValue("query", out var q) ? q?.ToString() ?? "" : "";
+        var results = await RecallAsync(query);
+        await FireAsync(new Signal(ContextSignals.RecallCompleted, new Dictionary<string, object?> { ["results"] = results }));
     }
 
     public Task<string> GetContextAsync(string contextName)

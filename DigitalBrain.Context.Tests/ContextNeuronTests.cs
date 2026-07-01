@@ -1,5 +1,6 @@
 using DigitalBrain.TestKit;
 using DigitalBrain.Context;
+using DigitalBrain.Core;
 using Xunit;
 
 namespace DigitalBrain.Context.Tests;
@@ -17,5 +18,23 @@ public class ContextNeuronTests : IAsyncLifetime
         await context.RememberAsync("the sky is blue today");
         var results = await context.RecallAsync("sky color");
         Assert.Contains("the sky is blue today", results);
+    }
+
+    [Fact]
+    public async Task Signal_RecallRequested_Replies_With_Signal_RecallCompleted()
+    {
+        var context = _brain.Grain<IContextNeuron>("context-signal-test");
+        await context.RememberAsync("the launch date is March 5th");
+
+        await context.DeliverAsync(new Signal(
+            ContextSignals.RecallRequested,
+            new Dictionary<string, object?> { ["query"] = "launch date" })
+        { Receiver = new NeuronId("context-signal-test") });
+
+        var outgoing = await context.GetTimelineAsync();
+        Assert.Contains(outgoing, s => s is Signal reply
+            && reply.Name == ContextSignals.RecallCompleted
+            && reply.Props.TryGetValue("results", out var r)
+            && r is string[] results && results.Contains("the launch date is March 5th"));
     }
 }
