@@ -6,6 +6,11 @@
     <Nullable>enable</Nullable>
     <!-- Allow alpha/experimental Orleans Journaling APIs for harness -->
     <NoWarn>$(NoWarn);ORLEANSEXP005</NoWarn>
+    <!-- Shared harness library, not a test suite: the xunit PackageReference below exists only so
+         NeuronTestBase.cs can implement IAsyncLifetime. Without Microsoft.NET.Test.Sdk this project
+         still gets treated as a test host by a solution-wide "dotnet test", which then fails to launch
+         (unrelated missing transitive asset from the DigitalBrain.Kernel ProjectReference). -->
+    <IsTestProject>false</IsTestProject>
   </PropertyGroup>
 
   <ItemGroup>
