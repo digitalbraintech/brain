@@ -397,6 +397,16 @@ the Slice 0 pattern — the `ui:*` renderer branch was never touched.
 - 2026-07-02 spec/system-neurons-bloat-delete: startup bloat (hardcoded shells, seeds direct, SE/kit/chart demos) deleted from AspireOrchestratorNeuron.Handle(Start); ownership to MarketplaceNeuron/UserSession/DataViz via existing FireAsync+HomeFeedBus. kernel-dashboard + core started/status kept. Affected tests green.
 - 2026-07-02 spec/system-neurons-bloat-delete (finish): plan+spec complete + deletes landed (Software10TeamNeuron, SystemShellHelpers, dead features + bloat in SystemNeurons); uncommitted: 1-line using cleanup + plan/spec docs; reviewer subagent 0 Critical/Important (minor preexist only); build 0e/0w; targeted filters 107/107 (Ui|NeuronCore|Marketplace|Kernel) + aspire integration probes 6/6 green; doctor 4/4. Guardrails: Context7 resolves (Aspire/Orleans/Reqnroll), relative paths, self-explanatory, delete> , high-sev, aspire mcp, no .superpowers/sdd touch. Slice closed cleanly. Next candidate: E2E fixture stale name cleanup or test split.
 
+- 2026-07-02 merge to master: test-boilerplate-deduplication branch merged (1489ee0). Group1 + Mcp + SoftwareEngineeringReviewer + UnitTest1 conversion to NeuronTestBase landed (net delete). TestKit.csproj IsTestProject=false added. Post-merge: build 0e, targeted 17/17 pass + broader ~250/0. Remaining manual boiler limited to custom-config/collection cases (Gateway, Timeline, Steps, E2E fixture). CONTINUITY + plans updated. 
+
+Next proposed slices (post-Musk-1 brainstorm on current tree, verified evidence):
+1. UnitTest1 inner builders + redundant marker aliases trim (tiny delete in UnitTest1.cs + Synapse.cs aliases IAspireNeuron/IMarketplaceNeuron; update resolver sites).
+2. DbSupportNeuron tests (add `DbSupportTests : NeuronTestBase`; covers the zero-test production path wired in Mcp/Resolver/Program).
+3. Light TestDigitalBrain generalization (add ConfigureClient hook) + migrate 2-3 easy remaining IAsync (e.g. Timeline if client-only).
+4. Configurator/Steps boiler dedup (centralize SimpleSiloConfig duplicates across Steps + some tests).
+
+Recommended first: #1 then #2 (smallest, delete-biased or high-ROI coverage, independent). See full brainstorm details in session for file:line evidence + trade-offs. Ready for fresh spec/ branch + plan if chosen.
+
 ## 2026-07-02 continuation: test boilerplate dedup (main DigitalBrain.Tests/) on spec/test-boilerplate-deduplication
 
 Musk 5-step strictly (1. questioned "UiSamples bloat" and "all markers dumb" via brainstorm subagent + evidence (real usage in neurons/Mcp/resolver; markers needed for Core-only Mcp); 2. delete bias on boiler ~100+ LOC; 3+ later).
