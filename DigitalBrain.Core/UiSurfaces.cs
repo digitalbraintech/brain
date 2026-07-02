@@ -956,7 +956,7 @@ public static class UiSurfaceLiveData
 
                 var actionKids = new List<UiWidgetTree>();
                 // Generic "Open" maps to ExperienceUsed open on the embodiment. Skip it when an experience is
-                // already labelled "Open" (e.g. ui-gallery, hello-world) — otherwise the launcher shows two
+                // already labelled "Open" (e.g. ui-gallery) — otherwise the launcher shows two
                 // "Open" buttons and the generic one's target (the pack name) doesn't reach the experience host.
                 var hasOpenExperience = exps.Any(ex =>
                     ex.TryGetValue("name", out var exName) &&
@@ -1288,49 +1288,7 @@ public static class UiSurfaceLiveData
                 userId,
                 sessionId);
         }
-        else if (pack.Name.Equals("hello-world", StringComparison.OrdinalIgnoreCase))
-        {
-            yield return ExperienceRow(
-                pack,
-                "open",
-                "Open",
-                "experience",
-                "Enter your name and get a greeting.",
-                UiSurfaceSamples.SynapseAction(
-                    "open-hello-world",
-                    "Open",
-                    nameof(ExperienceUsed),
-                    new Dictionary<string, object?>
-                    {
-                        ["packName"] = pack.Name,
-                        ["action"] = "open",
-                        // The launcher button forwards props["targetSurfaceKind"] to onNavSelected → shell _goTo → context.go.
-                        ["targetSurfaceKind"] = "/experience/hello-world/hello-world"
-                    }),
-                userId,
-                sessionId);
-        }
-        else if (pack.Name.Equals("ui-gallery", StringComparison.OrdinalIgnoreCase))
-        {
-            yield return ExperienceRow(
-                pack,
-                "open",
-                "Open",
-                "experience",
-                "Browse every ui: component in one place.",
-                UiSurfaceSamples.SynapseAction(
-                    "open-ui-gallery",
-                    "Open",
-                    nameof(ExperienceUsed),
-                    new Dictionary<string, object?>
-                    {
-                        ["packName"] = pack.Name,
-                        ["action"] = "open",
-                        ["targetSurfaceKind"] = "/experience/ui-gallery/ui-gallery"
-                    }),
-                userId,
-                sessionId);
-        }
+        // hello-world and ui-gallery demo branches deleted (Musk delete-first).
         else if (pack.Name.Contains("Dummy", StringComparison.OrdinalIgnoreCase) || pack.Name.Contains("DevPack", StringComparison.OrdinalIgnoreCase))
         {
             yield return ExperienceRow(
@@ -1498,7 +1456,6 @@ public static class UiSurfaceLiveData
     private static bool IsPreinstalledLocalPack(NeuroPack pack) =>
         pack.Name.StartsWith("DigitalBrain.UI", StringComparison.Ordinal) ||
         pack.Name.StartsWith("DigitalBrain.Experience", StringComparison.Ordinal) ||
-        pack.Name.Equals("hello-world", StringComparison.OrdinalIgnoreCase) ||
         pack.Name.Equals("ui-gallery", StringComparison.OrdinalIgnoreCase) ||
         pack.Name.Contains("Dummy", StringComparison.OrdinalIgnoreCase);
 

@@ -2,14 +2,12 @@ using Aspire.Hosting.DigitalBrain;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-// brain.cs : thin C# for "dotnet run brain.cs" (setup like dotnet run start.cs).
+// brain.cs : thin C# for "dotnet run brain.cs" (fast packed launcher).
 // Just uses IAspireNeuron to start Aspire project.
 // Integrations (Telegram, Flutter) packed as marketplace NeuroPacks - no logic inside brain.cs .
 // Pack provides the Aspire bits (see AddFlutterClient).
 // Run via the QuickTest setup or equivalent that supports dotnet run brain.cs .
 
-// Unified with fast start.cs path (memory kernel + surfaces) and full distributed here.
-// See framework/start.cs for fast "dotnet run" INO + tasks + marketplace + UiSurfaces (Gmail etc).
 // Experiences emit UiSurface (AuthButtonSurface etc) for sdk/flutter_demo + Telegram skeleton.
 var ctx = builder.AddDigitalBrain("digitalbrain", options =>
 {

@@ -24,10 +24,6 @@
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Compile Include="..\..\start.cs" Link="start.cs" />
-  </ItemGroup>
-  <!-- Canonical start.cs is at framework/start.cs for the dotnet run start.cs experience -->
-  <!-- For brain.cs : use similar project or replace link with brain.cs for "dotnet run brain.cs" (thin, uses IAspireNeuron to start Aspire project, packed integrations from market) -->
+  <!-- start.cs reference removed: file no longer present in tree (historical fast launcher path). Use brain.cs or full Aspire for current entry points. -->
 
 </Project>

@@ -198,8 +198,6 @@ public interface ISoftwareEngineeringTeam : INeuron, IHandle<CreateSimpleApp> { 
 [LLM<Qwen>]
 public interface ISoftware20Team : ISoftwareEngineeringTeam { }
 
-public interface ISoftware10Team : ISoftwareEngineeringTeam { }
-
 public interface IInoNeuron : INeuron, IHandle<InoRequest>
 {
     Task<string> AskAsync(string prompt);

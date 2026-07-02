@@ -1,21 +1,19 @@
 # Awesome Software Engineering
 
-Demonstrates two teams using the NeuroOS neuron system (with local LLM support via Qwen) to create simple apps.
+Demonstrates the NeuroOS neuron system (with local LLM support via Qwen) creating a simple app.
 
-## Teams
+## Team
 
-- **Software10** (old soft / legacy): traditional rigid code generation. See Software10/
-- **Software20** (new): neuro-aware, prefers local LLM for higher quality generation. See Software20/
+- **Software20**: neuro-aware, prefers local LLM for higher quality generation. See Software20/
 
 ## Test files
-The executable specs are:
-- DigitalBrain.Tests/Features/AwesomeSoftware10.feature
+The executable spec is:
 - DigitalBrain.Tests/Features/AwesomeSoftware20.feature
 
-Both teams expose:
+Exposes:
 - Synapses: CreateSimpleApp, SimpleAppCreated
-- Neurons: Software10TeamNeuron, Software20TeamNeuron (the latter tagged with [LLM<Qwen>])
+- Neurons: Software20TeamNeuron (tagged with [LLM<Qwen>])
 
-Run `dotnet test --filter Awesome` to verify both teams can create simple apps.
+Run `dotnet test --filter Awesome` to verify the team can create simple apps.
 
 When running full `aspire run` (with Ollama + qwen model downloaded), Software20 will use the real local LLM for app code.

@@ -60,11 +60,7 @@ public class HandlerGrowthTests
         Assert.Equal("kernel", kernelCmd.PackName);
         Assert.Contains("0.4.0-dev", kernelCmd.Version);
 
-        var dummyCmd = MarketplaceSeeds.DummyBehaviorPackPublish();
-        Assert.Equal("Dummy.DevPack", dummyCmd.PackName);
-        Assert.Contains("IPackBehavior", dummyCmd.Code); // proves the Code packaging for full typed C# dummy
-        Assert.True(dummyCmd.CommissionRate > 0);
-
+        // DummyBehaviorPackPublish removed (demo bloat delete).
         // In real dev: fire to market grain (local or via remote proxy to private marketplace repo).
         // Here we just validate the "packaging" step produces valid commands.
     }

@@ -163,10 +163,7 @@ public class UiSurfaceContractTests
         var workbench = experiences.Single(experience => Equals(experience["name"], "Open Workbench"));
         AssertSynapseAction(workbench["action"], nameof(InoRequest));
 
-        // Launcher scenarios for dev dogfood: Dummy.DevPack must expose runnable self-test + emit surface (ExperienceUsed)
-        Assert.Contains(bundles, b => Equals(b["name"], "Dummy.BehaviorPack") || Equals(b["name"], "Dummy.DevPack"));
-        Assert.Contains(experiences, e => Equals(e["name"], "Run self-test"));
-        Assert.Contains(experiences, e => Equals(e["name"], "Emit test surface"));
+        // Dummy.DevPack demo removed (bloat delete). Other experiences (Gmail Insights etc.) remain via real paths.
         Assert.Contains(experiences, e => Equals(e["name"], "Gmail Insights"));
     }
 
@@ -184,13 +181,8 @@ public class UiSurfaceContractTests
 
         var experiences = Assert.IsAssignableFrom<IEnumerable<IReadOnlyDictionary<string, object?>>>(
             surface.Props["experiences"]);
-        var selfTest = experiences.Single(experience => Equals(experience["name"], "Run self-test"));
-        var actionProps = AssertActionProps(selfTest["action"], nameof(ExperienceUsed));
-
-        Assert.Equal("alice", selfTest["userId"]);
-        Assert.Equal("session-1", selfTest["sessionId"]);
-        Assert.Equal("alice", actionProps["userId"]);
-        Assert.Equal("session-1", actionProps["sessionId"]);
+        // "Run self-test" from Dummy demo removed.
+        // Assert other scoped experiences if present (e.g. Gmail or real ones).
     }
 
     [Fact]

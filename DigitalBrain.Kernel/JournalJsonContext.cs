@@ -128,7 +128,7 @@ namespace DigitalBrain.Kernel;
 [JsonSerializable(typeof(LicenseKeyPair))]
 // Server-driven UI
 [JsonSerializable(typeof(RfwCard))]
-// [JsonSerializable(typeof(PerformKernelSelfUpdate))] // TODO: restore after cleanup
+[JsonSerializable(typeof(PerformKernelSelfUpdate))]
 // Experience domain
 [JsonSerializable(typeof(ExperienceStep))]
 // Generic protocol carriers (pack-defined events and LLM intents)

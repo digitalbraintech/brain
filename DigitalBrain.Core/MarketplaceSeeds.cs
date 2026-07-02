@@ -68,113 +68,12 @@ public sealed class TelegramResponderNeuron : IPackBehavior
         return reader.ReadToEnd();
     }
 
-    public const string HelloWorldPackCode = """
-using System.Collections.Generic;
-using DigitalBrain.Core;
+    // HelloWorldPackCode + Hops demo literals deleted (Musk delete-first).
 
-public sealed class HelloWorldExperience : KitExperience
-{
-    protected override UiExperience Define() => Experience("hello-world", "Hello World")
-        .Hop("ask", s => s
-            .Text("What's your name?")
-            .TextField("name", "Your name")
-            .Button("Greet", "greeting"))
-        .Hop("greeting", s => s
-            .Panel(p => p.Text(state =>
-                "Hello " + (state.GetValueOrDefault("name") is { Length: > 0 } n ? n : "World") + "!")));
-}
-""";
-
-    public static class HelloWorldHops
-    {
-        public const string Ask = "ask";
-        public const string Greeting = "greeting";
-    }
-
-public const string SimpleColorPickerPackCode = """
-using System.Collections.Generic;
-using DigitalBrain.Core;
-
-public sealed class SimpleColorPickerExperience : KitExperience
-{
-    protected override UiExperience Define() => Experience("simple-color-picker", "Simple Color Picker")
-        .Hop("choose", s => s
-            .Text("Pick your favorite color")
-            .Select("color", new List<string> { "Red", "Green", "Blue" }, "Color")
-            .Button("Show result", "result"))
-        .Hop("result", s => s
-            .Text(state => "You chose: " + (state.GetValueOrDefault("color") ?? "none"))
-            .Button("Choose again", "choose"));
-}
-""";
-
-    public static class SimpleColorPickerHops
-    {
-        public const string Choose = "choose";
-        public const string Result = "result";
-    }
+    // SimpleColorPickerPackCode + Hops demo literals deleted (Musk delete-first).
 
 
-    public const string UiGalleryPackCode = """
-using System.Collections.Generic;
-using DigitalBrain.Core;
-
-public sealed class UiGalleryExperience : KitExperience
-{
-    protected override UiExperience Define() => Experience("ui-gallery", "UI Kit Gallery")
-        .Hop("inputs", s => Nav(s)
-            .Heading("Inputs")
-            .Panel(p => p.Text("TextField").TextField("name", "Your name"))
-            .Panel(p => p.Text("Checkbox").Checkbox("agree", "I agree"))
-            .Panel(p => p.Text("Switch").Switch("notify", "Notify me"))
-            .Panel(p => p.Text("TextArea").TextArea("bio", "About you"))
-            .Panel(p => p.Text("Select").Select("color", new List<string> { "Red", "Green", "Blue" }, "Color"))
-            .Panel(p => p.Text("RadioGroup").RadioGroup("size", new List<string> { "S", "M", "L" }))
-            .Panel(p => p.Text("Slider").Slider("level", 0, 10, "Level"))
-            .Panel(p => p.Text("DateField").DateField("when", "When"))
-            .Button("Next: Display", "display"))
-        .Hop("display", s => Nav(s)
-            .Heading("Display")
-            .Panel(p => p.Heading("Heading widget").Text("Body text here").Badge("New"))
-            .Panel(p => p.Icon("star").Avatar(fallback: "AB"))
-            .Panel(p => p.List(l => l.Tile("First item", "subtitle A").Tile("Second item", "subtitle B")))
-            .Panel(p => p.Row(r => r.Text("Row item A").Divider().Text("Row item B")))
-            .Panel(p => p.Column(c => c.Gap(8).Header("Section").Gap(4).Text("Under header"))))
-        .Hop("feedback", s => Nav(s)
-            .Heading("Feedback")
-            .Panel(p => p.Alert("Heads up", "an inline alert"))
-            .Panel(p => p.Progress(0.6))
-            .Panel(p => p.Spinner())
-            .Panel(p => p.Tooltip("hint text", t => t.Text("hover me"))))
-        .Hop("navigation", s => Nav(s)
-            .Heading("Navigation")
-            .Panel(p => p.Tabs(("Tab A", "inputs"), ("Tab B", "display")))
-            .Panel(p => p.Breadcrumb(("Home", "inputs"), ("Gallery", "navigation")))
-            .Panel(p => p.Pagination(3, "page-"))
-            .Panel(p => p.BottomNav(("Home", "inputs"), ("Display", "display"), ("More", "feedback"))))
-        .Hop("overlays", s => Nav(s)
-            .Heading("Overlays")
-            .Panel(p => p.Dialog(false, "Sample Dialog", d => d.Text("Dialog content.").Button("Close", "overlays")))
-            .Panel(p => p.Sheet(false, "Sample Sheet", sh => sh.Text("Sheet content.")))
-            .Toast("Hello from the gallery"));
-
-    private static UiHop Nav(UiHop s) => s.Sidebar(
-        ("Inputs", "inputs"),
-        ("Display", "display"),
-        ("Feedback", "feedback"),
-        ("Navigation", "navigation"),
-        ("Overlays", "overlays"));
-}
-""";
-
-    public static class UiGalleryHops
-    {
-        public const string Inputs = "inputs";
-        public const string Display = "display";
-        public const string Feedback = "feedback";
-        public const string Navigation = "navigation";
-        public const string Overlays = "overlays";
-    }
+    // UiGalleryPackCode + Hops demo literals deleted (Musk delete-first).
 
     public const string KeywordWatcherPackCode = """
 using System.Collections.Generic;
@@ -215,31 +114,7 @@ public sealed class KeywordWatcherNeuron : IPackBehavior
 }
 """;
 
-    // Item 16: small ExcelVizPack seed (placed before list so initializer can reference the const).
-    public const string ExcelVizPackCode = """
-using System;
-using System.Collections.Generic;
-using System.Text.Json;
-using DigitalBrain.Core;
-
-public sealed class ExcelVizPack : IPackBehavior
-{
-    public PackManifest GetManifest() => new(
-        new[] { new SynapseType("VisualizeDataRequest") });
-
-    public IReadOnlyList<Synapse> Handle(Synapse synapse)
-    {
-        // Demo shape for excel/chart viz pack seed. Trigger example from tg channel (item 15 context via Sender/Causation).
-        if (synapse is VisualizeDataRequest req && (req.Prompt?.Contains("excel", StringComparison.OrdinalIgnoreCase) ?? false))
-        {
-            // Real viz + UiSurface emission stays with DataVisualizationNeuron routed to IFlutterUiNeuron.
-        }
-        return Array.Empty<Synapse>();
-    }
-
-    public BundleManifest? GetBundleManifest() => null;
-}
-""";
+    // ExcelVizPackCode demo const deleted (Musk delete-first).
 
     public static IReadOnlyList<NeuroPack> LocalUiPacks { get; } =
     [
@@ -332,60 +207,10 @@ public sealed class ExcelVizPack : IPackBehavior
             KeywordWatcherPackCode,
             "Keyword watcher: listens for TelegramMessageReceived, emits ReminderScheduled when the text starts with 'remind me'."),
 
-        new NeuroPack(
-            "hello-world",
-            "1.0.0",
-            "digitalbraintech",
-            false,
-            0.0,
-            HelloWorldPackCode,
-            "Hello World — the smallest ui: kit app: enter your name, press Greet, see a greeting."),
+        // demo pack entries (hello-world, simple-color-picker, ui-gallery) deleted (Musk delete-first; non load-bearing).
 
-        new NeuroPack(
-            "simple-color-picker",
-            "1.0.0",
-            "digitalbraintech",
-            false,
-            0.0,
-            SimpleColorPickerPackCode,
-            "Simple interactive example: pick a color with select, see result using state in text. Demonstrates basic ui: kit experience flow."),
+        // Dummy and excel-viz demo seeds deleted (Musk delete-first; non load-bearing for core protocol).
 
-        new NeuroPack(
-            "ui-gallery",
-            "1.0.0",
-            "digitalbraintech",
-            false,
-            0.0,
-            UiGalleryPackCode,
-            "Browse every ui: component in one place."),
-
-        // Dummy for dev testing of full typed-C# behavior pack flow (packaging + publish + share + install + embody).
-        new NeuroPack(
-            "Dummy.BehaviorPack",
-            "1.0.0-dev",
-            "digitalbraintech",
-            false,
-            0.10,
-            """
-public class DummyBehaviorPack : DigitalBrain.Core.IPackBehavior
-{
-    public string Respond(string input) => "Dummy responded to: " + input;
-    public DigitalBrain.Core.PackManifest GetManifest() => new(new[] { new DigitalBrain.Core.SynapseType("ExperienceUsed") });
-}
-""",
-            "Dummy behavior pack for testing marketplace distribution of typed C# packs during kernel/experience development."),
-
-        // Item 16: small ExcelVizPack seed example. Self-contained typed-C# NeuroPack.
-        // Can be published/installed; Telegram viz trigger paths can target generated- versions or be extended to route excel data here.
-        // Demonstrates a pack that understands VisualizeDataRequest-like flows for chart surfaces from "excel" inputs.
-        new NeuroPack(
-            "excel-viz",
-            "0.1.0",
-            "digitalbraintech",
-            false,
-            0.0,
-            ExcelVizPackCode,
-            "Small ExcelViz example pack (seed). Accepts chart data (excel-like json), emits DataChart/UiSurface. Triggerable from Telegram channel flows.")
     ];
 
     public static IEnumerable<PublishToMarketplace> LocalUiPackPublishCommands() =>
@@ -419,18 +244,5 @@ public class DummyBehaviorPack : DigitalBrain.Core.IPackBehavior
     /// Dummy full typed-C# behavior pack for testing packaging → publish (share) → install → embody flow during development.
     /// The Code is the complete compilable source for a class implementing IPackBehavior.
     /// </summary>
-    public static PublishToMarketplace DummyBehaviorPackPublish() =>
-        new(
-            PackName: "Dummy.DevPack",
-            Version: "1.0.0-dev",
-            Code: """
-                public sealed class DummyDevPack : DigitalBrain.Core.IPackBehavior
-                {
-                    public string Respond(string input) => "[dev] handled: " + (input ?? "");
-                }
-                """,
-            OwnerId: "digitalbraintech",
-            IsPrivate: false,
-            CommissionRate: 0.05,
-            Description: "Dummy behavior pack used to validate marketplace distribution while developing on DigitalBrain.");
+    // DummyBehaviorPackPublish helper deleted (demo bloat).
 }

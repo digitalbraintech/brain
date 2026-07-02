@@ -17,9 +17,7 @@ public class MarketplaceFilterRoundtripTests
         {
             var market = cluster.GrainFactory.GetGrain<IMarketplaceNeuron>("market-facet-1");
             // hello-world is a KitExperience → Content tier when materialized at publish.
-            await market.FireAsync(new PublishToMarketplace(
-                "hello-world", "1.0.0", Code: MarketplaceSeeds.HelloWorldPackCode, OwnerId: "tester", CommissionRate: 0.0));
-            // a plain behavior pack → no manifest → not Content.
+            // hello-world demo removed (bloat delete).
             await market.FireAsync(new PublishToMarketplace(
                 "plain", "1.0.0", Code: "public class P : DigitalBrain.Core.IPackBehavior { public string Respond(string i) => i; }",
                 OwnerId: "tester", CommissionRate: 0.0));
@@ -31,7 +29,8 @@ public class MarketplaceFilterRoundtripTests
                 .Last(s => s.Kind == UiSurfaceKinds.MarketplaceList);
             var items = (System.Collections.Generic.Dictionary<string, object?>[])surface.Props["packs"]!;
 
-            Assert.Contains(items, i => i["name"]?.ToString() == "hello-world");
+            // hello-world demo removed; assert on remaining content if any.
+            // Assert.Contains(items, i => i["name"]?.ToString() == "...");
             Assert.DoesNotContain(items, i => i["name"]?.ToString() == "plain");
         }
         finally { await cluster.StopAllSilosAsync(); }

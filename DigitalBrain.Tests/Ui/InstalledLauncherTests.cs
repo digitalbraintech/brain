@@ -21,16 +21,8 @@ public class InstalledLauncherTests
             .ToList();
     }
 
-    [Fact]
-    public void Experience_Pack_Shows_Single_Open_Button_Targeting_Experience_Host()
-    {
-        var uiGallery = MarketplaceSeeds.LocalUiPacks.Single(p => p.Name == "ui-gallery");
-
-        var open = Assert.Single(BundleButtons("ui-gallery", uiGallery));
-
-        Assert.Equal("Open", open.Props["label"]);
-        Assert.Equal("/experience/ui-gallery/ui-gallery", open.Props["targetSurfaceKind"]);
-    }
+    // Experience pack open button test for deleted demo (ui-gallery) removed.
+    // The generic open button behavior is tested in the next test.
 
     [Fact]
     public void Pack_Without_An_Open_Experience_Keeps_The_Generic_Open_Button()

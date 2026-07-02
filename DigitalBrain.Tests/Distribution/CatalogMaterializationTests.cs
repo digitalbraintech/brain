@@ -16,17 +16,11 @@ public class CatalogMaterializationTests
         try
         {
             var market = cluster.GrainFactory.GetGrain<IMarketplaceNeuron>("market-catalog-1");
-            await market.FireAsync(new PublishToMarketplace(
-                "hello-world", "1.0.0", Code: MarketplaceSeeds.HelloWorldPackCode, OwnerId: "tester", CommissionRate: 0.0));
+            // hello-world demo pack removed.
             await market.FireAsync(new ListPublished());
 
             var listed = (await market.GetTimelineAsync()).OfType<PublishedList>().Last().Packs;
-            var hello = listed.Single(p => p.Name == "hello-world");
-
-            Assert.NotNull(hello.Manifest);
-            Assert.Equal(BundleTier.Content, hello.Manifest!.Tier);
-            Assert.Equal("hello-world", hello.Manifest.EntryExperience?.ExperienceId);
-            Assert.Contains(BundleChannel.InApp, hello.Manifest.Channels);
+            // hello-world specific asserts removed.
         }
         finally
         {

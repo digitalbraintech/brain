@@ -81,15 +81,8 @@ public class PackAlcEmbodierTests
     public void Rejects_Pack_Without_IPackBehavior()
         => Assert.Throws<PackEmbodimentException>(() => _embodier.Embody("NoBehavior", "public class Plain { }"));
 
-    [Fact]
-    public void UiGalleryPackSource_compiles_and_embodies_without_exception()
-    {
-        // Deterministic proof that the gallery pack source compiles through the real Roslyn/ALC path.
-        // Catches any builder-name or using-directive mismatch without the full Aspire E2E stack.
-        var pack = _embodier.Embody("UiGalleryExperience", DigitalBrain.Core.MarketplaceSeeds.UiGalleryPackCode);
-        Assert.NotNull(pack);
-        pack.Dispose();
-    }
+    // UiGalleryPackSource demo test removed (bloat delete from Core seeds).
+
 
     [Fact]
     public void CapabilityGate_Rejects_Process_Launch()

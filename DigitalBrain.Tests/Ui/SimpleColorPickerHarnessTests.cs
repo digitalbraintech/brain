@@ -6,29 +6,5 @@ namespace DigitalBrain.Tests.Ui;
 // No browser, no full stack — millisecond feedback. This is the primary daily authoring loop.
 public class UiTestingFrameworkExamples
 {
-    [Fact]
-    public void Can_drive_hello_world_experience_and_assert_tree()
-    {
-        using var harness = new BundleHarness(
-            MarketplaceSeeds.HelloWorldPackCode, pack: "hello-world", experienceId: "hello-world");
-
-        var tree = harness.GetTree("ask");
-
-        tree.ShouldHaveNodeOfType(DigitalBrain.Core.Ui.TextField);
-        tree.ShouldHaveButtonWithLabel("Greet");
-    }
-
-    [Fact]
-    public void Can_use_golden_snapshot_and_matchers()
-    {
-        using var harness = new BundleHarness(
-            MarketplaceSeeds.HelloWorldPackCode, pack: "hello-world", experienceId: "hello-world");
-
-        var tree = harness.GetTree("ask");
-
-        var snapshot = tree.ToGoldenSnapshot();
-        Assert.Contains("ui:TextField", snapshot);
-
-        tree.ShouldHaveButtonWithLabel("Greet");
-    }
+    // hello-world demo harness tests removed (pack literal deleted from Core).
 }

@@ -1,4 +1,4 @@
-// brain.cs - thin C# for "dotnet run brain.cs" (like dotnet run start.cs via QuickTest setup).
+// brain.cs - thin C# for "dotnet run brain.cs" (fast packed launcher).
 // Spins local DigitalBrain as Aspire project.
 // JUST uses IAspireNeuron (via client or inside) to start.
 // Integrations (Telegram bot, Flutter) are packed NeuroPacks from marketplace - NO logic inside this .cs .
