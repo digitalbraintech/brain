@@ -10,7 +10,8 @@ builder.Services
     // URL-mode elicitation is negotiated at initialization. Preserve the peer's
     // capabilities in its MCP session; stateless SDK servers expose none here.
     .WithHttpTransport(options => options.Stateless = false)
-    .WithTools<ChatTools>();
+    .WithTools<ChatTools>()
+    .WithTools<GraphTools>();
 
 var app = builder.Build();
 app.MapDefaultEndpoints();

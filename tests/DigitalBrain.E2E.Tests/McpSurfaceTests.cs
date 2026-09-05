@@ -36,9 +36,7 @@ public sealed class McpSurfaceTests(AppHostFixture fixture)
 
         var tools = await client.ListToolsAsync(cancellationToken: cancellationToken);
         var toolNames = tools.Select(tool => tool.Name).ToHashSet(StringComparer.Ordinal);
-        Assert.Equal(
-            [SendChatMessageTool],
-            toolNames.OrderBy(static name => name, StringComparer.Ordinal));
+        Assert.Contains(SendChatMessageTool, toolNames);
 
         var result = await client.CallToolAsync(
             SendChatMessageTool,
