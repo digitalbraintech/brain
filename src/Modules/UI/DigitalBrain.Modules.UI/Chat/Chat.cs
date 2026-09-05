@@ -82,6 +82,11 @@ internal sealed class Chat : Neuron, IChat, IChatKernel
         cancellationToken.ThrowIfCancellationRequested();
         await FailUnavailableUserActionsAsync().ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
         await FailTurnInterruptedByRestartAsync().ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
+        if (PrincipalPartition.TryParse(Id.Name, out var principal, out _))
+        {
+            var inbox = NeuronId.For<IUserMessages>(Id.Owner, PrincipalPartition.InstanceName(principal, "default"));
+            await BindOutgoing(inbox, nameof(UserMessaged)).ConfigureAwait(true);
+        }
     }
 
     public async Task HandleAsync(SendMessage signal, CancellationToken cancellationToken)

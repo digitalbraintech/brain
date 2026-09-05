@@ -44,6 +44,9 @@ internal sealed partial class Assistant(NeuronRuntime runtime, IChatClient chatC
         disable_behavior disables a behavior while preserving its editable source. Keep provider setup
         separate from activation: a saved draft is not proof of live monitoring. Missing credentials,
         unresolved placeholders and unknown required CI checks are setup diagnostics, not green CI.
+        For “any message I send”, subscribe to IUserMessages, not one IChat.
+        Show the owner the C# as a markdown fence before ActivateAsync.
+
         For GitHub use the repository connection/setup tool and verified required checks; do not ask
         the user for an internal binding ID or guess check names. A changed PR head/base invalidates
         its older review, and a successful head/base is published once. Do not poll repository state

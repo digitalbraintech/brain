@@ -38,10 +38,8 @@ internal sealed class BrainGraphProjection(IBrainGraphSource source, BrainGraphM
         var participants = new HashSet<NeuronId>
         {
             chat,
-            new("chat-turn-worker", source.Owner, chat.Name),
             new("assistant", source.Owner, "assistant"),
             ownerRoot,
-            NeuronId.For<IBehaviors>(source.Owner, "default"),
         };
         if (activeExecution is { } execution && execution.Owner == source.Owner)
         {
@@ -348,6 +346,8 @@ internal sealed class BrainGraphProjection(IBrainGraphSource source, BrainGraphM
                 new Dictionary<string, string> { ["status"] = turn.Status.ToString(), ["turnId"] = turn.TurnId.ToString() }),
             UserMessaged message => ("Message received", new Dictionary<string, string>
                 { ["characters"] = message.Text.Length.ToString(CultureInfo.InvariantCulture) }),
+            DigitalBrain.Memory.MemoryUpdated updated => ("Memory updated", new Dictionary<string, string>
+                { ["key"] = updated.Key }),
             Responded response => ("Assistant response recorded", new Dictionary<string, string>
                 { ["characters"] = response.Text.Length.ToString(CultureInfo.InvariantCulture) }),
             Subscribe subscription => ("Subscription bound", new Dictionary<string, string>
