@@ -109,10 +109,26 @@ public abstract class Neuron :
     /// journal. It does not re-enter the owner root or wait for a reply to enter this
     /// busy serialized activation.
     /// </summary>
-    protected async Task<TResponse> RequestAsync<TResponse>(
+    protected Task<TResponse> RequestAsync<TResponse>(
         NeuronId receiver,
         Signal<TResponse> request,
         CancellationToken cancellationToken = default)
+        where TResponse : Signal
+        => RequestCoreAsync(receiver, request, correlation: null, cancellationToken);
+
+    protected Task<TResponse> RequestAsync<TResponse>(
+        NeuronId receiver,
+        Signal<TResponse> request,
+        CorrelationId correlation,
+        CancellationToken cancellationToken = default)
+        where TResponse : Signal
+        => RequestCoreAsync(receiver, request, correlation, cancellationToken);
+
+    private async Task<TResponse> RequestCoreAsync<TResponse>(
+        NeuronId receiver,
+        Signal<TResponse> request,
+        CorrelationId? correlation,
+        CancellationToken cancellationToken)
         where TResponse : Signal
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -130,8 +146,11 @@ public abstract class Neuron :
             var cursor = await target.ReadJournal(JournalKind.Outgoing, long.MaxValue)
                 .WaitAsync(NeuronCallTimeouts.LookupBound, budget.Token)
                 .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
-            var result = await SendAsync(receiver, request, budget.Token)
-                .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
+            var result = correlation is { } id
+                ? await SendAsync(receiver, request, id, budget.Token)
+                    .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext)
+                : await SendAsync(receiver, request, budget.Token)
+                    .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
             SignalRequestPolicy.RequireHandled(receiver, request, result.Outcome);
 
             // Replies are observed at the target. Waiting on this busy caller's

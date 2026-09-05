@@ -9,7 +9,8 @@ namespace DigitalBrain.AI;
 
 public abstract partial class Agent
 {
-    private sealed class TurnRequests(Agent source, CancellationToken turnCancellation) : IAgentRequests, IDisposable
+    private sealed class TurnRequests(Agent source, CorrelationId conversationId, CancellationToken turnCancellation)
+        : IAgentRequests, IDisposable
     {
         private bool _active = true;
 
@@ -17,7 +18,7 @@ public abstract partial class Agent
         {
             RequireTarget(target);
             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(turnCancellation, cancellationToken);
-            return (await source.SendAsync(target, signal, deadline.Token).ConfigureAwait(true)).Outcome;
+            return (await source.SendAsync(target, signal, conversationId, deadline.Token).ConfigureAwait(true)).Outcome;
         }
 
         public async Task<TResponse> RequestAsync<TResponse>(NeuronId target, Signal<TResponse> request, CancellationToken cancellationToken = default)
@@ -25,7 +26,7 @@ public abstract partial class Agent
         {
             RequireTarget(target);
             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(turnCancellation, cancellationToken);
-            return await source.RequestAsync(target, request, deadline.Token).ConfigureAwait(true);
+            return await source.RequestAsync(target, request, conversationId, deadline.Token).ConfigureAwait(true);
         }
 
         private void RequireTarget(NeuronId target)
@@ -70,12 +71,14 @@ public abstract partial class Agent
             deadline.Token.ThrowIfCancellationRequested();
             var operation = Guid.NewGuid();
             var started = Stopwatch.GetTimestamp();
-            await source.RecordOutgoingAsync(new AgentActivity(operation, "delegation", "started", target.Type, target))
+            await source.RecordOutgoingAsync(
+                    new AgentActivity(operation, "delegation", "started", target.Type, target),
+                    conversationId)
                 .ConfigureAwait(true);
             var state = "failed";
             try
             {
-                var reply = await source.RequestAsync(target, request, deadline.Token).ConfigureAwait(true);
+                var reply = await source.RequestAsync(target, request, conversationId, deadline.Token).ConfigureAwait(true);
                 state = "completed";
                 return reply;
             }
@@ -87,7 +90,7 @@ public abstract partial class Agent
             finally
             {
                 await source.RecordOutgoingAsync(new AgentActivity(operation, "delegation", state, target.Type, target,
-                    DurationMs: Stopwatch.GetElapsedTime(started).TotalMilliseconds)).ConfigureAwait(true);
+                    DurationMs: Stopwatch.GetElapsedTime(started).TotalMilliseconds), conversationId).ConfigureAwait(true);
             }
         }
 

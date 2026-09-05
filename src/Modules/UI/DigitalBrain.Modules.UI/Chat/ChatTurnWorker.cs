@@ -219,6 +219,7 @@ internal sealed class ChatTurnWorker(NeuronRuntime runtime) : Neuron(runtime), I
         {
             await foreach (var chunk in responder.AskStreaming(
                 messages,
+                goal.ConversationId,
                 cancellationToken).ConfigureAwait(true))
             {
                 answer.Append(chunk.Text);

@@ -230,7 +230,8 @@ public sealed class SpecialistContinuationTests
             _ => descriptor with { ConnectionRevision = null },
         };
         var goal = new ChatTurnGoal(Guid.NewGuid(), scenario.Command, ContinuationScenario.Request,
-            scenario.Actor, scenario.Chat.Id, ["provider_read"], "completed-action", descriptor);
+            scenario.Actor, scenario.Chat.Id, ["provider_read"], "completed-action", descriptor,
+            ConversationId: CorrelationId.New());
         using var verified = VerifiedActor.Enter(scenario.Actor);
 
         var failure = await Assert.ThrowsAsync<InvalidOperationException>(() => scenario.Simulation.Grains

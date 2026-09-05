@@ -32,7 +32,7 @@ public sealed class SalesforceDelegationTests
         var target = NeuronId.For<ISalesforce>(ino.Owner, PrincipalPartition.InstanceName(actor.PrincipalId, "salesforce-local"));
         using var verified = VerifiedActor.Enter(actor);
         var reply = await simulation.Grains.GetGrain<IAgentKernel>(ino.ToGrainId())
-            .Ask(new AgentRequest("Who is connected to Salesforce?"), TestContext.Current.CancellationToken);
+            .Ask(new AgentRequest("Who is connected to Salesforce?"), CorrelationId.New(), TestContext.Current.CancellationToken);
 
         Assert.Contains("Salesforce fixture", reply.Text, StringComparison.Ordinal);
         Assert.Equal(actor.PrincipalId, client.SpecialistPrincipal);

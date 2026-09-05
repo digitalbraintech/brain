@@ -42,7 +42,10 @@ public abstract partial class Agent : Neuron, IAgent, IAgentKernel
         await ReplyAsync(reply).ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
     }
 
-    public async Task<AgentReply> Ask(AgentRequest request, CancellationToken cancellationToken = default)
+    public async Task<AgentReply> Ask(
+        AgentRequest request,
+        CorrelationId conversationId,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
@@ -50,6 +53,7 @@ public abstract partial class Agent : Neuron, IAgent, IAgentKernel
         var text = new StringBuilder();
         await foreach (var chunk in AskStreaming(
             [new ChatMessage(ChatRole.User, request.Text)],
+            conversationId,
             cancellationToken).ConfigureAwait(true))
         {
             text.Append(chunk.Text);
@@ -60,20 +64,22 @@ public abstract partial class Agent : Neuron, IAgent, IAgentKernel
 
     public async IAsyncEnumerable<ChatResponseUpdate> AskStreaming(
         IReadOnlyList<ChatMessage> messages,
+        CorrelationId conversationId,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(messages);
         cancellationToken.ThrowIfCancellationRequested();
 
+        var correlation = CurrentDelivery?.CorrelationId ?? conversationId;
         using var activity = AgentTelemetry.Start(Id, DisplayName,
             _chatClient.GetService<OpenTelemetryChatClient>()?.EnableSensitiveData is true);
-        using var requests = new TurnRequests(this, cancellationToken);
+        using var requests = new TurnRequests(this, correlation, cancellationToken);
         using var context = new AgentToolContext(Id, VerifiedActor.Current?.PrincipalId, requests,
-            async observation => { await RecordOutgoingAsync(observation).ConfigureAwait(true); });
+            async observation => { await RecordOutgoingAsync(observation, correlation).ConfigureAwait(true); });
         var operation = Guid.NewGuid();
         var started = Stopwatch.GetTimestamp();
         var state = "cancelled";
-        await RecordOutgoingAsync(new AgentActivity(operation, "agent", "started", DisplayName))
+        await RecordOutgoingAsync(new AgentActivity(operation, "agent", "started", DisplayName), correlation)
             .ConfigureAwait(true);
         try
         {
@@ -142,7 +148,7 @@ public abstract partial class Agent : Neuron, IAgent, IAgentKernel
                 activity?.SetTag("error.type", "agent_error");
             }
             await RecordOutgoingAsync(new AgentActivity(operation, "agent", state, DisplayName,
-                DurationMs: Stopwatch.GetElapsedTime(started).TotalMilliseconds))
+                DurationMs: Stopwatch.GetElapsedTime(started).TotalMilliseconds), correlation)
                 .ConfigureAwait(true);
         }
     }

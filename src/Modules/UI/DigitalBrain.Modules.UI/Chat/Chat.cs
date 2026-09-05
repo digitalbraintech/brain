@@ -4,6 +4,7 @@ using DigitalBrain.Execution;
 using DigitalBrain.Abstractions.Identity;
 using DigitalBrain.Product.Interactions;
 using DigitalBrain.Abstractions.Neurons;
+using DigitalBrain.Abstractions.Signals;
 using DigitalBrain.Chat;
 using DigitalBrain.Core;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,6 +21,7 @@ internal sealed class Chat : Neuron, IChat, IChatKernel
     private const string TurnLogName = "chat.turn-log";
     private const string QueueStateName = "chat.turn-queue";
     private const string ExecutionFocusName = "chat.execution-focus";
+    private const string ConversationIdName = "chat.conversation-id";
     private const int RememberedCommands = 64;
     private const int RetainedTurns = 64;
     private const int RetainedTurnRecords = 64;
@@ -39,6 +41,7 @@ internal sealed class Chat : Neuron, IChat, IChatKernel
     private readonly IDurableList<byte[]> _turnLog;
     private readonly IDurableValue<byte[]> _queueState;
     private readonly IDurableValue<byte[]> _executionFocus;
+    private readonly IDurableValue<Guid> _conversationId;
     private readonly Serializer<OwnerCommand> _commands;
     private readonly Serializer<ChatTurn> _turns;
     private readonly Serializer<DurableTurnRecord> _turnRecords;
@@ -64,6 +67,7 @@ internal sealed class Chat : Neuron, IChat, IChatKernel
         _turnLog = ServiceProvider.GetRequiredKeyedService<IDurableList<byte[]>>(TurnLogName);
         _queueState = ServiceProvider.GetRequiredKeyedService<IDurableValue<byte[]>>(QueueStateName);
         _executionFocus = ServiceProvider.GetRequiredKeyedService<IDurableValue<byte[]>>(ExecutionFocusName);
+        _conversationId = ServiceProvider.GetRequiredKeyedService<IDurableValue<Guid>>(ConversationIdName);
         _commands = ServiceProvider.GetRequiredService<Serializer<OwnerCommand>>();
         _turns = ServiceProvider.GetRequiredService<Serializer<ChatTurn>>();
         _turnRecords = ServiceProvider.GetRequiredService<Serializer<DurableTurnRecord>>();
@@ -144,7 +148,7 @@ internal sealed class Chat : Neuron, IChat, IChatKernel
             var queue = LoadQueue();
             queue.PendingTurnIds.Remove(record.TurnId);
             SaveQueue(queue);
-            await RecordOutgoingAsync(new TurnLifecycle(
+            await RecordConversationAsync(new TurnLifecycle(
                 new TurnId(record.TurnId),
                 new CommandId(record.CommandId),
                 Id,
@@ -168,7 +172,7 @@ internal sealed class Chat : Neuron, IChat, IChatKernel
         var cancellation = _activeCallCancellation;
         turns[index] = record with { Status = ChatTurnStatus.Cancelling, Revision = record.Revision + 1 };
         SaveTurns(turns);
-        await RecordOutgoingAsync(new TurnLifecycle(
+        await RecordConversationAsync(new TurnLifecycle(
             new TurnId(record.TurnId),
             new CommandId(record.CommandId),
             Id,
@@ -279,7 +283,7 @@ internal sealed class Chat : Neuron, IChat, IChatKernel
         }
 
         SaveQueue(queue);
-        await RecordOutgoingAsync(new TurnLifecycle(new TurnId(record.TurnId), context.CommandId, Id,
+        await RecordConversationAsync(new TurnLifecycle(new TurnId(record.TurnId), context.CommandId, Id,
             ChatTurnStatus.Pending, "login-completed"))
             .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
         await TryStartNextAsync().ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
@@ -302,7 +306,7 @@ internal sealed class Chat : Neuron, IChat, IChatKernel
                     var index = turns.FindIndex(turn => turn.TurnId == record.TurnId);
                     turns[index] = record with { UserAction = available, Revision = record.Revision + 1 };
                     SaveTurns(turns);
-                    await RecordOutgoingAsync(new Responded(new CommandId(record.CommandId), Id,
+                    await RecordConversationAsync(new Responded(new CommandId(record.CommandId), Id,
                         available.Message, Author: "assistant", UserAction: available, TurnId: new TurnId(record.TurnId))).ConfigureAwait(true);
                     await WriteStateAsync().ConfigureAwait(true);
                 }
@@ -320,7 +324,7 @@ internal sealed class Chat : Neuron, IChat, IChatKernel
                     var index = turns.FindIndex(turn => turn.TurnId == record.TurnId);
                     turns[index] = record with { UserAction = replacement, Revision = record.Revision + 1 };
                     SaveTurns(turns);
-                    await RecordOutgoingAsync(new Responded(new CommandId(record.CommandId), Id,
+                    await RecordConversationAsync(new Responded(new CommandId(record.CommandId), Id,
                         replacement.Message, Author: "assistant", UserAction: replacement, TurnId: new TurnId(record.TurnId)))
                         .ConfigureAwait(true);
                     await WriteStateAsync().ConfigureAwait(true);
@@ -433,7 +437,7 @@ internal sealed class Chat : Neuron, IChat, IChatKernel
 
         Remember(new ChatTurn(FromUser: false, signal.Text));
         _publicationLog.Add(_publications.SerializeToArray(new ChatPublication(signal.PublicationId, hash)));
-        await RecordOutgoingAsync(new Responded(new CommandId(signal.PublicationId), Id, signal.Text, Author: Id.Name)).ConfigureAwait(true);
+        await RecordConversationAsync(new Responded(new CommandId(signal.PublicationId), Id, signal.Text, Author: Id.Name)).ConfigureAwait(true);
         await WriteStateAsync(cancellationToken).ConfigureAwait(true);
         await ReplyAsync(new NotePublished(signal.PublicationId, Duplicate: false)).ConfigureAwait(true);
     }
@@ -465,7 +469,7 @@ internal sealed class Chat : Neuron, IChat, IChatKernel
         }
         Remember(new ChatTurn(FromUser: false, signal.Text));
         _publicationLog.Add(_publications.SerializeToArray(new ChatPublication(publicationId, hash)));
-        await RecordOutgoingAsync(new Responded(new CommandId(publicationId), Id, signal.Text, Author: Id.Name))
+        await RecordConversationAsync(new Responded(new CommandId(publicationId), Id, signal.Text, Author: Id.Name))
             .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
     }
 
@@ -481,7 +485,7 @@ internal sealed class Chat : Neuron, IChat, IChatKernel
         }
 
         Remember(new ChatTurn(FromUser: false, signal.Caption));
-        await RecordOutgoingAsync(new Responded(CommandId.New(), Id, signal.Caption, Author: Id.Name, Cards: [signal]))
+        await RecordConversationAsync(new Responded(CommandId.New(), Id, signal.Caption, Author: Id.Name, Cards: [signal]))
             .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
     }
 
@@ -521,7 +525,7 @@ internal sealed class Chat : Neuron, IChat, IChatKernel
                 queue.PendingTurnIds.Insert(0, activeTurnId);
             }
             SaveQueue(queue with { ActiveTurnId = null });
-            await RecordOutgoingAsync(new TurnLifecycle(new TurnId(activeTurnId), new CommandId(interrupted.CommandId), Id,
+            await RecordConversationAsync(new TurnLifecycle(new TurnId(activeTurnId), new CommandId(interrupted.CommandId), Id,
                 ChatTurnStatus.Pending, "setup-recovered")).ConfigureAwait(true);
             await WriteStateAsync().ConfigureAwait(true);
             await TryStartNextAsync().ConfigureAwait(true);
@@ -577,7 +581,7 @@ internal sealed class Chat : Neuron, IChat, IChatKernel
         queue.PendingTurnIds.Add(turnId);
         SaveQueue(queue);
 
-        await RecordOutgoingAsync(new TurnLifecycle(
+        await RecordConversationAsync(new TurnLifecycle(
             new TurnId(turnId),
             message.CommandId,
             Id,
@@ -630,7 +634,7 @@ internal sealed class Chat : Neuron, IChat, IChatKernel
 
         // Running is committed to the journal BEFORE the call starts, so a instantly-settling
         // worker can never put Responded/Completed ahead of Running.
-        await RecordOutgoingAsync(new TurnLifecycle(
+        await RecordConversationAsync(new TurnLifecycle(
             new TurnId(record.TurnId),
             new CommandId(record.CommandId),
             Id,
@@ -667,7 +671,8 @@ internal sealed class Chat : Neuron, IChat, IChatKernel
                 record.AllowedToolNames,
                 record.CompletedUserActionId,
                 record.SpecialistContinuation,
-                record.SetupContinuation);
+                record.SetupContinuation,
+                ConversationCorrelation);
             var result = await worker.RunAsync(goal, cancellationToken)
                 .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
             await SettleTurnAsync(record.TurnId,
@@ -779,7 +784,7 @@ internal sealed class Chat : Neuron, IChat, IChatKernel
                 .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
         }
 
-        await RecordOutgoingAsync(new TurnLifecycle(
+        await RecordConversationAsync(new TurnLifecycle(
             new TurnId(record.TurnId),
             new CommandId(record.CommandId),
             Id,
@@ -812,7 +817,7 @@ internal sealed class Chat : Neuron, IChat, IChatKernel
             return;
         }
 
-        await RecordOutgoingAsync(new Responded(
+        await RecordConversationAsync(new Responded(
             new CommandId(record.CommandId),
             Id,
             result.Answer,
@@ -872,7 +877,9 @@ internal sealed class Chat : Neuron, IChat, IChatKernel
     {
         Remember(message.CommandId, message.Text, message.Actor);
         Remember(new ChatTurn(FromUser: true, message.Text));
-        return BroadcastAsync(new UserMessaged(message.CommandId, Id, message.Text, message.Actor));
+        return BroadcastAsync(
+            new UserMessaged(message.CommandId, Id, message.Text, message.Actor),
+            ConversationCorrelation);
     }
 
     private void Remember(CommandId commandId, string text, ActorContext? actor)
@@ -933,6 +940,22 @@ internal sealed class Chat : Neuron, IChat, IChatKernel
 
     private void SaveFocus(ChatExecutionFocus focus)
         => _executionFocus.Value = _focusStates.SerializeToArray(focus);
+
+    private CorrelationId ConversationCorrelation
+    {
+        get
+        {
+            if (_conversationId.Value == Guid.Empty)
+            {
+                _conversationId.Value = Guid.NewGuid();
+            }
+
+            return new CorrelationId(_conversationId.Value);
+        }
+    }
+
+    private Task RecordConversationAsync(Signal signal)
+        => RecordOutgoingAsync(signal, ConversationCorrelation);
 
     private static void RequireActor(ActorContext? actor, string command)
     {

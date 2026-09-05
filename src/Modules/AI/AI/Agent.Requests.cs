@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using DigitalBrain.Abstractions.Identity;
 using Orleans.Journaling;
 
 namespace DigitalBrain.AI;
@@ -9,9 +10,10 @@ public abstract partial class Agent
     private readonly IDurableDictionary<string, AgentRequestResult> _completedRequests;
     private async Task<AgentReply> AskDurablyAsync(AgentRequest request, CancellationToken cancellationToken)
     {
+        var conversationId = CurrentDelivery?.CorrelationId ?? CorrelationId.New();
         if (CurrentDelivery is not { SourceEpoch: not null } delivery)
         {
-            return await Ask(request, cancellationToken).ConfigureAwait(true);
+            return await Ask(request, conversationId, cancellationToken).ConfigureAwait(true);
         }
         var completed = _completedRequests;
         var key = $"{delivery.Caller}:{delivery.SignalId}";
@@ -28,7 +30,7 @@ public abstract partial class Agent
         {
             throw new InvalidOperationException("This agent has reached its durable request capacity. Create a new named agent to continue.");
         }
-        var reply = await Ask(request, cancellationToken).ConfigureAwait(true);
+        var reply = await Ask(request, CurrentDelivery?.CorrelationId ?? conversationId, cancellationToken).ConfigureAwait(true);
         completed[key] = new(hash, reply);
         await WriteStateAsync(cancellationToken).ConfigureAwait(true);
         return reply;

@@ -159,7 +159,7 @@ public sealed class AgentDelegationTests
 
         var failure = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             simulation.Grains.GetGrain<IAgentKernel>(assistant.ToGrainId())
-                .Ask(new AgentRequest("check status"), TestContext.Current.CancellationToken));
+                .Ask(new AgentRequest("check status"), CorrelationId.New(), TestContext.Current.CancellationToken));
 
         Assert.Contains("restricted", failure.Message, StringComparison.Ordinal);
         Assert.Empty(client.ProbeCalls);
@@ -179,7 +179,7 @@ public sealed class AgentDelegationTests
         var assistant = simulation.Brain.Get<IAssistant>("assistant").Id;
         using var verified = VerifiedActor.Enter(actor);
         await simulation.Grains.GetGrain<IAgentKernel>(assistant.ToGrainId())
-            .Ask(new AgentRequest("check status"), TestContext.Current.CancellationToken);
+            .Ask(new AgentRequest("check status"), CorrelationId.New(), TestContext.Current.CancellationToken);
         var context = Assert.Single(delegation.Contexts);
         var before = await Query(simulation, assistant).ReadJournal(JournalKind.Outgoing, 0);
 

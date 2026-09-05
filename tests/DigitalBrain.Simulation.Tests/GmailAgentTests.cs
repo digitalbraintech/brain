@@ -33,7 +33,7 @@ public sealed class GmailAgentTests
         {
             using var verified = VerifiedActor.Enter(principal);
             var reply = await simulation.Grains.GetGrain<IAgentKernel>(assistant.ToGrainId())
-                .Ask(new AgentRequest("find customer email"), TestContext.Current.CancellationToken);
+                .Ask(new AgentRequest("find customer email"), CorrelationId.New(), TestContext.Current.CancellationToken);
             Assert.Contains("thread-intochat", reply.Text, StringComparison.Ordinal);
             var target = NeuronId.For<IGmail>(assistant.Owner, PrincipalPartition.InstanceName(principal.PrincipalId, "gmail-local"));
             var source = simulation.Grains.GetGrain<INeuronQuery>(assistant.ToGrainId());

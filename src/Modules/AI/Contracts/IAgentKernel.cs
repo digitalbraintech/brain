@@ -1,3 +1,4 @@
+using DigitalBrain.Abstractions.Identity;
 using DigitalBrain.Abstractions.Neurons;
 using Microsoft.Extensions.AI;
 
@@ -11,12 +12,16 @@ public interface IAgentKernel : IGrainWithStringKey
 {
     [Alias(nameof(Ask))]
     [ResponseTimeout(NeuronCallTimeouts.LongRunning)]
-    Task<AgentReply> Ask(AgentRequest request, CancellationToken cancellationToken = default);
+    Task<AgentReply> Ask(
+        AgentRequest request,
+        CorrelationId conversationId,
+        CancellationToken cancellationToken = default);
 
     [Alias(nameof(AskStreaming))]
     [ResponseTimeout(NeuronCallTimeouts.LongRunning)]
     IAsyncEnumerable<ChatResponseUpdate> AskStreaming(
         IReadOnlyList<ChatMessage> messages,
+        CorrelationId conversationId,
         CancellationToken cancellationToken = default);
 
 }
