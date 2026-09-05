@@ -872,7 +872,7 @@ internal sealed class Chat : Neuron, IChat, IChatKernel
     {
         Remember(message.CommandId, message.Text, message.Actor);
         Remember(new ChatTurn(FromUser: true, message.Text));
-        return RecordOutgoingAsync(new UserMessaged(message.CommandId, Id, message.Text, message.Actor));
+        return BroadcastAsync(new UserMessaged(message.CommandId, Id, message.Text, message.Actor));
     }
 
     private void Remember(CommandId commandId, string text, ActorContext? actor)

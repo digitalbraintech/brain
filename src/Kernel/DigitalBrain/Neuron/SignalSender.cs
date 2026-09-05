@@ -51,7 +51,7 @@ internal sealed class SignalSender
         CancellationToken cancellationToken = default)
         => SendAsync(receiver, signal, cause, correlation: null, cancellationToken);
 
-    private async Task<SignalDeliveryResult> SendAsync(
+    internal async Task<SignalDeliveryResult> SendAsync(
         NeuronId receiver,
         Signal signal,
         SignalDelivery? cause,
@@ -85,9 +85,21 @@ internal sealed class SignalSender
         return new SignalDeliveryResult(delivery, outcome);
     }
 
-    internal async Task<int> BroadcastAsync(Signal signal, SignalDelivery? cause)
+    internal Task<int> BroadcastAsync(Signal signal, SignalDelivery? cause)
+        => BroadcastAsync(signal, cause, correlation: null);
+
+    internal async Task<int> BroadcastAsync(
+        Signal signal,
+        SignalDelivery? cause,
+        CorrelationId? correlation)
     {
         ArgumentNullException.ThrowIfNull(signal);
+
+        // One owner-visible fact: empty audience still journals so SSE and the
+        // debugger see the event. Fan-out reuses that envelope; it does not
+        // record N outgoing copies.
+        var delivery = await RecordOutgoingAsync(signal, cause, correlation)
+            .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
 
         var receivers = _router.BroadcastRecipientsFor(signal, _source, _synapses)
             .Distinct()
@@ -97,23 +109,35 @@ internal sealed class SignalSender
             return 0;
         }
 
-        var correlation = cause?.CorrelationId ?? CorrelationId.New();
+        var signalType = signal.GetType().Name;
         List<Exception>? failures = null;
+        var learned = false;
         foreach (var receiver in receivers)
         {
             try
             {
-                await SendAsync(receiver, signal, cause, correlation, CancellationToken.None)
+                using var path = NeuronRequestPath.Enter(_source, receiver);
+                var handling = DeliverAsync(receiver, delivery, DeliveryMode.Awaited, CancellationToken.None);
+                var outcome = await (receiver == _source ? handling : handling.WaitAsync(CancellationToken.None))
                     .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
+                if (outcome == DeliveryOutcome.Handled)
+                {
+                    _synapses.Reinforce(receiver, signalType, SynapseKind.Learned);
+                    learned = true;
+                }
             }
             catch (Exception error) when (error is not OperationCanceledException)
             {
                 // A broken subscriber must not prevent delivery to the remaining audience.
-                // The source still sees failure, so a durable outbox retains this fact and
-                // successful recipients must deduplicate its later replay.
                 (failures ??= []).Add(error);
             }
         }
+
+        if (learned)
+        {
+            await _persist(CancellationToken.None).ConfigureAwait(true);
+        }
+
         if (failures is not null)
         {
             throw new AggregateException("One or more signal subscribers failed to handle the broadcast.", failures);

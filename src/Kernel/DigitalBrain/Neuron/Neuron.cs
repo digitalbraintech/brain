@@ -97,6 +97,13 @@ public abstract class Neuron :
         CancellationToken cancellationToken = default)
         => _sender.SendAsync(receiver, signal, _handling, cancellationToken);
 
+    protected Task<SignalDeliveryResult> SendAsync(
+        NeuronId receiver,
+        Signal signal,
+        CorrelationId correlation,
+        CancellationToken cancellationToken = default)
+        => _sender.SendAsync(receiver, signal, _handling, correlation, cancellationToken);
+
     /// <summary>
     /// Sends from this activation and reads the exact reply from the target's outgoing
     /// journal. It does not re-enter the owner root or wait for a reply to enter this
@@ -159,6 +166,9 @@ public abstract class Neuron :
     protected Task<int> BroadcastAsync(Signal signal)
         => _sender.BroadcastAsync(signal, _handling);
 
+    protected Task<int> BroadcastAsync(Signal signal, CorrelationId correlation)
+        => _sender.BroadcastAsync(signal, _handling, correlation);
+
     protected IReadOnlyList<NeuronId> BroadcastRecipients(Signal signal)
         => _components.Router.BroadcastRecipientsFor(signal, Id, _components.Synapses);
 
@@ -186,6 +196,9 @@ public abstract class Neuron :
 
     protected Task<SignalDelivery> RecordOutgoingAsync(Signal signal)
         => _sender.RecordOutgoingAsync(signal, _handling);
+
+    protected Task<SignalDelivery> RecordOutgoingAsync(Signal signal, CorrelationId correlation)
+        => _sender.RecordOutgoingAsync(signal, _handling, correlation);
 
     // An outbox persists this envelope with its work before attempting delivery.
     protected SignalDelivery CreateDelivery(

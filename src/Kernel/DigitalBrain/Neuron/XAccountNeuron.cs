@@ -10,8 +10,6 @@ internal sealed class XAccountNeuron(NeuronRuntime runtime) : Neuron(runtime), I
     {
         ArgumentNullException.ThrowIfNull(signal);
         cancellationToken.ThrowIfCancellationRequested();
-        await RecordOutgoingAsync(new NewPost(signal.Text))
-            .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
         await BroadcastAsync(new NewPost(signal.Text)).ConfigureAwait(true);
     }
 }

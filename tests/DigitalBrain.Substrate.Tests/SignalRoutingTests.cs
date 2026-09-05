@@ -182,8 +182,10 @@ public sealed class SignalRoutingTests
     public async Task Broadcast_WithoutSynapsesReachesNobodyEvenWhenTypesHandleTheSignal()
     {
         await using var brain = await BrainSimulation.StartAsync(new() { Modules = new([]) });
+        var announcerId = AnnouncerId("a");
 
         Assert.Equal(0, await AnnouncerIn(brain, "a").Announce("hello"));
+        Assert.Single((await Query(brain, announcerId).ReadJournal(JournalKind.Outgoing, 0)).Delta);
     }
 
     [Fact]
@@ -208,14 +210,16 @@ public sealed class SignalRoutingTests
     }
 
     [Fact]
-    public async Task Broadcast_JournalsOneOutgoingEntryPerReceiver()
+    public async Task Broadcast_JournalsOneOutgoingEntryForTheAudience()
     {
         await using var brain = await BrainSimulation.StartAsync(new() { Modules = new([]) });
         var owner = new OwnerId("owner");
         var announcerId = AnnouncerId("d");
-        await brain.Grains.GetGrain<IEarA>(new NeuronId("eara", owner, "default").ToGrainId())
+        var earA = new NeuronId("eara", owner, "default");
+        var earB = new NeuronId("earb", owner, "default");
+        await brain.Grains.GetGrain<IEarA>(earA.ToGrainId())
             .HandleAsync(new Subscribe(announcerId, nameof(Announced)), TestContext.Current.CancellationToken);
-        await brain.Grains.GetGrain<IEarB>(new NeuronId("earb", owner, "default").ToGrainId())
+        await brain.Grains.GetGrain<IEarB>(earB.ToGrainId())
             .HandleAsync(new Subscribe(announcerId, nameof(Announced)), TestContext.Current.CancellationToken);
 
         var announcer = AnnouncerIn(brain, "d");
@@ -223,13 +227,17 @@ public sealed class SignalRoutingTests
 
         await announcer.Announce("hello");
 
-        var read = await query.ReadJournal(JournalKind.Outgoing, 0);
-        Assert.Equal(2, read.Delta.Count);
-        Assert.Single(read.Delta.Select(delivery => delivery.CorrelationId).Distinct());
+        var outgoing = Assert.Single((await query.ReadJournal(JournalKind.Outgoing, 0)).Delta);
+        var incomingA = Assert.Single((await Query(brain, earA).ReadJournal(JournalKind.Incoming, 0)).Delta);
+        var incomingB = Assert.Single((await Query(brain, earB).ReadJournal(JournalKind.Incoming, 0)).Delta);
+        Assert.Equal(outgoing.SignalId, incomingA.SignalId);
+        Assert.Equal(outgoing.SignalId, incomingB.SignalId);
+        Assert.Equal(outgoing.CorrelationId, incomingA.CorrelationId);
+        Assert.Equal(outgoing.CorrelationId, incomingB.CorrelationId);
     }
 
     [Fact]
-    public async Task Broadcast_WithNoDeclaredHandlerReachesNobodyAndRecordsNothing()
+    public async Task Broadcast_WithNoDeclaredHandlerStillRecordsTheOutgoingFact()
     {
         await using var brain = await BrainSimulation.StartAsync(new() { Modules = new([]) });
         var announcer = AnnouncerIn(brain, "e");
@@ -237,6 +245,7 @@ public sealed class SignalRoutingTests
 
         Assert.Equal(0, await announcer.AnnounceUnheard("hello"));
         Assert.Empty(await query.ReadSynapses());
+        Assert.Single((await query.ReadJournal(JournalKind.Outgoing, 0)).Delta);
     }
 
     [Fact]
