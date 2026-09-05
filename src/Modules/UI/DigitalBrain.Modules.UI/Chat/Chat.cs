@@ -84,7 +84,7 @@ internal sealed class Chat : Neuron, IChat, IChatKernel
         await FailTurnInterruptedByRestartAsync().ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
         if (PrincipalPartition.TryParse(Id.Name, out var principal, out _))
         {
-            var inbox = NeuronId.For<IUserMessages>(Id.Owner, PrincipalPartition.InstanceName(principal, "default"));
+            var inbox = NeuronId.For<IComposer>(Id.Owner, PrincipalPartition.InstanceName(principal, "default"));
             await BindOutgoing(inbox, nameof(UserMessaged)).ConfigureAwait(true);
         }
     }

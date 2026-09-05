@@ -147,6 +147,26 @@ public sealed class CSharpStartupScriptRunnerTests
     }
 
     [Fact]
+    public async Task Future_start_script_compiles_ino_inbox_subscribe_without_running_it()
+    {
+        var script = StartupScript.FromSource("start.cs", """
+            Func<Task> wire = async () =>
+            {
+                var ino = Brain.Get<IAssistant>("assistant");
+                var inbox = Brain.Get<IComposer>("inbox");
+                await ino.SubscribeToAsync<IComposer, UserMessaged>(inbox.Id);
+            };
+            return typeof(IComposer).Name + "|"
+                + typeof(IHandle<UserMessaged>).IsAssignableFrom(typeof(IAssistant));
+            """);
+
+        var result = await runner.RunAsync(script, new FakeDigitalBrain("alice"), CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Summary + string.Join(Environment.NewLine, result.Diagnostics));
+        Assert.Equal("IComposer|True", result.Summary);
+    }
+
+    [Fact]
     public async Task Compilation_errors_are_returned_as_diagnostics()
     {
         var script = StartupScript.FromSource("start.cs", "this is not C#;");

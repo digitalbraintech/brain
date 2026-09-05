@@ -167,7 +167,7 @@ internal sealed class GraphTools(IDigitalBrain brain)
         "chat" => GraphSubject.Of(brain.Get<IChat>(Instance(name))),
         "xaccount" => GraphSubject.Of(brain.Get<IXAccount>(Instance(name))),
         "behavior" => GraphSubject.Of(brain.Get<IBehavior>(Instance(name))),
-        "usermessages" => GraphSubject.Of(brain.Get<IUserMessages>(Instance(name))),
+        "usermessages" => GraphSubject.Of(brain.Get<IComposer>(Instance(name))),
         _ => throw new ArgumentException(
             "kind must be chat, xaccount, behavior, or usermessages.", nameof(kind)),
     };

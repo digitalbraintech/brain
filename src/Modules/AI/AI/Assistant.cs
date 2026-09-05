@@ -1,4 +1,5 @@
 using DigitalBrain.AI;
+using DigitalBrain.Chat;
 using DigitalBrain.Core;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,6 +12,13 @@ internal sealed partial class Assistant(NeuronRuntime runtime, IChatClient chatC
     IAssistant
 {
     protected override string DisplayName => "Ino";
+
+    public Task HandleAsync(UserMessaged signal, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(signal);
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.CompletedTask;
+    }
 
     protected override string Instructions =>
         """
@@ -44,7 +52,7 @@ internal sealed partial class Assistant(NeuronRuntime runtime, IChatClient chatC
         disable_behavior disables a behavior while preserving its editable source. Keep provider setup
         separate from activation: a saved draft is not proof of live monitoring. Missing credentials,
         unresolved placeholders and unknown required CI checks are setup diagnostics, not green CI.
-        For “any message I send”, subscribe to IUserMessages, not one IChat.
+        For “any message I send”, subscribe to IComposer, not one IChat.
         Show the owner the C# as a markdown fence before ActivateAsync.
 
         For GitHub use the repository connection/setup tool and verified required checks; do not ask

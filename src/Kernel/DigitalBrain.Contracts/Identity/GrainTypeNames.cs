@@ -1,3 +1,5 @@
+using System.Reflection;
+
 namespace DigitalBrain.Abstractions.Identity;
 
 internal static class GrainTypeNames
@@ -5,6 +7,15 @@ internal static class GrainTypeNames
     internal static string Of(Type contractType)
     {
         ArgumentNullException.ThrowIfNull(contractType);
+
+        var named = contractType.GetField(
+            "GrainTypeName",
+            BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy);
+        if (named is { IsLiteral: true } && named.GetRawConstantValue() is string grainTypeName
+            && !string.IsNullOrWhiteSpace(grainTypeName))
+        {
+            return grainTypeName;
+        }
 
         var declared = contractType.GetCustomAttributesData()
             .FirstOrDefault(attribute => attribute.AttributeType == typeof(GrainTypeAttribute))?

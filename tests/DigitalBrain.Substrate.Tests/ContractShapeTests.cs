@@ -27,6 +27,9 @@ public sealed class ContractShapeTests
             new NeuronId("sessionneuron", owner, "session"),
             IBrainNeuron.ForOwner(owner));
         Assert.Equal(
+            IBrainNeuron.ForOwner(owner),
+            NeuronId.For<IBrainNeuron>(owner, IBrainNeuron.InstanceName));
+        Assert.Equal(
             "db.v2.brain-neuron",
             Assert.Single(typeof(IBrainNeuron).GetCustomAttributes<AliasAttribute>()).Alias);
         var grainType = Assert.IsType<GrainTypeAttribute>(

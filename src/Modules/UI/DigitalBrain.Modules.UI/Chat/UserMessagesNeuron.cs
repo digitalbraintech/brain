@@ -5,7 +5,9 @@ using DigitalBrain.Core;
 namespace DigitalBrain.UI;
 
 [GrainType("usermessages")]
-internal sealed class UserMessagesNeuron(NeuronRuntime runtime) : Neuron(runtime), IUserMessages
+#pragma warning disable CS0618 // IUserMessages remains the compatibility grain interface.
+internal sealed class UserMessagesNeuron(NeuronRuntime runtime) : Neuron(runtime), IComposer, IUserMessages
+#pragma warning restore CS0618
 {
     public Task HandleAsync(UserMessaged signal, CancellationToken cancellationToken)
     {

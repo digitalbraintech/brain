@@ -1,8 +1,7 @@
-using DigitalBrain.Product.Identity;
-using DigitalBrain.Abstractions;
-
-using DigitalBrain.Abstractions.Signals;
 using DigitalBrain.Abstractions.Identity;
+using DigitalBrain.Abstractions.Signals;
+using DigitalBrain.Product.Identity;
+
 namespace DigitalBrain.Chat;
 
 [GenerateSerializer]
