@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using DigitalBrain.Abstractions.Identity;
 using DigitalBrain.Abstractions.Neurons;
+using DigitalBrain.Abstractions.Signals;
 using DigitalBrain.Core;
 using DigitalBrain.Product.Interactions;
 
@@ -11,6 +12,30 @@ public abstract partial class Agent
     private sealed class TurnRequests(Agent source, CancellationToken turnCancellation) : IAgentRequests, IDisposable
     {
         private bool _active = true;
+
+        public async Task<DeliveryOutcome> SendAsync(NeuronId target, Signal signal, CancellationToken cancellationToken = default)
+        {
+            RequireTarget(target);
+            using var deadline = CancellationTokenSource.CreateLinkedTokenSource(turnCancellation, cancellationToken);
+            return (await source.SendAsync(target, signal, deadline.Token).ConfigureAwait(true)).Outcome;
+        }
+
+        public async Task<TResponse> RequestAsync<TResponse>(NeuronId target, Signal<TResponse> request, CancellationToken cancellationToken = default)
+            where TResponse : Signal
+        {
+            RequireTarget(target);
+            using var deadline = CancellationTokenSource.CreateLinkedTokenSource(turnCancellation, cancellationToken);
+            return await source.RequestAsync(target, request, deadline.Token).ConfigureAwait(true);
+        }
+
+        private void RequireTarget(NeuronId target)
+        {
+            if (!_active || target.Owner != source.Id.Owner || VerifiedActor.Current is not { } actor
+                || !PrincipalPartition.OwnsInstance(actor.PrincipalId, target.Name))
+            {
+                throw new NeuronAuthorizationException("Composition requires an active turn and a neuron owned by the current user.");
+            }
+        }
 
         public async Task<AgentReply> RequestAsync<TAgent>(
             string instanceName, AgentRequest request, CancellationToken cancellationToken = default)

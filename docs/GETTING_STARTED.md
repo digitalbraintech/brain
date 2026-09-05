@@ -1,227 +1,98 @@
 # Use DigitalBrain from Flutter
 
-From the repository root, start the local application:
+Start Docker, configure the AppHost's `Parameters:openai-api-key` user secret for its selected model, then run from the repository root:
 
 ```powershell
-aspire start --apphost src/Aspire/DigitalBrain.AppHost --non-interactive
+aspire start --apphost src/Aspire/DigitalBrain.AppHost/DigitalBrain.AppHost.csproj --non-interactive
 ```
 
-The AppHost starts the kernel, Flutter Windows, and the separate C# scripting worker.
-Docker must be running for the local storage services. Configure the AppHost's
-`Parameters:openai-api-key` user secret for its selected model. The current AppHost
-already selects the model; Flutter uses the kernel at `http://localhost:5080`.
+The AppHost starts storage, the kernel, Flutter Windows and the separate C# scripting host. Flutter connects to `http://localhost:5080`. For deterministic local testing, append `-- --DigitalBrain:Mode=Testing`; this uses fake model responses.
 
-## Your brain, with Ino
+## One workspace
 
-Flutter opens **My brain**, the Lumen workspace built on the shared Forui kit.
-Use the composer at the bottom to talk to Ino. The latest answer stays beside the
-composer; **Full conversation** opens the complete history. **Conversation** in
-the navigation uses the same conversation and pending request.
+**My brain** starts with Ino. Send a message in the composer; **Full conversation** opens the same history. The graph reveals involved neurons and their real subscriptions and activity. Saved inactive behaviors remain discoverable in **Behavior Studio**.
 
-The graph groups actual observed neurons by module. Select an icon to inspect its
-identity, recent signals, and connections. Select an arrow on a synapse to inspect
-its source, subscriber, signal, kind, and recorded delivery count. The directory
-provides a list alternative to the canvas. Pan and zoom to explore; use the reset
-view control to return to the initial framing.
+Select a neuron or an arrow to inspect identity, signals and connections. Create a subscription by choosing a compatible subscriber and signal. Unsubscribe removes that edge. A Bound edge is persistent wiring; a Learned edge records a handled direct request. Temporary activity is distinct from these relationships.
 
-Choose **Create subscription** on a neuron, then select an eligible subscriber
-and signal. The source owns the resulting Bound synapse. **Unsubscribe** removes
-it entirely; the interface waits for the kernel and a fresh snapshot before
-confirming either change. Learned connections represent handled direct delivery.
-A later direct send can establish a Learned edge again, making that route eligible
-for broadcast. Unsubscribe removes the current edge rather than permanently blocking
-future explicit requests.
+Drag nodes to arrange them, pan or zoom, and use the directory as a list alternative. Server-sent updates refresh changed graph state; reconnect restores a fresh snapshot. There is no fixed two-second full-graph polling loop. Technical participants can be revealed separately. Journals are bounded diagnostic evidence, not durable execution queues.
 
-The graph refreshes approximately every two seconds after each completed read.
-It shows the current conversation, known runtime participants, reachable stored
-synapses, and bounded recent journal activity. The observation time, limited-view
-status, and connection failures are visible. Direct tool calls that do not emit
-journal signals are not represented as complete live traces. Provider icons appear
-when those neurons are actually observed.
+## Save, change and run a behavior
 
-**Play an example** opens the labeled 3D simulations with pause/reset controls.
-These demonstrations do not change real subscriptions or submit model requests.
+Open **Behavior Studio**, select **New behavior**, and give it a local name such as `personal-review`. The editor shows source, input/output signal types, optional input policies, draft and active revision, validation diagnostics, activation state, pending work and actual connections.
 
-## Ask Aspire about the running application
+1. Save the draft. The scripting host compiles it and reports diagnostics.
+2. Connect an input source and output recipient using the graph, SDK or Ino.
+3. Activate the validated draft. The graph's Bound edges are executable wiring.
+4. Use **Run** with a declared input, or let a subscribed source deliver inputs.
+5. Edit and save a new draft. Existing work keeps its original revision; activation affects subsequent inputs. Disable removes incoming subscriptions and fences outstanding work while retaining source.
 
-Ask Ino from the bottom composer:
+If a draft removes an input signal used by an existing subscription, remove that
+connection before activation. The previous active revision remains in place until
+the new draft can be activated safely.
 
-> How many Aspire resources are healthy? List their names and distinguish health from process state.
-
-Or investigate a failure:
-
-> Ask Aspire to investigate recent kernel errors using the relevant traces and logs.
-
-Ino delegates an ordinary `AgentRequest` to the Microsoft module's `IAspire` neuron.
-That agent discovers the CLI's MCP tools and uses their published schemas. The
-default local AppHost binds it to this DigitalBrain application under the instance
-`<current-principal>.digitalbrain-local`. Selecting the Aspire icon shows actual
-delegation/tool activity, timings, and bounded screened evidence. A dotted active
-request is temporary; a handled request creates the normal Learned connection.
-No Bound subscription or background monitor is created by asking a question.
-
-The connection supports resources, logs and traces. It discovers running AppHosts
-before selecting the explicitly configured project; MCP sessions are isolated by
-agent identity. Stopping the AppHost makes the connection unavailable; the next
-request reconnects after it is running. Failed operations are not automatically replayed.
-
-An admitted C# behavior can use the same inherited contract:
+A minimal `Note` → `Note` handler:
 
 ```csharp
-var aspire = Brain.Get<IAspire>("<current-principal>.digitalbrain-local");
-var reply = await aspire.RequestAsync(
-    new AgentRequest("How many resources are healthy? Use current evidence."),
-    CancellationToken);
-return reply.Text;
+await using IDigitalBrain digitalBrain = await DigitalBrainClient.ConnectAsync(args);
+var note = digitalBrain.Input<Note>();
+return new Note($"Processed: {note.Text}");
 ```
 
-Replace the placeholder with the actual principal prefix shown in the neuron's
-identity. Behaviors admitted from chat retain that principal's execution context.
-Microsoft and AI contracts are already referenced by the script compiler. Use
-ordinary C# conditions or existing signals for custom behavior; there is no
-separate Aspire status DTO or per-tool signal.
+The [personal review handler](examples/personal-code-review.csx) asks distinct architecture and quality agent neurons concurrently and returns one combined note. Its input must contain actual review evidence. In Development, Ino can use `read_repository_diff` to obtain the checkout's tracked diff before invoking it. That reader reports untracked filenames and truncation; it does not edit files or post remotely.
 
-## Gmail and Salesforce specialists
+Ask Ino to save your preferred review routine, show its C#, connect its output to this conversation, and activate it. Then ask to run the existing behavior with the current diff. Invoking does not rewrite the saved source.
 
-Ask Ino to find release emails or open Salesforce opportunities. Ino delegates to
-`IGmail` in the Google module or `ISalesforce` in the Salesforce module. Each uses
-its own native MCP tool schemas. The graph shows its provider icon and observed
-tool activity; selecting a failed operation shows its safe failure category.
+## Compose neurons in C#
 
-When access is missing, use the application's login card. A successful login resumes
-the recorded read once at the same specialist in the original conversation. Login
-does not authorize a mutation. Drafts and CRM record changes require a fresh exact
-preview and the user confirmation shown with it. Tokens are private and volatile;
-the providers need reconnecting after a kernel restart.
-
-Scripts can address both contracts using `AgentRequest` and `AgentReply`, just like
-Aspire. Google and Salesforce contracts are included in the script compiler. Use
-the actual principal-prefixed instance shown in the graph; a script's journal watch
-observes activity without creating a subscription. Diagnostic `AgentActivity` entries
-are not subscriber deliveries.
-
-## Inspect AI conversations in Aspire
-
-The local Development AppHost enables AI content recording through
-`ai.EnableSensitiveData`. The AI client reads the projected configuration key
-`DigitalBrain:AI:Telemetry:EnableSensitiveData`; its default outside that explicit
-opt-in is false. The hosting projection also sets
-`OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT` consistently.
-
-Open **Traces**, select a recent chat request, and open the GenAI view. The trace
-contains `invoke_agent Ino`, delegated `invoke_agent Aspire · DigitalBrain`,
-`chat <model>` calls, and `execute_tool <name>` calls. Agent spans carry
-`gen_ai.conversation.id`, `gen_ai.agent.id`, and `db.command.id`. Model spans carry
-the model, token counts, and—when enabled—input/output content. Tool spans capture
-arguments and screened results under the same opt-in. Per-model metrics use
-`DigitalBrain.AI.<model marker>` instrumentation.
-
-Changing the setting requires restarting the processes; content omitted from an
-older trace cannot be reconstructed by enabling it later. To inspect from the CLI,
-use the actual telemetry service name `DigitalBrain.Silo`, or query across resources:
-
-```powershell
-aspire otel spans --apphost src/Aspire/DigitalBrain.AppHost/DigitalBrain.AppHost.csproj --search ask_aspire --limit 10 --format Json --non-interactive
-```
-
-See [Microsoft Learn's observability configuration](https://learn.microsoft.com/en-us/agent-framework/agents/observability)
-and [Aspire's GenAI content configuration](https://aspire.dev/dashboard/explore/#configure-message-content-recording).
-
-## Review your code now
-
-In Flutter, ask:
-
-> Review my local repository diff. Focus on correctness, concurrency and durable state.
-> Give actionable findings with file and line references. Skip cosmetic comments.
-
-Development startup enables `read_repository_diff` for this checkout. It reads
-staged and unstaged tracked changes against HEAD. Ask for "staged changes only"
-to review the index instead. Its output identifies the repository, lists untracked
-filenames without reading their contents, and reports truncation. It does not edit
-files, commit, or post anything remotely.
-
-To select another checkout, set the AppHost configuration
-`DigitalBrain:Workspace:RepositoryPath` before starting. Outside development,
-repository access is disabled unless the host explicitly configures both the path
-and its `DigitalBrain:Workspace:Owner`. The model cannot supply a filesystem path
-or a shell command to this tool.
-
-## Save your own review routine
-
-Ask in Flutter:
-
-> Create a C# behavior called personal-review. Review the configured repository for
-> concurrency bugs, missed cancellation, and violations of subscribe/unsubscribe.
-> Use a separate named reviewer chat and post the findings into this chat. Show me the C#.
-
-The assistant writes ordinary C# and calls `admit_behavior`. The worker compiles
-and runs that source outside the silo. Use "show personal-review" to inspect the
-exact saved source and its status/diagnostics. Use "run personal-review again" to
-read and re-admit the same source as a new revision. "Remove personal-review"
-removes the definition and requests cancellation if it is still running.
-
-The complete [personal review script](examples/personal-code-review.csx) is checked
-by an integration test. It submits a normal chat turn:
+A composition program issues durable commands once. A saved handler processes one accepted input. Composition is not replayed after restart.
 
 ```csharp
-var reviewer = Brain.Get<IChat>($"{chatName}.code-review");
-var accepted = await reviewer.RequestAsync(
-    new SendMessage(command, myReviewInstructions, actor), CancellationToken);
-// Watch this reviewer's outgoing journal for Responded matching command.
-// Forward answer.Text to the original chat with SendAsync(new Note(answer.Text)).
+await using IDigitalBrain digitalBrain = await DigitalBrainClient.ConnectAsync(args);
+var source = digitalBrain.Get<IWebhook>("build-events");
+var behavior = digitalBrain.Get<IBehavior>("build-notifier");
+var chat = digitalBrain.Get<IChat>("here");
+
+await behavior.SaveScriptAsync<WebhookReceived, Note>(
+    await File.ReadAllTextAsync("build-notifier.csx"));
+await chat.SubscribeAsync<Note>(behavior);
+await behavior.SubscribeAsync(source);
+await behavior.ActivateAsync();
 ```
 
-The assistant fills in the current chat's exact instance name, including its
-principal prefix. `myReviewInstructions` contains your preferences and asks the
-reviewer to read the configured repository. Chat accepts the turn before the model
-finishes, so the owner can keep sending messages. The example also handles a failed
-turn, a lost journal window, and cancellation. This finite script completes after
-posting its result; completed scripts are not automatically rerun on restart.
+The client implementation is in `DigitalBrain.Sdk`; its namespace remains `DigitalBrain.Abstractions`. In a saved handler, `ConnectAsync(args)` borrows its execution connection, principal and current input. Local names are scoped automatically.
 
-## Custom triggers and logic
+A trusted console composition program configures `ConnectionStrings:clustering`, the host's Orleans cluster/service settings, `DigitalBrain:Owner`, and `DigitalBrain:Principal` for the user's GUID. Direct cluster credentials are infrastructure authority; a principal argument is not browser authentication. Do not distribute cluster credentials to untrusted clients.
 
-A long-running behavior can use loops, conditions, files, HTTP, typed signals and
-journal watches. `Brain` and `CancellationToken` are supplied globals; AI, Chat,
-Time, UI and kernel contracts are referenced by the compiler. For example, the body
-of a script can observe new timer deliveries:
+When exactly one signal type matches, `SubscribeAsync(source)` infers it. Otherwise use `SubscribeAsync<TSignal>(source)`. Getting the same string through two different contracts does not cast a neuron: `IRepository` and a generic `IWebhook` have distinct identities.
+
+## External sources
+
+See [GitHub setup and PR reviews](github-pr-review.md). `IRepository : IWebhook` uses shared SDK receipt, deduplication and retry machinery, and emits `PullRequestChanged` facts.
+
+For a custom signed HTTP source, register it in the kernel:
 
 ```csharp
-var timer = Brain.Get<DigitalBrain.Time.ITimer>(timerName);
-var cursor = (await timer.ReadJournalAsync(
-    JournalKind.Outgoing, long.MaxValue, CancellationToken)).ResumeSequence;
-
-await foreach (var page in timer.WatchJournalAsync(
-    JournalKind.Outgoing, cursor, CancellationToken))
-{
-    if (page.ResetSnapshot is not null)
-        throw new InvalidOperationException("Timer traffic was missed; inspect before resuming.");
-
-    foreach (var delivery in page.Delta)
-        if (delivery.Signal is TimerElapsed elapsed)
-        {
-            // Your C# condition, review request, or entity update goes here.
-        }
-}
+services.AddWebhookSource(new ConfiguredWebhookSource(
+    owner, principal, "build-events", "/integrations/build-events", signingSecret));
 ```
 
-This observes an existing timer. Arm it separately with `StartTimer`; the script
-decides what to do when it elapses. Journal watching supplies custom script logic.
-`SubscribeToAsync` and `UnsubscribeFromAsync` instead wire existing typed neurons
-that can handle the chosen signal; Broadcast follows those source-owned synapses.
-Scripts do not generate new Orleans neuron types.
+The sender posts JSON with a stable `X-DigitalBrain-Delivery` ID and `X-DigitalBrain-Signature-256: sha256=<hex HMAC-SHA256 of exact request bytes>`. Use a secret of at least 32 characters from private host configuration. Acceptance persists before acknowledgement. `WebhookReceived.Fact` contains `WebhookPayload.Json`. Provider modules can inherit `WebhookNeuron` and emit their own domain signals.
 
-Current definitions are durable state on the existing `BehaviorsNeuron`; journal
-retention cannot erase them. A running revision is resumed when the worker restarts.
-Scripts should tolerate replay/restart and use idempotent writes where appropriate.
-Pass `CancellationToken` to waits and requests, and undo subscriptions created by
-your script in `finally` when their lifetime should match the script. Cancellation
-is cooperative: the worker cannot forcibly stop arbitrary C# that ignores its token.
+`IXAccount` publishes `NewPost` through synapses, but this checkout does not include an authenticated live X adapter. A subscription alone cannot fetch @elon posts; a provider integration must translate authorized observations into those signals.
 
-Behavior status distinguishes Admitted, Running, Completed and Failed. Admitted
-means saved; compilation errors and runtime failures appear in the saved status.
-The current worker serves the configured owner and runs trusted owner code with
-the scripting process's permissions.
+## Specialists and diagnostics
 
-Definitions admitted before current-definition storage was introduced must be
-re-admitted from their C# source. The worker does not revive historical source
-from old traffic entries.
+Ino delegates ordinary `AgentRequest` calls to Aspire, Gmail and Salesforce using native provider tool schemas. The local Aspire instance is `digitalbrain-local`. Google and Salesforce retain their existing read-only login continuation rules. GitHub has a bounded exact setup continuation for its original repository, behavior and draft revision. Credentials never become source literals or graph labels.
+
+The Development AppHost enables AI trace content through `DigitalBrain:AI:Telemetry:EnableSensitiveData`; other environments default to off. Aspire shows neuron, delegation, model and tool activity. Enabling content later cannot reconstruct omitted content.
+
+## Restart and retained state
+
+Definitions, subscriptions, accepted inputs and request checkpoints are durable. The worker recovers claims after restart without replaying composition. Completed checkpointed agent requests and stable chat output IDs prevent repeated sibling computation and duplicate notes. Current-state reads remain fresh on retry.
+
+Arbitrary file/HTTP effects in trusted C# do not acquire exactly-once semantics. Make such effects idempotent and pass `CancellationToken` to asynchronous work. The host cannot safely terminate arbitrary code that ignores cancellation.
+
+The admitted-script runtime, fixed GitHub review pipeline and automatic migration
+adapters have been removed. Current behavior records persist across restart. The
+cleanup does not delete local storage; compatibility with older stored records is
+tracked separately in the validation record.

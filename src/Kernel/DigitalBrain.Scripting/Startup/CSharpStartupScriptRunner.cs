@@ -12,7 +12,7 @@ namespace DigitalBrain.Scripting.Startup;
 
 internal sealed class CSharpStartupScriptRunner : IStartupScriptRunner
 {
-    private static readonly ScriptOptions Options = ScriptOptions.Default
+    internal static readonly ScriptOptions Options = ScriptOptions.Default
         .WithReferences(
             typeof(object).Assembly,
             typeof(Enumerable).Assembly,
@@ -23,6 +23,7 @@ internal sealed class CSharpStartupScriptRunner : IStartupScriptRunner
             typeof(JsonSerializer).Assembly,
             typeof(HttpClient).Assembly,
             typeof(IDigitalBrain).Assembly,
+            typeof(DigitalBrainClient).Assembly,
             typeof(IAssistant).Assembly,
             typeof(DigitalBrain.Microsoft.IAspire).Assembly,
             typeof(DigitalBrain.Google.IGmail).Assembly,
@@ -45,6 +46,8 @@ internal sealed class CSharpStartupScriptRunner : IStartupScriptRunner
             "DigitalBrain.Abstractions.Journals",
             "DigitalBrain.Abstractions.Neurons",
             "DigitalBrain.Abstractions.Signals",
+            "DigitalBrain.Sdk",
+            "DigitalBrain.Sdk.Webhooks",
             "DigitalBrain.AI",
             "DigitalBrain.Microsoft",
             "DigitalBrain.Microsoft.GitHub",

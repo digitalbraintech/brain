@@ -8,10 +8,6 @@ enum BrainGraphExample {
     'Chat reply',
     'A message travels through chat and the assistant.',
   ),
-  review(
-    'Code review',
-    'A saved behavior starts a review and returns its result.',
-  ),
   subscription(
     'Subscribe / unsubscribe',
     'Bind a subscriber, deliver a signal, then remove the synapse.',
@@ -57,7 +53,6 @@ final class BrainGraphSimulation extends ChangeNotifier {
   int get stepIndex => _step;
   List<BrainGraphStep> get steps => switch (_example) {
     BrainGraphExample.conversation => _conversation,
-    BrainGraphExample.review => _review,
     BrainGraphExample.subscription => _subscription,
     null => const [],
   };
@@ -149,12 +144,6 @@ final class BrainGraphSimulation extends ChangeNotifier {
       position: GraphPoint(-0.45, 0.49, -0.05),
     ),
     GraphNode(
-      id: 'review-chat',
-      label: 'Review chat',
-      cluster: 'UI',
-      position: GraphPoint(-0.60, 0.24, 0.10),
-    ),
-    GraphNode(
       id: 'ai-module',
       label: 'AI',
       kind: GraphNodeKind.module,
@@ -166,19 +155,6 @@ final class BrainGraphSimulation extends ChangeNotifier {
       label: 'Assistant',
       cluster: 'AI',
       position: GraphPoint(0.40, 0.45, 0.04),
-    ),
-    GraphNode(
-      id: 'kernel-module',
-      label: 'Kernel',
-      kind: GraphNodeKind.module,
-      cluster: 'Kernel',
-      position: GraphPoint(-0.48, -0.43, -0.05),
-    ),
-    GraphNode(
-      id: 'behaviors',
-      label: 'Behaviors',
-      cluster: 'Kernel',
-      position: GraphPoint(-0.48, -0.42, 0.10),
     ),
     GraphNode(
       id: 'time-module',
@@ -216,21 +192,6 @@ final class BrainGraphSimulation extends ChangeNotifier {
       targetId: 'assistant',
     ),
     GraphEdge(id: 'turn-chat', sourceId: 'turn-worker', targetId: 'chat'),
-    GraphEdge(
-      id: 'assistant-behaviors',
-      sourceId: 'assistant',
-      targetId: 'behaviors',
-    ),
-    GraphEdge(
-      id: 'review-turn',
-      sourceId: 'review-chat',
-      targetId: 'turn-worker',
-    ),
-    GraphEdge(
-      id: 'turn-review',
-      sourceId: 'turn-worker',
-      targetId: 'review-chat',
-    ),
   ];
 
   static const _conversation = [
@@ -255,41 +216,6 @@ final class BrainGraphSimulation extends ChangeNotifier {
     BrainGraphStep(
       'Conversation complete',
       'Handled sends establish learned synapses on their source neurons.',
-    ),
-  ];
-
-  static const _review = [
-    BrainGraphStep(
-      'Admit a review behavior',
-      'The assistant saves a named C# definition in the Behaviors neuron.',
-      from: 'assistant',
-      to: 'behaviors',
-    ),
-    BrainGraphStep(
-      'The behavior worker starts a review',
-      'The scripting worker reads the admitted definition and sends a request to a separate review chat. The worker is not a neuron.',
-    ),
-    BrainGraphStep(
-      'Review chat schedules its turn',
-      'A queued turn keeps the foreground conversation available.',
-      from: 'review-chat',
-      to: 'turn-worker',
-    ),
-    BrainGraphStep(
-      'The assistant reads the repository diff',
-      'The assistant invokes the local diff tool, then applies your review instructions.',
-      from: 'turn-worker',
-      to: 'assistant',
-    ),
-    BrainGraphStep(
-      'Review result is recorded',
-      'The review chat receives its answer. The behavior observes the journal and forwards a note to the original chat.',
-      from: 'turn-worker',
-      to: 'review-chat',
-    ),
-    BrainGraphStep(
-      'Review complete',
-      'Chat remains available while the behavior runs. This playback has not run a real review.',
     ),
   ];
 

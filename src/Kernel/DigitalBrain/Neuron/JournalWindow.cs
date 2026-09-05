@@ -1,6 +1,10 @@
 using DigitalBrain.Abstractions;
 using Orleans.Journaling;
 using Orleans.Serialization;
+using Orleans.Serialization.Buffers;
+using Orleans.Serialization.Codecs;
+using Orleans.Serialization.Session;
+using Orleans.Serialization.WireProtocol;
 
 using DigitalBrain.Abstractions.Journals;
 using DigitalBrain.Abstractions.Signals;
@@ -19,22 +23,26 @@ internal sealed class JournalWindow
     private readonly IDurableDictionary<string, long> _tallies;
     private readonly IDurableValue<long> _lastSequence;
     private readonly Serializer<JournalEntry> _entries;
+    private readonly SerializerSessionPool _sessions;
 
     internal JournalWindow(
         IDurableList<byte[]> retained,
         IDurableDictionary<string, long> tallies,
         IDurableValue<long> lastSequence,
-        Serializer<JournalEntry> entries)
+        Serializer<JournalEntry> entries,
+        SerializerSessionPool sessions)
     {
         ArgumentNullException.ThrowIfNull(retained);
         ArgumentNullException.ThrowIfNull(tallies);
         ArgumentNullException.ThrowIfNull(lastSequence);
         ArgumentNullException.ThrowIfNull(entries);
+        ArgumentNullException.ThrowIfNull(sessions);
 
         _retained = retained;
         _tallies = tallies;
         _lastSequence = lastSequence;
         _entries = entries;
+        _sessions = sessions;
     }
 
     internal JournalRead Read(long afterSequence)
@@ -50,11 +58,78 @@ internal sealed class JournalWindow
         }
 
         var firstIndex = (int)(afterSequence - EarliestRetainedSequence() + 1);
+        List<SignalDelivery> deliveries = [];
+        List<UnknownJournalEntry> unknown = [];
+        for (var index = firstIndex; index < _retained.Count; index++)
+        {
+            var encoded = _retained[index];
+            using var session = _sessions.GetSession();
+            var reader = Reader.Create(encoded, session);
+            try
+            {
+                deliveries.Add(_entries.Deserialize(ref reader).Delivery);
+            }
+            catch (FieldTypeMissingException) when (HasUnresolvedTypeAt(encoded, reader.Position))
+            {
+                // Do not rewrite the bytes: a future runtime may know this contract.
+                // Malformed encoding and unrelated deserialization failures stay errors.
+                unknown.Add(new(EarliestRetainedSequence() + index, encoded.Length));
+            }
+        }
 
         return new(
             ResumeSequence: lastSequence,
-            Delta: [.. _retained.Skip(firstIndex).Select(_entries.Deserialize).Select(entry => entry.Delivery)],
-            ResetSnapshot: null);
+            Delta: deliveries,
+            ResetSnapshot: null,
+            UnknownEntries: unknown.Count == 0 ? null : unknown);
+    }
+
+    private bool HasUnresolvedTypeAt(byte[] encoded, long failedPosition)
+    {
+        // Orleans reports both absent type metadata and unresolved encoded names as
+        // FieldTypeMissingException. Recognize only an explicit unresolved header at
+        // the failed read position, then validate the whole entry's wire framing.
+        using var session = _sessions.GetSession();
+        var reader = Reader.Create(encoded, session);
+        var unresolved = false;
+        var depth = 0;
+        do
+        {
+            var field = reader.ReadFieldHeader();
+            if (field.IsEndObject)
+            {
+                if (depth == 0)
+                {
+                    return false;
+                }
+
+                depth--;
+            }
+            else if (field.IsEndBaseFields)
+            {
+                if (depth == 0)
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                unresolved |= field.SchemaType == SchemaType.Encoded
+                    && field.FieldType is null
+                    && reader.Position == failedPosition;
+                if (field.WireType == WireType.TagDelimited)
+                {
+                    depth++;
+                }
+                else
+                {
+                    reader.ConsumeUnknownField(field);
+                }
+            }
+        }
+        while (depth > 0);
+
+        return unresolved && reader.Position == reader.Length;
     }
 
     internal long NextSequence => _lastSequence.Value + 1;

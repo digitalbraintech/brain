@@ -6,6 +6,12 @@ internal static class BrainGraphHttpMaps
 {
     public static IEndpointRouteBuilder MapBrainGraph(this IEndpointRouteBuilder endpoints)
     {
+        endpoints.MapGet("/chats/{chatName}/brain/events", static async Task (
+            string chatName, HttpContext http, BrainGraphStream stream, CancellationToken cancellationToken) =>
+        {
+            await SseResponse.WriteAsync(http.Response,
+                stream.WatchAsync(chatName, HttpActor.Current, cancellationToken), cancellationToken).ConfigureAwait(false);
+        });
         endpoints.MapGet(HttpSurfacePaths.BrainGraphPath,
             static async Task<IResult> (string chatName, HttpContext http, BrainGraphProjection graph,
                 CancellationToken cancellationToken) =>

@@ -6,6 +6,104 @@ import 'package:http/testing.dart';
 import 'package:test/test.dart';
 
 void main() {
+  test(
+    'behavior save carries exact revision and declared signal manifest',
+    () async {
+      http.Request? seen;
+      final client = DigitalBrainUiClient(
+        baseUri: Uri.parse('http://ui.example:5080'),
+        httpClient: MockClient((request) async {
+          seen = request;
+          return http.Response(
+            jsonEncode({
+              'id': 'behavior:dev/p/test',
+              'name': 'test',
+              'enabled': true,
+              'epoch': 3,
+              'pendingCount': 0,
+              'draft': {
+                'revision': 'r2',
+                'source': 'return Input;',
+                'inputSignalTypes': ['Note'],
+                'outputSignalTypes': ['Note'],
+                'validation': 'Pending',
+                'diagnostics': [],
+                'createdAt': '2026-09-05T10:00:00Z',
+                'inputPolicy': 7,
+              },
+              'active': {
+                'revision': 'r1',
+                'source': 'return Input;',
+                'inputSignalTypes': ['Note'],
+                'outputSignalTypes': ['Note'],
+                'validation': 'Valid',
+                'diagnostics': [],
+                'createdAt': '2026-09-05T09:00:00Z',
+              },
+            }),
+            200,
+          );
+        }),
+      );
+      final saved = await client.saveBehavior(
+        'test',
+        source: 'return Input;',
+        inputSignalTypes: ['Note'],
+        outputSignalTypes: ['Note'],
+        expectedDraftRevision: 'r1',
+        inputPolicy: 7,
+      );
+      expect(seen!.url.path, '/behaviors/test/save');
+      expect(jsonDecode(seen!.body), {
+        'source': 'return Input;',
+        'inputSignalTypes': ['Note'],
+        'outputSignalTypes': ['Note'],
+        'expectedDraftRevision': 'r1',
+        'inputPolicy': 7,
+      });
+      expect(saved.draft!.revision, 'r2');
+      expect(saved.draft!.inputPolicy, 7);
+      expect(saved.active!.revision, 'r1');
+    },
+  );
+
+  test(
+    'brain SSE consumes authoritative snapshots and ignores heartbeats',
+    () async {
+      final client = DigitalBrainUiClient(
+        baseUri: Uri.parse('http://ui.example:5080'),
+        httpClient: MockClient((request) async {
+          expect(request.url.path, '/chats/main/brain/events');
+          expect(request.headers['accept'], 'text/event-stream');
+          return http.Response(
+            'event: brain-heartbeat\ndata: null\n\n'
+            'event: brain-snapshot\ndata: {"rootId":"chat:dev/main","observedAt":"2026-09-05T10:00:00Z","nodes":[],"synapses":[],"activity":[]}\n\n',
+            200,
+          );
+        }),
+      );
+      final snapshots = await client.watchBrain(chatName: 'main').toList();
+      expect(snapshots.single.rootId, 'chat:dev/main');
+    },
+  );
+
+  test(
+    'brain SSE reports malformed snapshots for reconnect recovery',
+    () async {
+      final client = DigitalBrainUiClient(
+        baseUri: Uri.parse('http://ui.example:5080'),
+        httpClient: MockClient(
+          (_) async =>
+              http.Response('event: brain-snapshot\ndata: {}\n\n', 200),
+        ),
+      );
+      await expectLater(
+        client.watchBrain(chatName: 'main').toList(),
+        throwsA(isA<TypeError>()),
+      );
+    },
+  );
+
   test('watchChatTurns reads the kernel signal contract', () async {
     final client = DigitalBrainUiClient(
       baseUri: Uri.parse('http://ui.example:5080'),

@@ -49,7 +49,8 @@ internal sealed class NeuronMembraneFilter : IIncomingGrainCallFilter
         var declaring = method?.DeclaringType;
         return declaring == typeof(INeuronGrain)
             || declaring == typeof(INeuronQuery)
-            || declaring == typeof(IBehaviorsKernel);
+            || declaring == typeof(IBehaviorsKernel)
+            || declaring == typeof(IBehaviorKernel);
     }
 
     private static void Authorize(IIncomingGrainCallContext context, NeuronId target)
@@ -75,7 +76,8 @@ internal sealed class NeuronMembraneFilter : IIncomingGrainCallFilter
                 $"Neuron '{target}' refuses a delivery from foreign owner '{delivery.Caller.Owner}'.");
         }
 
-        if ((name == nameof(INeuronGrain.BindOutgoing) || name == nameof(INeuronGrain.UnbindOutgoing))
+        if ((name == nameof(INeuronGrain.BindOutgoing) || name == nameof(INeuronGrain.UnbindOutgoing)
+                || name == nameof(INeuronGrain.FenceSourceEpoch) || name == nameof(INeuronGrain.FenceSourceStream))
             && argument is NeuronId subscriber
             && subscriber.Owner != target.Owner)
         {

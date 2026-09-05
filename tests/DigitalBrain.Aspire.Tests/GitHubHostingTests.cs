@@ -12,6 +12,33 @@ namespace DigitalBrain.Aspire.Tests;
 public sealed class GitHubHostingTests
 {
     [Fact]
+    public async Task Shared_app_setup_projects_metadata_and_secret_parameters_only_to_kernel()
+    {
+        const string section = "DigitalBrain:Microsoft:GitHub:App:";
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            [section + "AppId"] = "42", [section + "Slug"] = "digitalbrain", [section + "ClientId"] = "Iv1.fixture",
+            [section + "PublicOrigin"] = "https://brain.example/", [section + "PublicWebhookUrl"] = "https://hooks.example/integrations/github/webhook",
+        }).Build();
+        var builder = DistributedApplication.CreateBuilder(new DistributedApplicationOptions { Args = [], DisableDashboard = true });
+        var brain = builder.AddDigitalBrain("github-app")
+            .AddModule<MicrosoftModule>(module => module.WithConfiguredGitHubRepositories(configuration));
+        var kernel = builder.AddExecutable("kernel", "dotnet", ".").WithReference(brain);
+        var client = builder.AddExecutable("client", "dotnet", ".").WithReference(brain.AsClient());
+        await using var app = builder.Build();
+        var environment = await RenderAsync(kernel.Resource);
+        var clientEnvironment = await RenderAsync(client.Resource);
+        const string root = "DigitalBrain__Microsoft__GitHub__App__";
+        Assert.Equal("42", environment[root + "AppId"]);
+        Assert.Equal("https://brain.example/", environment[root + "PublicOrigin"]);
+        Assert.Contains(root + "PrivateKeyPem", environment.Keys);
+        Assert.Contains(root + "WebhookSecret", environment.Keys);
+        Assert.Contains(root + "ClientSecret", environment.Keys);
+        Assert.DoesNotContain(clientEnvironment.Keys, key => key.StartsWith(root, StringComparison.Ordinal));
+        Assert.Equal(3, builder.Resources.OfType<ParameterResource>().Count(parameter => parameter.Name.StartsWith("github-app-", StringComparison.Ordinal) && parameter.Secret));
+    }
+
+    [Fact]
     public async Task Apphost_metadata_configuration_uses_private_parameters_for_keys()
     {
         var principal = Guid.NewGuid();

@@ -4,6 +4,8 @@
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
   <ItemGroup>
+    <PackageVersion Include="Octokit" Version="14.0.0" />
+    <PackageVersion Include="Octokit.Webhooks" Version="4.2.0" />
     <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="2.2.0" />
     <PackageVersion Include="ModelContextProtocol.Core" Version="2.2.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="5.9.0" />

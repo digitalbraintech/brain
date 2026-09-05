@@ -25,6 +25,8 @@ final class BrainChatApp extends StatelessWidget {
     this.onReadSpreadsheet,
     this.onReadGraph,
     this.onReadBrain,
+    this.onWatchBrain,
+    this.behaviorStudio,
     this.onSetBrainSubscription,
     this.graphSceneFactory,
     this.userActions = const [],
@@ -45,6 +47,8 @@ final class BrainChatApp extends StatelessWidget {
   final ReadSpreadsheet? onReadSpreadsheet;
   final ReadGraph? onReadGraph;
   final ReadBrain? onReadBrain;
+  final WatchBrain? onWatchBrain;
+  final BehaviorStudioApi? behaviorStudio;
   final SetBrainSubscription? onSetBrainSubscription;
   final GraphSceneFactory? graphSceneFactory;
   final List<UserActionCardModel> userActions;
@@ -72,6 +76,8 @@ final class BrainChatApp extends StatelessWidget {
         onReadSpreadsheet: onReadSpreadsheet,
         onReadGraph: onReadGraph,
         onReadBrain: onReadBrain,
+        onWatchBrain: onWatchBrain,
+        behaviorStudio: behaviorStudio,
         onSetBrainSubscription: onSetBrainSubscription,
         graphSceneFactory: graphSceneFactory,
         userActions: userActions,

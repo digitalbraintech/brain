@@ -32,10 +32,10 @@ public sealed class GraphTriggerTests
     [Fact]
     public void BehaviorsAndXAccountsHandleOnlyTheirSignals()
     {
-        Assert.True(typeof(IHandle<AdmitBehavior>).IsAssignableFrom(typeof(IBehaviors)));
+        Assert.True(typeof(IHandle<SaveBehaviorScript>).IsAssignableFrom(typeof(IBehavior)));
         Assert.False(typeof(IHandle<PublishPost>).IsAssignableFrom(typeof(IBehaviors)));
         Assert.True(typeof(IHandle<PublishPost>).IsAssignableFrom(typeof(IXAccount)));
-        Assert.False(typeof(IHandle<AdmitBehavior>).IsAssignableFrom(typeof(IXAccount)));
+        Assert.False(typeof(IHandle<SaveBehaviorScript>).IsAssignableFrom(typeof(IXAccount)));
         Assert.True(typeof(IHandle<OpenSurface>).IsAssignableFrom(typeof(IUIRenderer)));
         Assert.True(typeof(IHandle<StoreVectorMemory>).IsAssignableFrom(typeof(IVectorMemory)));
         Assert.True(typeof(IHandle<SearchVectorMemory>).IsAssignableFrom(typeof(IVectorMemory)));

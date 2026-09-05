@@ -23,7 +23,12 @@ internal sealed record BrainGraphNode(
     long IncomingSequence,
     long OutgoingSequence,
     DateTimeOffset? LastActivityAt,
-    string? IconKey = null);
+    string? IconKey = null,
+    IReadOnlyList<string>? OutputSignals = null,
+    Guid? ActiveRevision = null,
+    Guid? DraftRevision = null,
+    bool IsInfrastructure = false,
+    int InputPolicy = 0);
 
 internal sealed record BrainGraphSynapse(
     string Id,
@@ -43,7 +48,7 @@ internal sealed record BrainGraphActivity(
     string Direction,
     long Sequence,
     string SignalType,
-    DateTimeOffset Timestamp,
+    DateTimeOffset? Timestamp,
     string CallerId,
     string CorrelationId,
     string Summary,

@@ -37,25 +37,41 @@ In code, a `Neuron` owns its outgoing relationships through `NeuronSynapses` and
 User- or assistant-authored C#, compiled against module contracts, executed outside the silo.
 
 **Behavior**
-An admitted script that keeps running. It watches journals and sends typed Signals / writes Entities.
+A named `IBehavior` neuron that owns a saved C# handler, its validated draft and active revision,
+subscriptions, durable accepted inputs, execution claims, request checkpoints and output delivery.
+The scripting host runs handlers outside serialized neuron turns. Each accepted input pins its
+revision. Saving changes creates a draft; activation affects future inputs. Disable removes its
+incoming subscriptions and fences outstanding execution and output.
 
 Trigger is type-safe: you may `Send`/`Publish` `TSignal` only to a neuron that `IHandle<TSignal>`s it.
 `IHandle<T>` is the capability to receive T. A **synapse** is who actually receives T from **this** source.
 `SubscribeTo<TSource, TSignal>(sourceId)` writes that synapse (durable, does not decay). Broadcast fires only along those synapses — not to every neuron type that `IHandle`s T.
 
 ```csharp
-await Brain.Get<IBehaviors>().SendAsync(new AdmitBehavior("elon-chart", source));
-await Brain.Get<IXAccount>("elon").SendAsync(new PublishPost("starship"));
-await Brain.GetEntity<IChart>("elon-activity").Append(point, title);
+await using IDigitalBrain digitalBrain = await DigitalBrainClient.ConnectAsync(args);
+var source = digitalBrain.Get<IWebhook>("build-events");
+var behavior = digitalBrain.Get<IBehavior>("build-notifier");
+await behavior.SaveScriptAsync<WebhookReceived, Note>(handlerSource);
+await digitalBrain.Get<IChat>("here").SubscribeAsync<Note>(behavior);
+await behavior.SubscribeAsync(source);
+await behavior.ActivateAsync();
 ```
 
 English is how the owner asks. A compiled script is what they get. There is no second runtime, grant catalog, or JSON capability bus for this path.
 
 Start with [Flutter chat and personal C# review routines](docs/GETTING_STARTED.md).
-The assistant can admit, read, list and remove behaviors. Current definitions and
-their status live durably on `BehaviorsNeuron`; its journal announces changes to
-the separate scripting worker. Development chat can read the configured local
-repository diff for a one-off review.
+The assistant can save, inspect, validate, connect, activate, invoke and disable behaviors.
+Each definition lives on its own `BehaviorNeuron`; `BehaviorsNeuron` is the discovery index.
+Its notifications wake the separate scripting worker;
+durable recovery handles missed notifications. Composition commands are not replayed on restart.
+The former admitted-script runtime and fixed GitHub review pipeline have been removed.
+Development chat can read the configured local repository diff for a one-off review.
+
+The SDK owns the concrete client and reusable `WebhookNeuron`. A thin authenticated HTTP
+adapter durably accepts receipts before acknowledging them. Provider modules translate those
+receipts into minimal typed domain facts. `IRepository : IWebhook` is the GitHub source;
+there is no mandatory second webhook neuron or GitHub-specific review orchestrator.
+See [the implementation contract](docs/programmable-behaviors-implementation.md).
 
 ## Specialist modules
 

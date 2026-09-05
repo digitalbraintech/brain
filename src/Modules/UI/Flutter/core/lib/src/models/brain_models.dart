@@ -63,12 +63,21 @@ final class BrainNeuron {
     this.incomingSequence = 0,
     this.outgoingSequence = 0,
     this.lastActivityAt,
+    this.outputSignals = const [],
+    this.activeRevision,
+    this.draftRevision,
+    this.isInfrastructure = false,
+    this.inputPolicy = 0,
   });
   final String id, type, name, label, module, role, status;
   final String? iconKey;
   final List<String> handledSignals;
   final int incomingSequence, outgoingSequence;
   final DateTime? lastActivityAt;
+  final List<String> outputSignals;
+  final String? activeRevision, draftRevision;
+  final bool isInfrastructure;
+  final int inputPolicy;
   factory BrainNeuron.fromJson(Map<String, dynamic> j) => BrainNeuron(
     id: j['id'] as String,
     type: j['type'] as String,
@@ -82,6 +91,11 @@ final class BrainNeuron {
     incomingSequence: (j['incomingSequence'] as num?)?.toInt() ?? 0,
     outgoingSequence: (j['outgoingSequence'] as num?)?.toInt() ?? 0,
     lastActivityAt: _date(j['lastActivityAt']),
+    outputSignals: (j['outputSignals'] as List? ?? []).cast<String>(),
+    activeRevision: j['activeRevision'] as String?,
+    draftRevision: j['draftRevision'] as String?,
+    isInfrastructure: j['isInfrastructure'] == true,
+    inputPolicy: (j['inputPolicy'] as num?)?.toInt() ?? 0,
   );
 }
 
@@ -149,14 +163,14 @@ final class BrainActivity {
   final double? durationMs;
   final bool isError, truncated;
   final int sequence;
-  final DateTime timestamp;
+  final DateTime? timestamp;
   factory BrainActivity.fromJson(Map<String, dynamic> j) => BrainActivity(
     id: j['id'] as String,
     neuronId: j['neuronId'] as String,
     direction: j['direction'] as String,
     sequence: (j['sequence'] as num).toInt(),
     signalType: j['signalType'] as String,
-    timestamp: DateTime.parse(j['timestamp'] as String),
+    timestamp: _date(j['timestamp']),
     callerId: j['callerId'] as String?,
     correlationId: j['correlationId'] as String?,
     summary: j['summary'] as String? ?? '',
@@ -181,6 +195,7 @@ DateTime? _date(Object? value) =>
     value is String ? DateTime.tryParse(value) : null;
 
 typedef ReadBrain = Future<BrainSnapshot> Function();
+typedef WatchBrain = Stream<BrainSnapshot> Function();
 typedef SetBrainSubscription =
     Future<void> Function({
       required String sourceId,

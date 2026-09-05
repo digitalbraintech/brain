@@ -142,6 +142,69 @@ public sealed class BrowserLoginsTests
     }
 
     [Fact]
+    public async Task Accepted_login_waits_for_provider_readiness_without_reopening_or_repeating_the_commit()
+    {
+        var (logins, continuation) = Rail();
+        using var turn = EnterTurn();
+        var action = logins.Require(["read_tool"], "repository", CancellationToken.None);
+        var request = RequestOf(action);
+        Assert.True(logins.TryBegin(request, out _));
+        Assert.True(logins.TryClaim(request));
+        var commits = 0;
+        await logins.AcceptForActorAsync(request, (_, _, commit) => { commit(() => commits++); return Task.CompletedTask; });
+        logins.WaitingMessage = "Connected. Waiting for signed delivery.";
+        await logins.DeliverAsync(CancellationToken.None);
+        Assert.Empty(continuation.Completed);
+        var waiting = Assert.IsType<UserActionRequest>(logins.Find(Owner, turn.Context.CommandId));
+        Assert.Equal("readiness", waiting.Stage);
+        Assert.Equal(logins.WaitingMessage, waiting.Message);
+        Assert.Equal(action.Id, waiting.Id);
+        Assert.False(logins.TryBegin(request, out _));
+        logins.WaitingMessage = null;
+        await logins.DeliverAsync(CancellationToken.None);
+        await logins.DeliverAsync(CancellationToken.None);
+        Assert.True(Assert.Single(continuation.Completed).Accepted);
+        Assert.Equal(1, commits);
+    }
+
+    [Fact]
+    public void Recover_remints_only_missing_opted_in_capability_and_preserves_exact_setup_scope()
+    {
+        var (original, _) = Rail(recoverable: true);
+        using var turn = EnterTurn();
+        var intent = new SetupContinuation("connect_repository", "https://github.com/intochat/digitalbrain", "announce-ci");
+        var action = original.Require(["connect_repository"], intent.Scope, CancellationToken.None, intent);
+        Assert.Null(original.Recover(turn.Context, action));
+        var (restarted, _) = Rail(recoverable: true);
+        var replacement = Assert.IsType<UserActionRequest>(restarted.Recover(turn.Context, action));
+        Assert.NotEqual(action.Id, replacement.Id);
+        Assert.NotEqual(action.LoginUrl, replacement.LoginUrl);
+        Assert.Equal(action.Scope, replacement.Scope);
+        Assert.Equal(action.ResumeToolNames, replacement.ResumeToolNames);
+        Assert.Equal(intent, replacement.SetupContinuation);
+        Assert.False(restarted.TryBegin(RequestOf(action), out _));
+        Assert.True(restarted.TryBegin(RequestOf(replacement), out var scope));
+        Assert.Equal(action.Scope, scope);
+        restarted.Cancel(turn.Context);
+        Assert.Null(restarted.Recover(turn.Context, replacement));
+    }
+
+    [Fact]
+    public void Recover_refuses_other_actors_providers_resumed_turns_and_default_providers()
+    {
+        var (original, _) = Rail(recoverable: true);
+        using var turn = EnterTurn();
+        var action = original.Require(["connect_repository"], "repo", CancellationToken.None);
+        var (restarted, _) = Rail(recoverable: true);
+        var (standard, _) = Rail();
+        Assert.Null(standard.Recover(turn.Context, action));
+        Assert.Null(restarted.Recover(turn.Context, action with { Provider = "other" }));
+        Assert.Null(restarted.Recover(turn.Context with { AllowedToolNames = ["connect_repository"] }, action));
+        Assert.Null(restarted.Recover(turn.Context with { Actor = new(new PrincipalId(Guid.NewGuid()), "other") }, action));
+        Assert.Null(restarted.Recover(turn.Context, action with { ResumeToolNames = [] }));
+    }
+
+    [Fact]
     public async Task Only_accepted_login_resolves_the_same_actor_and_current_binding_once()
     {
         var (logins, _) = Rail();
@@ -190,11 +253,11 @@ public sealed class BrowserLoginsTests
         }
     }
 
-    private static (TestLogins Logins, FakeContinuation Continuation) Rail(bool configured = true)
+    private static (TestLogins Logins, FakeContinuation Continuation) Rail(bool configured = true, bool recoverable = false)
     {
         var continuation = new FakeContinuation();
         var services = new ServiceCollection().AddSingleton<IUserActionContinuation>(continuation).BuildServiceProvider();
-        return (new TestLogins(configured, services), continuation);
+        return (new TestLogins(configured, services, recoverable), continuation);
     }
 
     private static string RequestOf(UserActionRequest action)
@@ -218,12 +281,16 @@ public sealed class BrowserLoginsTests
         }
     }
 
-    private sealed class TestLogins(bool configured, IServiceProvider services)
-        : BrowserLogins(new BrowserLoginDefinition("test", "Test", "TestScheme", "/integrations/test/login", "/integrations/test/callback", "Log in."), services)
+    private sealed class TestLogins(bool configured, IServiceProvider services, bool recoverable = false)
+        : BrowserLogins(new BrowserLoginDefinition("test", "Test", "TestScheme", "/integrations/test/login", "/integrations/test/callback", "Log in.")
+        { RecoverPendingAfterRestart = recoverable, ReadinessCheckInterval = TimeSpan.Zero }, services)
     {
         protected override Uri? PublicOrigin => configured ? new Uri("http://localhost:5080") : null;
         public string? Revision { get; set; }
+        public string? WaitingMessage { get; set; }
         protected override string? GetConnectionRevision(AgentTurnContext context) => Revision;
+        protected override Task<string?> WaitBeforeResumeAsync(AgentTurnContext context, string? scope, CancellationToken cancellationToken)
+            => Task.FromResult(WaitingMessage);
     }
 
     private sealed class FakeContinuation : IUserActionContinuation

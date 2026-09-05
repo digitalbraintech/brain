@@ -18,6 +18,8 @@ builder.Services.TryAddSingleton(static services =>
 builder.Services.AddTransient<IBrainGraphSource, BrainGraphSource>();
 builder.Services.AddSingleton<BrainGraphMetadata>();
 builder.Services.AddTransient<BrainGraphProjection>();
+builder.Services.AddTransient<BrainGraphStream>();
+builder.Services.AddTransient<IBrainGraphObservers, BrainGraphObservers>();
 
 var app = builder.Build();
 app.UseKernelCors();
@@ -33,5 +35,6 @@ app.MapChatStreams();
 app.MapKitEntities();
 app.MapSurfaceStreams();
 app.MapBrainGraph();
+app.MapBehaviorStudio();
 app.MapOrleansDashboard("/orleans");
 app.Run();

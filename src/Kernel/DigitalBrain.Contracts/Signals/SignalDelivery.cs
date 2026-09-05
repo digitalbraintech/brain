@@ -13,7 +13,10 @@ public sealed class SignalDelivery
         NeuronId caller,
         long sequence,
         DateTimeOffset timestamp,
-        PrincipalId? principal = null)
+        PrincipalId? principal = null,
+        long? sourceEpoch = null,
+        string? sourceStream = null,
+        long? streamGeneration = null)
     {
         Signal = signal;
         SignalId = signalId;
@@ -23,6 +26,9 @@ public sealed class SignalDelivery
         Sequence = sequence;
         Timestamp = timestamp;
         Principal = principal;
+        SourceEpoch = sourceEpoch;
+        SourceStream = sourceStream;
+        StreamGeneration = streamGeneration;
     }
 
     [Id(0)]
@@ -51,6 +57,15 @@ public sealed class SignalDelivery
     [Id(7)]
     public PrincipalId? Principal { get; }
 
+    [Id(8)]
+    public long? SourceEpoch { get; }
+
+    [Id(9)]
+    public string? SourceStream { get; }
+
+    [Id(10)]
+    public long? StreamGeneration { get; }
+
     public static SignalDelivery Create(
         Signal signal,
         NeuronId caller,
@@ -58,19 +73,26 @@ public sealed class SignalDelivery
         TimeProvider timeProvider,
         SignalDelivery? cause = null,
         CorrelationId? correlation = null,
-        PrincipalId? principal = null)
+        PrincipalId? principal = null,
+        SignalId? signalId = null,
+        long? sourceEpoch = null,
+        string? sourceStream = null,
+        long? streamGeneration = null)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(sequence);
 
         return new(
             signal,
-            SignalId.New(),
+            signalId ?? SignalId.New(),
             correlation ?? cause?.CorrelationId ?? CorrelationId.New(),
             cause?.SignalId,
             caller,
             sequence,
             timeProvider.GetUtcNow(),
-            principal ?? cause?.Principal);
+            principal ?? cause?.Principal,
+            sourceEpoch,
+            sourceStream,
+            streamGeneration);
     }
 }

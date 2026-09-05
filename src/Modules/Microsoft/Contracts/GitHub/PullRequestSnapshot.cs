@@ -18,7 +18,8 @@ public sealed record PullRequestSnapshot(
     [property: Id(12)] DateTimeOffset CreatedAt,
     [property: Id(13)] string Revision,
     [property: Id(14)] string CiRevision,
-    [property: Id(15)] long RepositoryId = 0);
+    [property: Id(15)] long RepositoryId = 0,
+    [property: Id(16)] string? BaseBranch = null);
 
 [GenerateSerializer, Alias("db.github.check")]
 public sealed record GitHubCheck(

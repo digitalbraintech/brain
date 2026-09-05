@@ -134,24 +134,15 @@ public sealed class ContractShapeTests
     }
 
     [Fact]
-    public void HistoricalUndeliveredFactsRetainTheirCompatibilityCodec()
+    public void UnknownHistoryHasMetadataWithoutALiveCompatibilitySignal()
     {
-        var legacy = Assert.Single(
+        Assert.DoesNotContain(
             typeof(Signal).Assembly.GetTypes(),
             static type => type.GetCustomAttributes<AliasAttribute>()
                 .Any(static alias => alias.Alias == "db.unrouted"));
-
-        Assert.False(legacy.IsPublic);
-        Assert.Equal("LegacyUndeliveredSignal", legacy.Name);
-        Assert.NotNull(legacy.GetCustomAttribute<GenerateSerializerAttribute>());
-        Assert.Equal(typeof(SignalId), legacy.GetProperty("Delivery")!.PropertyType);
-        Assert.Equal(typeof(string), legacy.GetProperty("Alias")!.PropertyType);
-        Assert.Equal(typeof(NeuronId), legacy.GetProperty("Source")!.PropertyType);
-        Assert.Equal(typeof(CorrelationId), legacy.GetProperty("Correlation")!.PropertyType);
-        Assert.Equal(0u, FieldId(legacy, "Delivery"));
-        Assert.Equal(1u, FieldId(legacy, "Alias"));
-        Assert.Equal(2u, FieldId(legacy, "Source"));
-        Assert.Equal(3u, FieldId(legacy, "Correlation"));
+        Assert.False(typeof(Signal).IsAssignableFrom(typeof(UnknownJournalEntry)));
+        Assert.NotNull(typeof(UnknownJournalEntry).GetCustomAttribute<GenerateSerializerAttribute>());
+        Assert.Equal(3u, FieldId(typeof(JournalRead), nameof(JournalRead.UnknownEntries)));
     }
 
     [Fact]
@@ -185,6 +176,10 @@ public sealed class ContractShapeTests
                 typeof(SignalDelivery),
                 typeof(CorrelationId),
                 typeof(PrincipalId),
+                typeof(SignalId),
+                typeof(long),
+                typeof(string),
+                typeof(long),
             ],
             parameters.Select(static parameter => Nullable.GetUnderlyingType(parameter.ParameterType) ?? parameter.ParameterType));
         Assert.False(parameters[3].IsOptional);

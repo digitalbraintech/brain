@@ -56,6 +56,8 @@ Widget buildShell({
     onReadSpreadsheet: edge?.readSpreadsheet,
     onReadGraph: edge?.readGraph,
     onReadBrain: edge == null ? null : () => edge.readBrain(chatName: chat),
+    onWatchBrain: edge == null ? null : () => edge.watchBrain(chatName: chat),
+    behaviorStudio: edge,
     onSetBrainSubscription: edge == null
         ? null
         : ({

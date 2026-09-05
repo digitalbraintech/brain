@@ -3,7 +3,8 @@ import 'package:digitalbrain_flutter/digitalbrain_flutter.dart';
 import 'package:flutter/material.dart';
 import '../../digitalbrain_ui_kit.dart';
 
-/// Stable module layout. Journal updates change emphasis, never the camera.
+/// A growing whiteboard of real neurons. Existing positions survive new traffic
+/// and new participants; dragging changes presentation only.
 final class LumenBrainGraph extends StatefulWidget {
   const LumenBrainGraph({
     super.key,
@@ -29,6 +30,23 @@ final class LumenBrainGraph extends StatefulWidget {
 
 final class _LumenBrainGraphState extends State<LumenBrainGraph> {
   final _transform = TransformationController();
+  final _positions = <String, Offset>{};
+  bool _viewInitialized = false;
+
+  void _fit(Size viewport, Size canvas) {
+    final scale = math
+        .min(viewport.width / canvas.width, viewport.height / canvas.height)
+        .clamp(0.15, 1.0);
+    _transform.value = Matrix4.identity()
+      ..translateByDouble(
+        (viewport.width - canvas.width * scale) / 2,
+        (viewport.height - canvas.height * scale) / 2,
+        0,
+        1,
+      )
+      ..scaleByDouble(scale, scale, 1, 1);
+  }
+
   @override
   void dispose() {
     _transform.dispose();
@@ -41,45 +59,56 @@ final class _LumenBrainGraphState extends State<LumenBrainGraph> {
         !widget.stale &&
         widget.snapshot.nodes.any(
           (node) =>
-              node.id == widget.snapshot.rootId &&
+              brainNeuronIcon(node) == NeuronIconKind.assistant &&
               (node.status == 'Running' || node.status == 'Active'),
         );
-    final modules = <String, List<BrainNeuron>>{};
-    for (final node in widget.snapshot.nodes) {
-      modules.putIfAbsent(node.module, () => []).add(node);
-    }
-    final names = modules.keys.toList()..sort();
-    if (names.length >= 3 && names.remove('AI')) names.insert(1, 'AI');
-    final positions = <String, Offset>{};
-    final boxes = <String, Rect>{};
-    final columns = math.min(3, math.max(1, names.length));
-    var y = 28.0;
-    for (var row = 0; row < (names.length / columns).ceil(); row++) {
-      var rowHeight = 190.0;
-      final rowColumns = math.min(columns, names.length - row * columns);
-      final rowInset = (columns - rowColumns) * 148.0;
-      for (var col = 0; col < columns; col++) {
-        final index = row * columns + col;
-        if (index >= names.length) break;
-        final name = names[index];
-        final nodes = modules[name]!..sort((a, b) => a.id.compareTo(b.id));
-        final height = 64.0 + (nodes.length / 2).ceil() * 116;
-        rowHeight = math.max(rowHeight, height);
-        boxes[name] = Rect.fromLTWH(28 + rowInset + col * 296, y, 274, height);
-        for (var n = 0; n < nodes.length; n++) {
-          positions[nodes[n].id] = Offset(
-            98 +
-                rowInset +
-                col * 296 +
-                (n % 2) * 134 +
-                (n == nodes.length - 1 && nodes.length.isOdd ? 67 : 0),
-            y + 99 + (n ~/ 2) * 116,
+    final ordered = [...widget.snapshot.nodes]
+      ..sort(
+        (a, b) => brainNeuronIcon(a) == NeuronIconKind.assistant
+            ? -1
+            : brainNeuronIcon(b) == NeuronIconKind.assistant
+            ? 1
+            : a.id.compareTo(b.id),
+      );
+    for (final node in ordered) {
+      _positions.putIfAbsent(node.id, () {
+        if (brainNeuronIcon(node) == NeuronIconKind.assistant) {
+          return const Offset(450, 300);
+        }
+        final index = _positions.length - 1;
+        if (index >= 8) {
+          return Offset(
+            120 + ((index - 8) % 5) * 180,
+            650 + ((index - 8) ~/ 5) * 160,
           );
         }
-      }
-      y += rowHeight + 34;
+        final ring = 1 + index ~/ 8;
+        final angle = (index % 8) * math.pi / 4;
+        return Offset(
+          450 + math.cos(angle) * ring * 180,
+          300 + math.sin(angle) * ring * 150,
+        );
+      });
     }
-    final size = Size(columns * 296.0 + 34, math.max(260, y));
+    final positions = {
+      for (final node in ordered) node.id: _positions[node.id]!,
+    };
+    final size = Size(
+      math.max(
+        900,
+        positions.values.fold(
+          0.0,
+          (value, point) => math.max(value, point.dx + 100),
+        ),
+      ),
+      math.max(
+        600,
+        positions.values.fold(
+          0.0,
+          (value, point) => math.max(value, point.dy + 100),
+        ),
+      ),
+    );
     final routes = _synapseRoutes(positions, widget.snapshot.synapses);
     final delegations = widget.stale
         ? <BrainActivity>[]
@@ -91,111 +120,94 @@ final class _LumenBrainGraphState extends State<LumenBrainGraph> {
               )
               .toList();
     return LayoutBuilder(
-      builder: (context, constraints) => Stack(
-        children: [
-          Positioned.fill(
-            child: InteractiveViewer(
-              key: const Key('lumen_graph_canvas'),
-              transformationController: _transform,
-              minScale: 0.55,
-              maxScale: 3,
-              boundaryMargin: const EdgeInsets.all(180),
-              child: Center(
-                child: FittedBox(
-                  fit: BoxFit.contain,
-                  child: SizedBox(
-                    width: size.width,
-                    height: size.height,
-                    child: Stack(
-                      children: [
-                        for (final entry in boxes.entries)
-                          Positioned.fromRect(
-                            rect: entry.value,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: const Color(
-                                  0xffedf0e9,
-                                ).withValues(alpha: 0.65),
-                                borderRadius: BorderRadius.circular(26),
-                                border: Border.all(
-                                  color: const Color(0xffdce3d9),
-                                ),
-                              ),
-                              padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
-                              alignment: Alignment.topLeft,
-                              child: Text(
-                                entry.key.toUpperCase(),
-                                style: const TextStyle(
-                                  color: Color(0xff768477),
-                                  fontSize: 10,
-                                  letterSpacing: 2,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
+      builder: (context, constraints) {
+        if (!_viewInitialized) {
+          _fit(constraints.biggest, size);
+          _viewInitialized = true;
+        }
+        return Stack(
+          children: [
+            Positioned.fill(
+              child: InteractiveViewer(
+                key: const Key('lumen_graph_canvas'),
+                transformationController: _transform,
+                constrained: false,
+                alignment: Alignment.topLeft,
+                minScale: 0.15,
+                maxScale: 3,
+                boundaryMargin: const EdgeInsets.all(1000),
+                child: SizedBox(
+                  width: size.width,
+                  height: size.height,
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: CustomPaint(
+                          painter: _SynapsePainter(
+                            routes,
+                            widget.activeEdges,
+                            widget.selectedId,
                           ),
-                        Positioned.fill(
+                        ),
+                      ),
+                      Positioned.fill(
+                        child: IgnorePointer(
                           child: CustomPaint(
-                            painter: _SynapsePainter(
-                              routes,
-                              widget.activeEdges,
-                              widget.selectedId,
-                            ),
+                            painter: _DelegationPainter(positions, delegations),
                           ),
                         ),
-                        Positioned.fill(
-                          child: IgnorePointer(
-                            child: CustomPaint(
-                              painter: _DelegationPainter(
-                                positions,
-                                delegations,
+                      ),
+                      for (final event in delegations)
+                        Positioned(
+                          left:
+                              (positions[event.neuronId]!.dx +
+                                      positions[event.targetId]!.dx) /
+                                  2 -
+                              70,
+                          top:
+                              (positions[event.neuronId]!.dy +
+                                      positions[event.targetId]!.dy) /
+                                  2 -
+                                    100,
+                          child: LumenActionButton(
+                            key: ValueKey('delegation_${event.operationId}'),
+                            label: 'Request running',
+                            onPressed: widget.onActivity == null
+                                ? null
+                                : () => widget.onActivity!(event),
+                          ),
+                        ),
+                      for (final route in routes)
+                        Positioned(
+                          left: route.controlPosition.dx - 22,
+                          top: route.controlPosition.dy - 22,
+                          child: SizedBox.square(
+                            dimension: 44,
+                            child: LumenIconButton(
+                              key: ValueKey('synapse_${route.edge.id}'),
+                              label:
+                                  'Inspect ${route.edge.kind} synapse ${route.edge.signalType}, from ${route.edge.sourceId} to ${route.edge.targetId}',
+                              selected: widget.selectedId == route.edge.id,
+                              onPressed: () => widget.onSynapse(route.edge),
+                              icon: const Icon(
+                                Icons.arrow_outward_rounded,
+                                size: 16,
                               ),
                             ),
                           ),
                         ),
-                        for (final event in delegations)
-                          Positioned(
-                            left:
-                                (positions[event.neuronId]!.dx +
-                                        positions[event.targetId]!.dx) /
-                                    2 -
-                                70,
-                            top:
-                                (positions[event.neuronId]!.dy +
-                                        positions[event.targetId]!.dy) /
-                                    2 -
-                                50,
-                            child: LumenActionButton(
-                              key: ValueKey('delegation_${event.operationId}'),
-                              label: 'Request running',
-                              onPressed: widget.onActivity == null
-                                  ? null
-                                  : () => widget.onActivity!(event),
-                            ),
-                          ),
-                        for (final route in routes)
-                          Positioned(
-                            left: route.controlPosition.dx - 22,
-                            top: route.controlPosition.dy - 22,
-                            child: SizedBox.square(
-                              dimension: 44,
-                              child: LumenIconButton(
-                                key: ValueKey('synapse_${route.edge.id}'),
-                                label:
-                                    'Inspect ${route.edge.kind} synapse ${route.edge.signalType}, from ${route.edge.sourceId} to ${route.edge.targetId}',
-                                selected: widget.selectedId == route.edge.id,
-                                onPressed: () => widget.onSynapse(route.edge),
-                                icon: const Icon(
-                                  Icons.arrow_outward_rounded,
-                                  size: 16,
-                                ),
-                              ),
-                            ),
-                          ),
-                        for (final node in widget.snapshot.nodes)
-                          Positioned(
-                            left: positions[node.id]!.dx - 58,
-                            top: positions[node.id]!.dy - 42,
+                      for (final node in widget.snapshot.nodes)
+                        Positioned(
+                          left: positions[node.id]!.dx - 58,
+                          top: positions[node.id]!.dy - 42,
+                          child: GestureDetector(
+                            onPanUpdate: (details) => setState(() {
+                              final next = _positions[node.id]! + details.delta;
+                              _positions[node.id] = Offset(
+                                math.max(65, next.dx),
+                                math.max(50, next.dy),
+                              );
+                            }),
                             child: _NeuronTile(
                               node: node,
                               selected: widget.selectedId == node.id,
@@ -210,24 +222,24 @@ final class _LumenBrainGraphState extends State<LumenBrainGraph> {
                               onTap: () => widget.onNeuron(node),
                             ),
                           ),
-                      ],
-                    ),
+                        ),
+                    ],
                   ),
                 ),
               ),
             ),
-          ),
-          Positioned(
-            right: 12,
-            bottom: 8,
-            child: IconButton.filledTonal(
-              tooltip: 'Reset graph view',
-              onPressed: () => _transform.value = Matrix4.identity(),
-              icon: const Icon(Icons.center_focus_strong_outlined, size: 18),
+            Positioned(
+              right: 12,
+              bottom: 8,
+              child: IconButton.filledTonal(
+                tooltip: 'Reset graph view',
+                onPressed: () => _fit(constraints.biggest, size),
+                icon: const Icon(Icons.center_focus_strong_outlined, size: 18),
+              ),
             ),
-          ),
-        ],
-      ),
+          ],
+        );
+      },
     );
   }
 }

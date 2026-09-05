@@ -17,18 +17,28 @@ internal interface IBrainGraphSource
     Task<NeuronId?> ReadActiveExecutionAsync(NeuronId chat, CancellationToken cancellationToken);
     Task<BrainGraphNeuronRead> ReadAsync(NeuronId neuron, CancellationToken cancellationToken);
     Task<DeliveryOutcome> SendAsync(NeuronId receiver, Signal signal, CancellationToken cancellationToken);
+    Task<IReadOnlyList<NeuronId>> ReadBehaviorsAsync(PrincipalId principal, CancellationToken cancellationToken)
+        => Task.FromResult<IReadOnlyList<NeuronId>>([]);
 }
 
 internal sealed record BrainGraphNeuronRead(
     IReadOnlyList<Synapse> Synapses,
     JournalRead Incoming,
-    JournalRead Outgoing);
+    JournalRead Outgoing,
+    BehaviorView? Behavior = null);
 
 internal sealed class BrainGraphSource(IGrainFactory grains, IDigitalBrain brain) : IBrainGraphSource
 {
     private const int RecentDeliveries = 12;
 
     public OwnerId Owner => brain.Owner;
+
+    public async Task<IReadOnlyList<NeuronId>> ReadBehaviorsAsync(PrincipalId principal, CancellationToken cancellationToken)
+    {
+        var ids = await grains.GetGrain<IBehaviorsKernel>(NeuronId.For<IBehaviors>(Owner, "default").ToGrainId())
+            .ReadBehaviorIds().WaitAsync(cancellationToken).ConfigureAwait(false);
+        return ids.Where(id => id.Owner == Owner && PrincipalPartition.OwnsInstance(principal, id.Name)).ToArray();
+    }
 
     public async Task<NeuronId?> ReadActiveExecutionAsync(NeuronId chat, CancellationToken cancellationToken)
     {
@@ -45,8 +55,11 @@ internal sealed class BrainGraphSource(IGrainFactory grains, IDigitalBrain brain
         var incoming = ReadRecentAsync(query, JournalKind.Incoming, cancellationToken);
         var outgoing = ReadRecentAsync(query, JournalKind.Outgoing, cancellationToken);
         await Task.WhenAll(synapses, incoming, outgoing).ConfigureAwait(false);
+        var behavior = neuron.Type == "behavior"
+            ? await grains.GetGrain<IBehaviorKernel>(neuron.ToGrainId()).ReadState().WaitAsync(cancellationToken).ConfigureAwait(false)
+            : null;
         return new(await synapses.ConfigureAwait(false),
-            await incoming.ConfigureAwait(false), await outgoing.ConfigureAwait(false));
+            await incoming.ConfigureAwait(false), await outgoing.ConfigureAwait(false), behavior);
     }
 
     public async Task<DeliveryOutcome> SendAsync(

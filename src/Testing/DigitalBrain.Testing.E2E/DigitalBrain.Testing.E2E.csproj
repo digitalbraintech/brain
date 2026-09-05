@@ -9,6 +9,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../DigitalBrain.Testing/DigitalBrain.Testing.csproj" />
+    <ProjectReference Include="../../Kernel/DigitalBrain.Sdk/DigitalBrain.Sdk.csproj" />
     <ProjectReference Include="../../Aspire/DigitalBrain.Aspire/DigitalBrain.Aspire.csproj" />
   </ItemGroup>
 </Project>

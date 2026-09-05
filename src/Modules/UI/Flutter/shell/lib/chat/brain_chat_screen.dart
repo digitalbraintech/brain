@@ -15,6 +15,7 @@ import 'package:uuid/uuid.dart';
 import '../user_actions/chat_login_action.dart';
 import '../user_actions/gmail_login_card.dart';
 import '../user_actions/salesforce_login_card.dart';
+import '../user_actions/provider_login_card.dart';
 import 'brain_chat_composer.dart';
 import 'chat_contracts.dart';
 import 'stream_state_store.dart';

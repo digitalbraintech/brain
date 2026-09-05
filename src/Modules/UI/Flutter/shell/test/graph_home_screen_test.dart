@@ -49,6 +49,57 @@ Widget host(Widget child) => MaterialApp(
 );
 
 void main() {
+  testWidgets('historical entries render separately without an invented time', (
+    tester,
+  ) async {
+    await prepareShellSurface(tester);
+    final history = BrainSnapshot(
+      rootId: 'chat:main',
+      observedAt: DateTime.utc(2026, 9, 5),
+      nodes: const [
+        BrainNeuron(
+          id: 'assistant',
+          type: 'assistant',
+          name: 'assistant',
+          label: 'Ino',
+          module: 'AI',
+        ),
+      ],
+      activity: const [
+        BrainActivity(
+          id: 'unknown:3',
+          neuronId: 'assistant',
+          direction: 'Incoming',
+          sequence: 3,
+          signalType: 'Unavailable history',
+          timestamp: null,
+          kind: 'historical',
+          state: 'unavailable',
+          summary:
+              'Historical event unavailable because its type is no longer installed.',
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      host(
+        GraphHomeScreen(
+          chatName: 'main',
+          turns: const [],
+          onReadBrain: () async => history,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('neuron_assistant')));
+    await tester.pumpAndSettle();
+    expect(find.text('Unavailable historical event'), findsOneWidget);
+    expect(find.text('Incoming journal · #3'), findsOneWidget);
+    expect(find.textContaining(RegExp(r'\d\d:\d\d:\d\d · #3')), findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+    await drainShellTimers(tester);
+  });
+
   BrainSnapshot aspireSnapshot({bool completed = false, String? failureCode}) =>
       BrainSnapshot(
         rootId: 'chat:main',
@@ -130,7 +181,7 @@ void main() {
         find.byType(LumenBrainGraph),
       );
       expect(graph.snapshot.synapses, isEmpty);
-      expect(find.text('MICROSOFT'), findsOneWidget);
+      expect(find.byKey(const ValueKey('neuron_aspire')), findsOneWidget);
       expect(
         tester
             .widget<CircularProgressIndicator>(

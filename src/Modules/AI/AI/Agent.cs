@@ -6,6 +6,7 @@ using DigitalBrain.Abstractions.Neurons;
 using DigitalBrain.Core;
 using DigitalBrain.Product.Interactions;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace DigitalBrain.AI;
 
@@ -21,6 +22,7 @@ public abstract partial class Agent : Neuron, IAgent, IAgentKernel
         ArgumentNullException.ThrowIfNull(chatClient);
 
         _chatClient = chatClient;
+        _completedRequests = ServiceProvider.GetRequiredKeyedService<Orleans.Journaling.IDurableDictionary<string, AgentRequestResult>>("agent.completed-requests");
     }
 
     protected abstract string Instructions { get; }
@@ -35,7 +37,7 @@ public abstract partial class Agent : Neuron, IAgent, IAgentKernel
     {
         ArgumentNullException.ThrowIfNull(signal);
         cancellationToken.ThrowIfCancellationRequested();
-        var reply = await Ask(signal, cancellationToken)
+        var reply = await AskDurablyAsync(signal, cancellationToken)
             .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
         await ReplyAsync(reply).ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
     }

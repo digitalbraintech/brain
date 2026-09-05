@@ -2,6 +2,24 @@ import 'package:digitalbrain_flutter/digitalbrain_flutter.dart';
 import 'package:test/test.dart';
 
 void main() {
+  test('unavailable historical activity has no invented timestamp', () {
+    final event = BrainActivity.fromJson({
+      'id': 'chat:main:Incoming:3',
+      'neuronId': 'chat:main',
+      'direction': 'Incoming',
+      'sequence': 3,
+      'signalType': 'Unavailable history',
+      'timestamp': null,
+      'kind': 'historical',
+      'state': 'unavailable',
+    });
+    expect(event.timestamp, isNull);
+    expect(event.kind, 'historical');
+    expect(event.sequence, 3);
+    expect(event.callerId, isNull);
+    expect(event.payloadPreview, isNull);
+  });
+
   test('ChatTurnEvent parses timer offers', () {
     final event = ChatTurnEvent.fromJson({
       'sequence': 7,

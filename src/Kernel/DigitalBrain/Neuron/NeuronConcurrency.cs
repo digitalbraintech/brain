@@ -49,7 +49,9 @@ internal static class NeuronConcurrency
     private static bool IsKernelFreeRead(MethodInfo method)
         => method.DeclaringType == typeof(INeuronQuery)
             || (method.DeclaringType == typeof(IBehaviorsKernel)
-                && method.Name == nameof(IBehaviorsKernel.ReadCurrent));
+                && method.Name == nameof(IBehaviorsKernel.ReadBehaviorIds))
+            || (method.DeclaringType == typeof(IBehaviorKernel)
+                && method.Name == nameof(IBehaviorKernel.ReadState));
 
     private static void Refuse(Type neuronType, string attribute)
         => throw new InvalidOperationException(

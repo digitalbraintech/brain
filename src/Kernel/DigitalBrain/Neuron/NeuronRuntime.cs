@@ -3,6 +3,7 @@ using DigitalBrain.Abstractions.Synapses;
 using Microsoft.Extensions.DependencyInjection;
 using Orleans.Journaling;
 using Orleans.Serialization;
+using Orleans.Serialization.Session;
 
 namespace DigitalBrain.Core;
 
@@ -49,7 +50,8 @@ public sealed class NeuronRuntime
             activationServices.GetRequiredKeyedService<IDurableList<byte[]>>(name),
             activationServices.GetRequiredKeyedService<IDurableDictionary<string, long>>($"{name}.tally"),
             activationServices.GetRequiredKeyedService<IDurableValue<long>>($"{name}.sequence"),
-            entries);
+            entries,
+            activationServices.GetRequiredService<SerializerSessionPool>());
     }
 }
 

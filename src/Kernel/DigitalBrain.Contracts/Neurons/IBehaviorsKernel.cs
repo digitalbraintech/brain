@@ -1,14 +1,15 @@
-using DigitalBrain.Abstractions.Signals;
+using DigitalBrain.Abstractions.Identity;
 using Orleans.Concurrency;
 
 namespace DigitalBrain.Abstractions.Neurons;
 
-// Host query only. All mutations still arrive as signals on IBehaviors.
-// This avoids nested Brain.Send calls from an assistant turn.
+// Host registry for saved per-instance behaviors. Program mutations belong to IBehavior.
 [Alias("db.behaviors-kernel")]
 public interface IBehaviorsKernel : IGrainWithStringKey
 {
     [ReadOnly]
     [AlwaysInterleave]
-    Task<IReadOnlyList<BehaviorDefinition>> ReadCurrent();
+    Task<IReadOnlyList<NeuronId>> ReadBehaviorIds();
+
+    Task RegisterBehavior(NeuronId behavior);
 }

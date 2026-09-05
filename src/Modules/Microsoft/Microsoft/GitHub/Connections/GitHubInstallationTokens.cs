@@ -47,7 +47,7 @@ internal sealed class GitHubInstallationTokens : IDisposable
             request.Content = JsonContent.Create(new
             {
                 repository_ids = new[] { binding.RepositoryId },
-                permissions = new { contents = "read", pull_requests = "read", checks = "read", statuses = "read", metadata = "read" },
+                permissions = new { contents = "read", pull_requests = "read", checks = "read", statuses = "read", metadata = "read", administration = "read" },
             });
             // This authentication POST is never retried; a later independent read can request a new token.
             using var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);

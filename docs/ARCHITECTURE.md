@@ -1,18 +1,19 @@
-# DigitalBrain — Ratified Architecture (2026-08-22)
+# DigitalBrain — Current Architecture (2026-09-05)
 
-**Authority now:** the neuron/synapse/signal graph plus out-of-process scripts
-(`CONTEXT.md`, typed `SendAsync` / `AdmitBehavior`). The 2026-09-02 durable-runs,
-durable-scripting, and ranked-discovery specs are historical.
+**Authority now:** the neuron/synapse/signal graph plus per-input C# behavior programs
+(`CONTEXT.md`, `Get<T>()`, typed subscriptions and `SaveScriptAsync`). The older
+durable-runs, durable-scripting and admission designs are superseded.
 
-Decisions ratified by the owner on 2026-08-22. Code is the source of truth; this
-records intent the code cannot show yet. Supersedes all PersonaPlex-era plans.
+Code is the source of truth. The current implementation contract and verification
+record are in `programmable-behaviors-implementation.md` and
+`programmable-behaviors-validation.md`.
 
 ## Product
 
 Multiuser chat product. One kernel image, one Flutter codebase, entities all the
 way down. Core differentiator: **the neuron substrate itself** — a durable, weighted
 graph of neurons connected by synapses. Broadcast follows the source neuron's
-existing synapses; weight orders connections and prunes Learned ones. C# scripts run out of process (`AdmitBehavior`); they
+existing synapses; weight orders connections and prunes Learned ones. Saved C# handlers run out of process; they
 `Send` typed signals and write entities. No runtime-generated Orleans types and no
 second, English-language runtime.
 
@@ -75,11 +76,16 @@ KitGalleryScreen) is the starting point for the widget side.
 ## Scripts and behaviors
 
 User- and assistant-authored C# runs in `DigitalBrain.Scripting` (outside the silo).
-`AdmitBehavior` admits a script; the script `Send`s typed signals and writes entities.
+`SaveScriptAsync` creates a draft on an individual `IBehavior`; activation chooses
+its compiled revision. A handler runs for each accepted typed input, sends requests
+through the SDK and returns a signal for its subscribers.
 Chat turns still use `ExecutionNeuron` as per-turn working memory, not as an automation engine.
-Current behavior definitions, revisions, and execution diagnostics are durable state
-on `BehaviorsNeuron`. The worker reconciles that state; journal notifications only
-reduce latency. Flutter chat offers admit/read/list/remove tools for C# behaviors.
+Definitions, revisions, accepted inputs, request checkpoints and output intents are
+durable state on each `BehaviorNeuron`. `BehaviorsNeuron` is only the discovery
+index. The execution worker wakes from journal notifications and recovers missed
+work through bounded scans. Flutter and Ino can save, inspect, connect, activate,
+invoke and disable these same behaviors. Studio's graph uses actual source-owned
+synapses and observed journals; it owns no second execution model.
 See [Getting started](GETTING_STARTED.md) for local repository review and an executable example.
 
 ## Integration modules
@@ -96,10 +102,12 @@ tool boundary handles screened/redacted evidence and safe failure categories.
 Provider modules retain account, query, consent, and confirmation policy without
 handwriting replacement MCP schemas.
 
-`Sdk/OAuth` retains the one-use `BrowserLogins` registry, callback surface and
-completion worker. Tokens are intentionally volatile and private to the connection
-store, bound to the authenticated principal; they are not persisted in entities,
-journals, or telemetry. Restarting the kernel requires reconnecting providers.
+`Sdk/OAuth` owns the one-use `BrowserLogins` registry, callback surface and completion
+worker. Google and Salesforce tokens remain volatile and private to their
+principal-bound connection stores. GitHub persists nonsecret authorized repository
+bindings, uses installation credentials for unattended reads, and requires signed
+webhook reachability and known CI requirements before monitoring is ready. Its
+user OAuth token is used to establish the authorized repository intersection.
 
 Login completion resolves a stored exact specialist request, native read allowlist,
 and current connection revision. The existing chat worker resumes that target once;
@@ -158,6 +166,6 @@ provide labels and icon keys for observed neurons; they never create graph topol
 2. Auth (UserAccountEntity, cookie + token) — multiuser boundary.
 3. UI kit, all 13 components on the template. (template + Chart + Image shipped 2026-08-23)
 4. Self-knowledge catalog — historical; not in the current product path.
-5. Durable scripting: `AdmitBehavior` + out-of-process C# worker.
+5. Durable scripting: saved `IBehavior` revisions and a separate C# execution worker.
 6. Google + Salesforce specialist neurons through the inherited generic agent request contract.
 7. Image → Docker Hub, ACA + Key Vault deploy.

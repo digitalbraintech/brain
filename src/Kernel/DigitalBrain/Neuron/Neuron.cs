@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using DigitalBrain.Abstractions;
 using Orleans.Journaling;
+using Microsoft.Extensions.DependencyInjection;
 
 using DigitalBrain.Abstractions.Neurons;
 using DigitalBrain.Abstractions.Identity;
@@ -18,11 +19,13 @@ public abstract class Neuron :
     private readonly NeuronActivationComponents _components;
     private readonly SignalSender _sender;
     private SignalDelivery? _handling;
+    private readonly IDurableDictionary<string, long> _sourceEpochs;
 
     protected Neuron(NeuronRuntime runtime)
     {
         ArgumentNullException.ThrowIfNull(runtime);
         _components = runtime.Bind(ServiceProvider, Id);
+        _sourceEpochs = ServiceProvider.GetRequiredKeyedService<IDurableDictionary<string, long>>("neuron.source-epochs");
         _sender = new SignalSender(
             Id,
             _components.Clock,
@@ -40,6 +43,8 @@ public abstract class Neuron :
             this.GetPrimaryKeyString());
 
     protected TimeProvider TimeProvider => _components.Clock;
+
+    protected SignalDelivery? CurrentDelivery => _handling;
 
     public sealed override async Task OnActivateAsync(CancellationToken cancellationToken)
     {
@@ -122,19 +127,27 @@ public abstract class Neuron :
                 .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
             SignalRequestPolicy.RequireHandled(receiver, request, result.Outcome);
 
-            // ReplyAsync journals before its detached delivery back to the caller.
-            // Therefore a completed handler must already have its reply here; waiting
-            // on the caller's incoming journal would deadlock its current turn.
-            var replies = await target.ReadJournal(JournalKind.Outgoing, cursor.ResumeSequence)
-                .WaitAsync(NeuronCallTimeouts.LookupBound, budget.Token)
-                .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
-            var retained = await SignalRequestPolicy.RecoverRetainedAsync(replies,
+            // Replies are observed at the target. Waiting on this busy caller's
+            // incoming journal would deadlock its serialized turn.
+            var afterSequence = cursor.ResumeSequence;
+            while (true)
+            {
+                var replies = await target.ReadJournal(JournalKind.Outgoing, afterSequence)
+                    .WaitAsync(NeuronCallTimeouts.LookupBound, budget.Token).ConfigureAwait(true);
+                var retained = await SignalRequestPolicy.RecoverRetainedAsync(replies,
                     after => target.ReadJournal(JournalKind.Outgoing, after)
-                        .WaitAsync(NeuronCallTimeouts.LookupBound, budget.Token))
-                .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
-            return (TResponse?)SignalRequestPolicy.FindResponse(retained, receiver, result.Delivery, typeof(TResponse))
-                ?? throw SignalRequestPolicy.MissingResponse(
-                    receiver, result.Delivery, typeof(TResponse), replies.ResetSnapshot is not null);
+                        .WaitAsync(NeuronCallTimeouts.LookupBound, budget.Token)).ConfigureAwait(true);
+                if (SignalRequestPolicy.FindResponse(retained, receiver, result.Delivery, typeof(TResponse)) is TResponse response)
+                {
+                    return response;
+                }
+                if (request is not IDeferredReply)
+                {
+                    throw SignalRequestPolicy.MissingResponse(receiver, result.Delivery, typeof(TResponse), replies.ResetSnapshot is not null);
+                }
+                afterSequence = retained.ResumeSequence;
+                await Task.Delay(100, budget.Token).ConfigureAwait(true);
+            }
         }
         catch (OperationCanceledException exception) when (
             budget.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
@@ -145,6 +158,14 @@ public abstract class Neuron :
 
     protected Task<int> BroadcastAsync(Signal signal)
         => _sender.BroadcastAsync(signal, _handling);
+
+    protected IReadOnlyList<NeuronId> BroadcastRecipients(Signal signal)
+        => _components.Router.BroadcastRecipientsFor(signal, Id, _components.Synapses);
+
+    // Durable off-turn executors acknowledge direct requests here after handling.
+    // The caller commits this mutation with its operation acknowledgement.
+    protected void ReinforceDelivery(NeuronId receiver, string signalType)
+        => _components.Synapses.Reinforce(receiver, signalType, SynapseKind.Learned);
 
     protected Task SubscribeToAsync<TSource, TSignal>(NeuronId source)
         where TSource : INeuron
@@ -166,6 +187,34 @@ public abstract class Neuron :
     protected Task<SignalDelivery> RecordOutgoingAsync(Signal signal)
         => _sender.RecordOutgoingAsync(signal, _handling);
 
+    // An outbox persists this envelope with its work before attempting delivery.
+    protected SignalDelivery CreateDelivery(
+        Signal signal, SignalDelivery? cause = null, SignalId? signalId = null, long? sourceEpoch = null,
+        string? sourceStream = null, long? streamGeneration = null)
+        => SignalDelivery.Create(signal, Id, _components.Journals.OutgoingNextSequence,
+            TimeProvider, cause ?? _handling,
+            principal: VerifiedActor.Current?.PrincipalId ?? cause?.Principal ?? _handling?.Principal,
+            signalId: signalId, sourceEpoch: sourceEpoch,
+            sourceStream: sourceStream, streamGeneration: streamGeneration);
+
+    protected Task<SignalDelivery> RecordOutgoingAsync(SignalDelivery delivery)
+        => _sender.RecordOutgoingAsync(delivery);
+
+    protected Task ReplyToAsync(SignalDelivery request, Signal response)
+        => _sender.ReplyAsync(response, request);
+
+    protected virtual Task<DeliveryOutcome> HandleUnmatchedAsync(
+        SignalDelivery delivery, CancellationToken cancellationToken)
+        => Task.FromResult(DeliveryOutcome.Unhandled);
+
+    protected virtual Task OnSubscriptionChangedAsync(
+        NeuronId source, string signalType, bool subscribed)
+        => Task.CompletedTask;
+
+    protected virtual Task ValidateSubscriptionAsync(
+        NeuronId source, string signalType, bool subscribed)
+        => Task.CompletedTask;
+
     protected new IDisposable RegisterTimer(
         Func<object, Task> callback,
         object state,
@@ -179,6 +228,10 @@ public abstract class Neuron :
         SignalDelivery delivery,
         CancellationToken cancellationToken)
     {
+        if (!IsDeliveryCurrent(delivery))
+        {
+            return DeliveryOutcome.Handled;
+        }
         using var handling = SignalTelemetry.Source.StartActivity("handle");
 
         handling?.SetTag(SignalTelemetry.ReceiverTag, Id.ToString());
@@ -202,6 +255,11 @@ public abstract class Neuron :
                     delivery.Signal,
                     cancellationToken)
                 .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
+
+            if (outcome == DeliveryOutcome.Unhandled)
+            {
+                outcome = await HandleUnmatchedAsync(delivery, cancellationToken).ConfigureAwait(true);
+            }
 
             _components.Journals.AppendIncoming(delivery);
             await WriteStateAsync(cancellationToken).ConfigureAwait(true);
@@ -251,9 +309,53 @@ public abstract class Neuron :
         await WriteStateAsync().ConfigureAwait(true);
     }
 
+    public async Task FenceSourceEpoch(NeuronId source, long minimumEpoch)
+    {
+        RequireSameOwner(source);
+        ArgumentOutOfRangeException.ThrowIfNegative(minimumEpoch);
+        var key = source.ToString();
+        if (!_sourceEpochs.TryGetValue(key, out var current) || current < minimumEpoch)
+        {
+            _sourceEpochs[key] = minimumEpoch;
+        }
+        await WriteStateAsync().ConfigureAwait(true);
+        await OnSourceEpochFencedAsync(source, Math.Max(current, minimumEpoch)).ConfigureAwait(true);
+    }
+
+    protected bool IsDeliveryCurrent(SignalDelivery delivery)
+        => !(delivery.SourceEpoch is { } epoch
+                && _sourceEpochs.TryGetValue(delivery.Caller.ToString(), out var minimum) && epoch < minimum)
+            && !(delivery.SourceStream is { } stream && delivery.StreamGeneration is { } generation
+                && _sourceEpochs.TryGetValue(StreamFenceKey(delivery.Caller, stream), out var minimumGeneration)
+                && generation < minimumGeneration);
+
+    protected virtual Task OnSourceEpochFencedAsync(NeuronId source, long minimumEpoch)
+        => Task.CompletedTask;
+
+    protected virtual Task OnSourceStreamFencedAsync(NeuronId source, string stream, long minimumGeneration)
+        => Task.CompletedTask;
+
+    public async Task FenceSourceStream(NeuronId source, string stream, long minimumGeneration)
+    {
+        RequireSameOwner(source);
+        ArgumentException.ThrowIfNullOrWhiteSpace(stream);
+        ArgumentOutOfRangeException.ThrowIfNegative(minimumGeneration);
+        var key = StreamFenceKey(source, stream);
+        if (!_sourceEpochs.TryGetValue(key, out var current) || current < minimumGeneration)
+        {
+            _sourceEpochs[key] = minimumGeneration;
+        }
+        await WriteStateAsync().ConfigureAwait(true);
+        await OnSourceStreamFencedAsync(source, stream, Math.Max(current, minimumGeneration)).ConfigureAwait(true);
+    }
+
+    private static string StreamFenceKey(NeuronId source, string stream)
+        => $"{source}|{stream.Length}:{stream}";
+
     private async Task BindFromAsync(NeuronId source, string signalType, Type? expectedSourceType)
     {
         RequireSubscription(source, signalType, expectedSourceType);
+        await ValidateSubscriptionAsync(source, signalType, subscribed: true).ConfigureAwait(true);
         using var path = NeuronRequestPath.Enter(Id, source);
         var binding = source == Id
             ? BindOutgoing(Id, signalType)
@@ -261,11 +363,13 @@ public abstract class Neuron :
                 .WaitAsync(NeuronCallTimeouts.LookupBound);
         await binding
             .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
+        await OnSubscriptionChangedAsync(source, signalType, subscribed: true).ConfigureAwait(true);
     }
 
     private async Task UnbindFromAsync(NeuronId source, string signalType, Type? expectedSourceType)
     {
         RequireSubscription(source, signalType, expectedSourceType);
+        await ValidateSubscriptionAsync(source, signalType, subscribed: false).ConfigureAwait(true);
         using var path = NeuronRequestPath.Enter(Id, source);
         var binding = source == Id
             ? UnbindOutgoing(Id, signalType)
@@ -273,6 +377,7 @@ public abstract class Neuron :
                 .WaitAsync(NeuronCallTimeouts.LookupBound);
         await binding
             .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
+        await OnSubscriptionChangedAsync(source, signalType, subscribed: false).ConfigureAwait(true);
     }
 
     private void RequireSubscription(NeuronId source, string signalType, Type? expectedSourceType)
@@ -306,7 +411,7 @@ public abstract class Neuron :
         }
     }
 
-    private bool CanHandle(string signalType)
+    protected virtual bool CanHandle(string signalType)
         => GetType().GetInterfaces().Any(contract =>
             contract.IsGenericType
             && contract.GetGenericTypeDefinition() == typeof(IHandle<>)

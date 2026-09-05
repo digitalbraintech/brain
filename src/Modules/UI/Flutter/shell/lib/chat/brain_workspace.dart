@@ -29,6 +29,8 @@ final class BrainWorkspace extends StatefulWidget {
     this.onReadSpreadsheet,
     this.onReadGraph,
     this.onReadBrain,
+    this.onWatchBrain,
+    this.behaviorStudio,
     this.onSetBrainSubscription,
     this.graphSceneFactory,
     this.userActions = const [],
@@ -49,6 +51,8 @@ final class BrainWorkspace extends StatefulWidget {
   final ReadSpreadsheet? onReadSpreadsheet;
   final ReadGraph? onReadGraph;
   final ReadBrain? onReadBrain;
+  final WatchBrain? onWatchBrain;
+  final BehaviorStudioApi? behaviorStudio;
   final SetBrainSubscription? onSetBrainSubscription;
   final GraphSceneFactory? graphSceneFactory;
   final List<UserActionCardModel> userActions;
@@ -121,6 +125,8 @@ final class _BrainWorkspaceState extends State<BrainWorkspace> {
         onReadSpreadsheet: widget.onReadSpreadsheet,
         onReadGraph: widget.onReadGraph,
         onReadBrain: widget.onReadBrain,
+        onWatchBrain: widget.onWatchBrain,
+        behaviorStudio: widget.behaviorStudio,
         onSetBrainSubscription: widget.onSetBrainSubscription,
         sceneFactory: widget.graphSceneFactory,
       ),

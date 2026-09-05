@@ -1,4 +1,5 @@
 using DigitalBrain.Abstractions.Identity;
+using DigitalBrain.Abstractions.Signals;
 
 namespace DigitalBrain.AI;
 
@@ -30,6 +31,13 @@ public sealed class AgentToolContext(
 
 public interface IAgentRequests
 {
+    Task<DeliveryOutcome> SendAsync(NeuronId target, Signal signal, CancellationToken cancellationToken = default)
+        => throw new NotSupportedException("This context does not support neuron composition.");
+
+    Task<TResponse> RequestAsync<TResponse>(NeuronId target, Signal<TResponse> request, CancellationToken cancellationToken = default)
+        where TResponse : Signal
+        => throw new NotSupportedException("This context does not support neuron composition.");
+
     Task<AgentReply> RequestAsync<TAgent>(
         string instanceName,
         AgentRequest request,

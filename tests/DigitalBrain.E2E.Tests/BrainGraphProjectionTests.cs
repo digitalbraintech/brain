@@ -84,6 +84,101 @@ public sealed class BrainGraphProjectionTests
     }
 
     [Fact]
+    public async Task Unavailable_observed_neuron_preserves_healthy_graph_and_recovers_on_next_snapshot()
+    {
+        var source = new TestSource();
+        var aspire = new NeuronId("aspire", Owner, PrincipalScoped.InstanceName(Actor.PrincipalId, "local"));
+        const string privateFailure = "AspireConnection missing with private host configuration";
+        source.Set(Chat, [Edge(Chat, aspire)]);
+        source.Failures[aspire] = new InvalidOperationException(privateFailure);
+        var projection = new BrainGraphProjection(source);
+
+        var partial = await projection.ReadAsync("main", Actor, TestContext.Current.CancellationToken);
+
+        Assert.Contains(partial.Nodes, node => node.Id == "assistant:assistant" && node.Status == "Idle");
+        Assert.Contains(partial.Nodes, node => node.Id == BrainGraphProjection.InstanceId(aspire) && node.Status == "Unavailable");
+        Assert.Equal(BrainGraphProjection.InstanceId(aspire), Assert.Single(partial.Synapses).TargetId);
+        Assert.DoesNotContain(privateFailure, JsonSerializer.Serialize(partial), StringComparison.Ordinal);
+
+        source.Failures.Remove(aspire);
+        var related = ChatNamed("recovered");
+        source.Set(aspire, [Edge(aspire, related)]);
+        var recovered = await projection.ReadAsync("main", Actor, TestContext.Current.CancellationToken);
+
+        Assert.Contains(recovered.Nodes, node => node.Id == BrainGraphProjection.InstanceId(aspire) && node.Status == "Idle");
+        Assert.Contains(recovered.Nodes, node => node.Id == BrainGraphProjection.InstanceId(related));
+        Assert.Equal(2, recovered.Synapses.Count);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Graph_stream_keeps_healthy_observers_when_another_read_or_watch_fails_and_recovers(bool journalChanged)
+    {
+        var source = new TestSource();
+        var missing = ChatNamed("missing-module");
+        var disconnected = ChatNamed("disconnected");
+        source.Set(Chat, [Edge(Chat, missing), Edge(Chat, disconnected)]);
+        source.Failures[missing] = new InvalidOperationException("missing module");
+        var observers = new TestObservers();
+        observers.Failures.Add(disconnected);
+        var stream = new BrainGraphStream(new(source), source, observers);
+
+        await using (var events = stream.WatchAsync("main", Actor, TestContext.Current.CancellationToken)
+                         .GetAsyncEnumerator(TestContext.Current.CancellationToken))
+        {
+            Assert.True(await events.MoveNextAsync());
+            var partial = Assert.IsType<BrainGraphSnapshot>(events.Current.Data);
+            Assert.Equal("brain-snapshot", events.Current.EventType);
+            Assert.Equal(2, partial.Nodes.Count(node => node.Status == "Unavailable"));
+            Assert.Contains(Chat, observers.Watched);
+            Assert.DoesNotContain(missing, observers.Watched);
+
+            source.Failures.Clear();
+            observers.Failures.Clear();
+            if (journalChanged) { observers.Notify(); }
+            // Without new activity, the observer lease must still recover a module
+            // which became available. This waits on the real lease, not a sleep.
+            Assert.True(await events.MoveNextAsync().AsTask()
+                .WaitAsync(TimeSpan.FromSeconds(45), TestContext.Current.CancellationToken));
+            var recovered = Assert.IsType<BrainGraphSnapshot>(events.Current.Data);
+            Assert.DoesNotContain(recovered.Nodes, node => node.Status == "Unavailable");
+            Assert.Contains(missing, observers.Watched);
+            Assert.Equal(2, observers.Watched.Count(neuron => neuron == disconnected));
+            Assert.Equal(2, recovered.Synapses.Count);
+        }
+        Assert.True(observers.Disposed);
+    }
+
+    [Fact]
+    public async Task Snapshot_does_not_turn_request_cancellation_into_unavailable_nodes()
+    {
+        using var cancelled = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        await cancelled.CancelAsync();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => new BrainGraphProjection(new TestSource())
+            .ReadAsync("main", Actor, cancelled.Token));
+    }
+
+    [Fact]
+    public async Task Live_observation_retains_the_callback_while_Orleans_holds_only_a_weak_reference()
+    {
+        var grains = DispatchProxy.Create<IGrainFactory, ObserverFactoryProxy>();
+        var factory = (ObserverFactoryProxy)(object)grains;
+        var changes = 0;
+        var observation = new BrainGraphObservers(grains).Create(() => changes++);
+
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+
+        Assert.True(factory.Target!.TryGetTarget(out var callback));
+        await callback.ObserveAsync(JournalKind.Outgoing, new(1, [], null));
+        Assert.Equal(1, changes);
+        await observation.DisposeAsync();
+        Assert.True(factory.Deleted);
+    }
+
+    [Fact]
     public async Task Snapshot_uses_real_edges_and_never_walks_foreign_principals_or_owners()
     {
         var source = new TestSource();
@@ -125,6 +220,43 @@ public sealed class BrainGraphProjectionTests
         Assert.Contains(snapshot.Activity, item => item.Sequence == 199 && item.PayloadPreview is null);
         Assert.Equal("Running", snapshot.Nodes.Single(node => node.Id == BrainGraphProjection.InstanceId(Chat)).Status);
         Assert.DoesNotContain(secret, JsonSerializer.Serialize(snapshot), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Unavailable_history_preserves_real_sequences_without_becoming_live_activity_or_exposing_shared_history()
+    {
+        var source = new TestSource();
+        var first = Observed(new Note("private content"), Chat);
+        var last = Observed(new Note("private content"), Chat);
+        source.Set(Chat, [], outgoing: new(105, [first, last], null,
+            [new(101, 37), new(103, 41), new(105, 99)]));
+        var assistant = new NeuronId("assistant", Owner, "assistant");
+        source.Set(assistant, [], outgoing: new(9, [Observed(new Note("private content"), Chat)], null,
+            [new(8, 73)]));
+
+        var snapshot = await new BrainGraphProjection(source).ReadAsync("main", Actor, TestContext.Current.CancellationToken);
+
+        var privateActivity = snapshot.Activity.Where(item => item.NeuronId == BrainGraphProjection.InstanceId(Chat)).ToArray();
+        Assert.Equal([102L, 104L], privateActivity.Where(item => item.Kind != "historical").Select(item => item.Sequence).Order());
+        Assert.Equal([101L, 103L, 105L], privateActivity.Where(item => item.Kind == "historical").Select(item => item.Sequence).Order());
+        Assert.All(privateActivity.Where(item => item.Kind == "historical"), item =>
+        {
+            Assert.Null(item.Timestamp);
+            Assert.Null(item.OperationId);
+            Assert.Null(item.PayloadPreview);
+            Assert.Empty(item.CallerId);
+            Assert.Empty(item.CorrelationId);
+            Assert.Equal("unavailable", item.State);
+        });
+        var shared = Assert.Single(snapshot.Activity, item => item.NeuronId == BrainGraphProjection.InstanceId(assistant));
+        Assert.Equal(9, shared.Sequence);
+        Assert.Equal(nameof(Note), shared.SignalType);
+        var node = Assert.Single(snapshot.Nodes, node => node.Id == BrainGraphProjection.InstanceId(Chat));
+        Assert.Equal(last.Timestamp, node.LastActivityAt);
+        Assert.Equal("Idle", node.Status);
+        Assert.Equal(105, node.OutgoingSequence);
+        Assert.DoesNotContain("private content", JsonSerializer.Serialize(snapshot), StringComparison.Ordinal);
+        Assert.Empty(snapshot.Synapses);
     }
 
     [Fact]
@@ -212,17 +344,40 @@ public sealed class BrainGraphProjectionTests
     }
 
     [Fact]
-    public async Task Snapshot_bounds_graph_traversal_without_fabricating_edges_to_omitted_nodes()
+    public async Task Snapshot_includes_all_authorized_connected_neurons_beyond_the_old_sixteen_node_limit()
     {
         var source = new TestSource();
         source.Set(Chat, [.. Enumerable.Range(0, 30).Select(index => Edge(Chat, ChatNamed($"related-{index}")))]);
 
         var snapshot = await new BrainGraphProjection(source).ReadAsync("main", Actor, TestContext.Current.CancellationToken);
 
-        Assert.True(snapshot.Truncated);
-        Assert.Equal(BrainGraphProjection.MaxNodes, snapshot.Nodes.Count);
-        Assert.Equal(BrainGraphProjection.MaxNodes, source.Queried.Count);
+        Assert.False(snapshot.Truncated);
+        Assert.Equal(35, snapshot.Nodes.Count);
+        Assert.Equal(35, source.Queried.Count);
+        Assert.Equal(30, snapshot.Synapses.Count);
         Assert.All(snapshot.Synapses, edge => Assert.Contains(snapshot.Nodes, node => node.Id == edge.TargetId));
+    }
+
+    [Fact]
+    public async Task Saved_behavior_metadata_comes_from_its_own_revision_without_exposing_source_in_graph()
+    {
+        var source = new TestSource();
+        var id = NeuronId.For<IBehavior>(Owner, PrincipalScoped.InstanceName(Actor.PrincipalId, "echo"));
+        var program = new BehaviorProgram(Guid.NewGuid(), "return Input; // private source", ["Note"], ["Note"],
+            BehaviorValidation.Valid, [], DateTimeOffset.UtcNow);
+        source.Behaviors = [id];
+        source.Set(id, [], behavior: new(id, Actor.PrincipalId, program, program, true, 3, 0, null));
+
+        var snapshot = await new BrainGraphProjection(source).ReadAsync("main", Actor, TestContext.Current.CancellationToken);
+
+        var node = Assert.Single(snapshot.Nodes, node => node.Type == "behavior");
+        Assert.Equal("echo", node.Label);
+        Assert.Equal(program.Revision, node.ActiveRevision);
+        Assert.Equal(["Note"], node.HandledSignals);
+        Assert.Equal(["Note"], node.OutputSignals);
+        Assert.Equal("Active", node.Status);
+        Assert.DoesNotContain("private source", JsonSerializer.Serialize(snapshot));
+        Assert.Empty(snapshot.Synapses);
     }
 
     [Fact]
@@ -329,10 +484,14 @@ public sealed class BrainGraphProjectionTests
         public OwnerId Owner => BrainGraphProjectionTests.Owner;
         public List<NeuronId> Queried { get; } = [];
         public List<(NeuronId Target, Signal Signal, PrincipalId? Principal)> Sent { get; } = [];
+        public IReadOnlyList<NeuronId> Behaviors { get; set; } = [];
+        public Dictionary<NeuronId, Exception> Failures { get; } = [];
+        public Task<IReadOnlyList<NeuronId>> ReadBehaviorsAsync(PrincipalId principal, CancellationToken cancellationToken)
+            => Task.FromResult(Behaviors);
 
         public void Set(NeuronId neuron, IReadOnlyList<Synapse> synapses,
-            JournalRead? incoming = null, JournalRead? outgoing = null)
-            => _reads[neuron] = new(synapses, incoming ?? new(0, [], null), outgoing ?? new(0, [], null));
+            JournalRead? incoming = null, JournalRead? outgoing = null, BehaviorView? behavior = null)
+            => _reads[neuron] = new(synapses, incoming ?? new(0, [], null), outgoing ?? new(0, [], null), behavior);
 
         public Task<NeuronId?> ReadActiveExecutionAsync(NeuronId chat, CancellationToken cancellationToken)
             => Task.FromResult<NeuronId?>(null);
@@ -340,6 +499,7 @@ public sealed class BrainGraphProjectionTests
         public Task<BrainGraphNeuronRead> ReadAsync(NeuronId neuron, CancellationToken cancellationToken)
         {
             Queried.Add(neuron);
+            if (Failures.TryGetValue(neuron, out var failure)) { return Task.FromException<BrainGraphNeuronRead>(failure); }
             return Task.FromResult(_reads.GetValueOrDefault(neuron) ?? new([], new(0, [], null), new(0, [], null)));
         }
 
@@ -347,6 +507,47 @@ public sealed class BrainGraphProjectionTests
         {
             Sent.Add((receiver, signal, VerifiedActor.Current?.PrincipalId));
             return Task.FromResult(DeliveryOutcome.Handled);
+        }
+    }
+
+    private sealed class TestObservers : IBrainGraphObservers, IBrainGraphObserver
+    {
+        private Action? _changed;
+        public HashSet<NeuronId> Failures { get; } = [];
+        public List<NeuronId> Watched { get; } = [];
+        public bool Disposed { get; private set; }
+        public IBrainGraphObserver Create(Action changed) { _changed = changed; return this; }
+        public void Notify() => _changed?.Invoke();
+        public Task WatchAsync(NeuronId neuron, long incomingSequence, long outgoingSequence, CancellationToken cancellationToken)
+        {
+            Watched.Add(neuron);
+            return Failures.Contains(neuron) ? Task.FromException(new InvalidOperationException("unreachable observer")) : Task.CompletedTask;
+        }
+        public ValueTask DisposeAsync() { Disposed = true; return ValueTask.CompletedTask; }
+    }
+
+    public class ObserverFactoryProxy : DispatchProxy
+    {
+        public WeakReference<IJournalObserver>? Target { get; private set; }
+        public bool Deleted { get; private set; }
+        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
+        {
+            if (targetMethod?.Name == nameof(IGrainFactory.CreateObjectReference))
+            {
+                Target = new((IJournalObserver)args![0]!);
+                return new Reference();
+            }
+            if (targetMethod?.Name == nameof(IGrainFactory.DeleteObjectReference))
+            {
+                Deleted = true;
+                return null;
+            }
+            throw new NotSupportedException(targetMethod?.Name);
+        }
+
+        private sealed class Reference : IJournalObserver
+        {
+            public Task ObserveAsync(JournalKind kind, JournalRead read) => Task.CompletedTask;
         }
     }
 }

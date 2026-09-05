@@ -9,6 +9,7 @@ public static class GitHubConfigurationHostingExtensions
     public static DigitalBrainModuleBuilder<MicrosoftModule> WithConfiguredGitHubRepositories(
         this DigitalBrainModuleBuilder<MicrosoftModule> module, IConfiguration configuration)
     {
+        module.WithConfiguredGitHubApp(configuration);
         foreach (var repository in configuration.GetSection("DigitalBrain:Microsoft:GitHub:Repositories").GetChildren())
         {
             module.WithGitHubRepository(repository.Key, Required(repository, "Owner"),
@@ -17,6 +18,18 @@ public static class GitHubConfigurationHostingExtensions
                 Required(repository, "RepoOwner"), Required(repository, "RepoName"),
                 repository["EndpointId"], repository["ApiHost"] is { } api ? new Uri(api) : null,
                 repository["McpEndpoint"] is { } mcp ? new Uri(mcp) : null);
+        }
+        return module;
+    }
+
+    public static DigitalBrainModuleBuilder<MicrosoftModule> WithConfiguredGitHubApp(
+        this DigitalBrainModuleBuilder<MicrosoftModule> module, IConfiguration configuration)
+    {
+        var app = configuration.GetSection("DigitalBrain:Microsoft:GitHub:App");
+        if (app.Exists())
+        {
+            module.WithGitHubApp(Number(app, "AppId"), Required(app, "Slug"), Required(app, "ClientId"),
+                new Uri(Required(app, "PublicOrigin")), new Uri(Required(app, "PublicWebhookUrl")));
         }
         return module;
     }

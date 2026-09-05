@@ -12,7 +12,8 @@ public sealed record AgentTurnContext(
     [property: Id(2)] ActorContext Actor,
     [property: Id(3)] string[]? AllowedToolNames = null,
     [property: Id(4)] SpecialistRequest? SpecialistRequest = null,
-    [property: Id(5)] SpecialistContinuation? SpecialistContinuation = null)
+    [property: Id(5)] SpecialistContinuation? SpecialistContinuation = null,
+    [property: Id(6)] SetupContinuation? SetupContinuation = null)
 {
     private const string ContextKey = "db.agent-turn-context";
 

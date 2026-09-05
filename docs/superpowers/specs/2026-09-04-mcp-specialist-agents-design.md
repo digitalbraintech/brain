@@ -942,7 +942,7 @@ Frozen items were moved to Key Decisions (15–20). Remaining:
 - `CONTEXT.md` — naming and typed `SendAsync`
 - `docs/ARCHITECTURE.md` — ratified chat loop, integration modules, no second runtime
 - `docs/integrations/gmail-mcp.md` — hosted Gmail MCP, OAuth, screening
-- `docs/superpowers/specs/2026-09-04-scripted-behaviors-design.md` — out-of-process scripts
+- [Programmable behaviors](../../programmable-behaviors-implementation.md) — current replacement for the earlier scripting design
 - `docs/superpowers/plans/2026-09-02-digitalbrain-v2-static-neuron-substrate.md` — detached `ReplyAsync`
 - `src/Modules/AI/AI/Agent.cs`, `Assistant.cs`, `src/Modules/AI/Contracts/IAgent.cs`
 - `src/Modules/AI/Contracts/IAgentToolSource.cs` — seam to delete

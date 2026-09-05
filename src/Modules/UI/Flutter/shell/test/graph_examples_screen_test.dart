@@ -32,7 +32,13 @@ void main() {
       );
       expect(
         scene.nodes.where((node) => node.kind == GraphNodeKind.module),
-        hasLength(4),
+        hasLength(3),
+      );
+      expect(
+        scene.nodes.any(
+          (node) => node.id == 'review-chat' || node.id == 'behaviors',
+        ),
+        isFalse,
       );
       expect(find.text('SIMULATION'), findsOneWidget);
       expect(tester.takeException(), isNull);

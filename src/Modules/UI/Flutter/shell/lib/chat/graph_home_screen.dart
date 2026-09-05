@@ -4,8 +4,52 @@ import 'package:digitalbrain_ui_kit/digitalbrain_ui_kit.dart';
 import 'package:flutter/material.dart';
 import 'brain_chat_screen.dart';
 import 'brain_graph_store.dart';
+import 'behavior_studio.dart';
 import 'chat_contracts.dart';
 import 'graph_examples_screen.dart';
+
+/// Presentation only. The full authenticated graph remains available to the
+/// inspector; hiding plumbing never creates or removes a neuron or an edge.
+BrainSnapshot studioCanvas(BrainSnapshot snapshot, {bool technical = false}) {
+  if (technical) return snapshot;
+  final userNodes = snapshot.nodes
+      .where((node) => !node.isInfrastructure && node.role != 'library')
+      .toList();
+  final ids = userNodes
+      .where(
+        (node) =>
+            node.type != 'chat' ||
+            snapshot.synapses.any(
+              (edge) =>
+                  (edge.sourceId == node.id || edge.targetId == node.id) &&
+                  snapshot.nodes.any(
+                    (other) =>
+                        !other.isInfrastructure &&
+                        other.type != 'assistant' &&
+                        other.id != node.id &&
+                        (edge.sourceId == other.id ||
+                            edge.targetId == other.id),
+                  ),
+            ),
+      )
+      .map((node) => node.id)
+      .toSet();
+  return BrainSnapshot(
+    rootId: snapshot.rootId,
+    observedAt: snapshot.observedAt,
+    scope: snapshot.scope,
+    truncated: snapshot.truncated,
+    nodes: userNodes.where((node) => ids.contains(node.id)).toList(),
+    synapses: snapshot.synapses
+        .where(
+          (edge) => ids.contains(edge.sourceId) && ids.contains(edge.targetId),
+        )
+        .toList(),
+    activity: snapshot.activity
+        .where((event) => ids.contains(event.neuronId))
+        .toList(),
+  );
+}
 
 final class GraphHomeScreen extends StatefulWidget {
   const GraphHomeScreen({
@@ -25,6 +69,8 @@ final class GraphHomeScreen extends StatefulWidget {
     this.onReadGraph,
     this.sceneFactory,
     this.onReadBrain,
+    this.onWatchBrain,
+    this.behaviorStudio,
     this.onSetBrainSubscription,
     this.conversation = false,
   });
@@ -43,6 +89,8 @@ final class GraphHomeScreen extends StatefulWidget {
   final ReadGraph? onReadGraph;
   final GraphSceneFactory? sceneFactory;
   final ReadBrain? onReadBrain;
+  final WatchBrain? onWatchBrain;
+  final BehaviorStudioApi? behaviorStudio;
   final SetBrainSubscription? onSetBrainSubscription;
   final bool conversation;
   @override
@@ -54,6 +102,7 @@ final class _GraphHomeScreenState extends State<GraphHomeScreen> {
   final _chatKey = GlobalKey();
   String? _selected;
   bool _directory = false;
+  bool _technical = false;
   @override
   void initState() {
     super.initState();
@@ -63,6 +112,7 @@ final class _GraphHomeScreenState extends State<GraphHomeScreen> {
   void _createStore() {
     _brain = BrainGraphStore(
       read: widget.onReadBrain,
+      watch: widget.onWatchBrain,
       setSubscription: widget.onSetBrainSubscription,
     )..addListener(_changed);
   }
@@ -76,6 +126,7 @@ final class _GraphHomeScreenState extends State<GraphHomeScreen> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.chatName != widget.chatName ||
         oldWidget.onReadBrain != widget.onReadBrain ||
+        oldWidget.onWatchBrain != widget.onWatchBrain ||
         oldWidget.onSetBrainSubscription != widget.onSetBrainSubscription) {
       _brain.removeListener(_changed);
       _brain.dispose();
@@ -99,6 +150,9 @@ final class _GraphHomeScreenState extends State<GraphHomeScreen> {
       builder: (context, constraints) {
         final narrow = constraints.maxWidth < 680;
         final snapshot = _brain.snapshot;
+        final canvas = snapshot == null
+            ? null
+            : studioCanvas(snapshot, technical: _technical);
         final inspector = _selected != null || _directory;
         return Stack(
           children: [
@@ -142,6 +196,20 @@ final class _GraphHomeScreenState extends State<GraphHomeScreen> {
                           ),
                         ),
                         const SizedBox(width: 10),
+                        if (widget.behaviorStudio != null)
+                          LumenIconButton(
+                            key: const Key('behavior_library'),
+                            icon: const Icon(Icons.code, size: 18),
+                            label: 'Behavior Studio',
+                            onPressed: () => _studio(),
+                          ),
+                        LumenIconButton(
+                          icon: const Icon(Icons.settings_ethernet, size: 18),
+                          label: 'Show runtime details',
+                          selected: _technical,
+                          onPressed: () =>
+                              setState(() => _technical = !_technical),
+                        ),
                         LumenIconButton(
                           key: const Key('brain_directory'),
                           icon: const Icon(Icons.list_alt_rounded, size: 18),
@@ -160,7 +228,7 @@ final class _GraphHomeScreenState extends State<GraphHomeScreen> {
                     child: snapshot == null
                         ? _emptyGraph()
                         : LumenBrainGraph(
-                            snapshot: snapshot,
+                            snapshot: canvas!,
                             selectedId: _selected,
                             activeNodes: _brain.activeNodes,
                             stale: _brain.stale,
@@ -476,6 +544,29 @@ final class _GraphHomeScreenState extends State<GraphHomeScreen> {
     _detail('Module', node.module),
     _detail('Instance', node.name),
     _detail('Status', node.status),
+    if (node.type == 'behavior' && widget.behaviorStudio != null)
+      TextButton.icon(
+        onPressed: () => _studio(node.name),
+        icon: const Icon(Icons.code),
+        label: const Text('Edit / run behavior'),
+      ),
+    if (node.handledSignals.isNotEmpty)
+      _detail('Inputs', node.handledSignals.join(', ')),
+    if (node.outputSignals.isNotEmpty)
+      _detail('Outputs', node.outputSignals.join(', ')),
+    if (node.activeRevision != null)
+      _detail('Active revision', node.activeRevision!),
+    if (node.type == 'behavior')
+      _detail(
+        'Input policy',
+        node.inputPolicy == 0
+            ? 'Every event'
+            : [
+                if ((node.inputPolicy & 1) != 0) 'Latest per subject',
+                if ((node.inputPolicy & 2) != 0) 'Observe from activation',
+                if ((node.inputPolicy & 4) != 0) 'Once per version',
+              ].join(', '),
+      ),
     for (final server
         in snapshot.activity
             .where((event) => event.neuronId == node.id && event.server != null)
@@ -533,6 +624,21 @@ final class _GraphHomeScreenState extends State<GraphHomeScreen> {
             .take(12))
       _activity(activity),
   ];
+
+  Future<void> _studio([String? name]) async {
+    final api = widget.behaviorStudio;
+    if (api == null) return;
+    await showDialog<void>(
+      context: context,
+      builder: (_) => BehaviorLibrary(
+        api: api,
+        changes: _brain,
+        initialName: name,
+        readGraph: () => _brain.snapshot,
+      ),
+    );
+    if (mounted) await _brain.refresh();
+  }
 
   List<Widget> _edgeDetails(BrainSynapse edge, BrainSnapshot snapshot) => [
     const Icon(Icons.route_outlined, size: 36, color: LumenPalette.accent),
@@ -636,14 +742,18 @@ final class _GraphHomeScreenState extends State<GraphHomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '${value.direction} · ${_short(value.signalType)}',
+                value.kind == 'historical'
+                    ? 'Unavailable historical event'
+                    : '${value.direction} · ${_short(value.signalType)}',
                 style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
               ),
               Text(
-                '${_time(value.timestamp)} · #${value.sequence}',
+                value.timestamp == null
+                    ? '${value.direction} journal · #${value.sequence}'
+                    : '${_time(value.timestamp!)} · #${value.sequence}',
                 style: const TextStyle(fontSize: 10, color: LumenPalette.muted),
               ),
               if (value.summary.isNotEmpty)
@@ -700,7 +810,8 @@ final class _GraphHomeScreenState extends State<GraphHomeScreen> {
                 _detail('MCP outcome', 'Tool returned an error'),
               if (value.truncated)
                 _detail('Evidence limit', 'Result truncated'),
-              _detail('Observed', _time(value.timestamp)),
+              if (value.timestamp != null)
+                _detail('Observed', _time(value.timestamp!)),
               if (value.server != null) _detail('MCP server', value.server!),
               if (value.targetId != null)
                 _detail('Target neuron', value.targetId!),

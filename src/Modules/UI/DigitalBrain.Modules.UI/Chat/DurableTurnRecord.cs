@@ -18,4 +18,6 @@ internal sealed record DurableTurnRecord(
     [property: Id(8)] string? Answer = null,
     [property: Id(9)] string? Detail = null,
     [property: Id(10)] string? CompletedUserActionId = null,
-    [property: Id(11)] SpecialistContinuation? SpecialistContinuation = null);
+    [property: Id(11)] SpecialistContinuation? SpecialistContinuation = null,
+    [property: Id(12)] SetupContinuation? SetupContinuation = null,
+    [property: Id(13)] int SetupRecoveryAttempts = 0);

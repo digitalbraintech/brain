@@ -8,15 +8,16 @@ public sealed class CSharpStartupScriptRunnerTests
     private readonly CSharpStartupScriptRunner runner = new();
 
     [Fact]
-    public async Task Checked_in_github_review_example_compiles_and_refuses_unconfigured_execution()
+    public async Task Checked_in_github_review_handler_requires_a_typed_execution_input()
     {
         var path = Path.Combine(AppContext.BaseDirectory, "examples", "github-pr-review.csx");
         var script = await StartupScript.ReadAsync(path, TestContext.Current.CancellationToken);
-        script = script with { Behavior = new ScriptBehavior("review", Guid.NewGuid(), script.Sha256) };
-        var result = await runner.RunAsync(script, new FakeDigitalBrain("alice"), TestContext.Current.CancellationToken);
-        Assert.False(result.IsSuccess);
-        Assert.Empty(result.Diagnostics);
-        Assert.Contains("Choose the configured repository binding", result.Summary);
+        var program = new DigitalBrain.Abstractions.Signals.BehaviorProgram(Guid.NewGuid(), script.Source, [], [],
+            DigitalBrain.Abstractions.Signals.BehaviorValidation.Pending, [], DateTimeOffset.UtcNow);
+        var behaviorRunner = new BehaviorProgramRunner();
+        Assert.Empty(behaviorRunner.Validate(program));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => behaviorRunner.Run(program, new FakeDigitalBrain("alice"),
+            new DigitalBrain.Abstractions.Signals.NewPost("untyped trigger"), "review", TestContext.Current.CancellationToken));
     }
 
     [Fact]

@@ -278,6 +278,7 @@ final class ChatUserAction {
     required this.loginUrl,
     required this.expiresAt,
     this.resumeToolNames = const [],
+    this.stage = 'login',
   });
 
   final String id;
@@ -287,6 +288,7 @@ final class ChatUserAction {
   final Uri loginUrl;
   final DateTime expiresAt;
   final List<String> resumeToolNames;
+  final String stage;
 
   static ChatUserAction? tryParse(Object? value) {
     if (value is! Map) return null;
@@ -316,6 +318,7 @@ final class ChatUserAction {
       message: message,
       loginUrl: uri,
       expiresAt: expiry.toUtc(),
+      stage: value['stage'] as String? ?? 'login',
       resumeToolNames: tools is List
           ? List<String>.unmodifiable(tools.whereType<String>())
           : const [],

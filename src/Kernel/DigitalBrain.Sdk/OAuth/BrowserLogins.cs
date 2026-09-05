@@ -25,19 +25,30 @@ public abstract class BrowserLogins : IUserActionSource
     }
 
     public BrowserLoginDefinition Definition { get; }
+    protected IServiceProvider Services => _services;
 
     // Null until the operator has supplied the provider's OAuth client; no login can start before.
     protected abstract Uri? PublicOrigin { get; }
 
     // Providers resolve this from credentials accepted for this authenticated actor.
     protected virtual string? GetConnectionRevision(AgentTurnContext context) => null;
+    // A non-null message keeps an accepted login waiting for bounded setup proof.
+    // Providers must not hold the callback HTTP request while waiting.
+    protected virtual Task<string?> WaitBeforeResumeAsync(AgentTurnContext context, string? scope, CancellationToken cancellationToken)
+        => Task.FromResult<string?>(null);
 
     internal Uri? ConfiguredOrigin => PublicOrigin;
 
     // Failures surface as MCP operation errors because a login only ever gates an MCP tool call.
-    public UserActionRequest Require(string[] resumeToolNames, string? scope, CancellationToken cancellationToken)
+    public UserActionRequest Require(string[] resumeToolNames, string? scope, CancellationToken cancellationToken,
+        SetupContinuation? setupContinuation = null)
     {
         ArgumentNullException.ThrowIfNull(resumeToolNames);
+        if (setupContinuation is not null && (setupContinuation.Scope != scope
+            || resumeToolNames.Length != 1 || resumeToolNames[0] != setupContinuation.ToolName))
+        {
+            throw new ArgumentException("A setup continuation must match the exact scope and resumed tool.", nameof(setupContinuation));
+        }
         cancellationToken.ThrowIfCancellationRequested();
         var origin = PublicOrigin
             ?? throw new McpOperationException($"{Definition.DisplayName} setup is incomplete. Configure its OAuth client privately in Aspire.");
@@ -70,9 +81,10 @@ public abstract class BrowserLogins : IUserActionSource
                 }
 
                 existing.Scope ??= scope;
+                existing.Action = existing.Action with { Scope = existing.Scope };
                 if (resumeToolNames.Length == 0)
                 {
-                    existing.Action = existing.Action with { ResumeToolNames = [], SpecialistContinuation = null };
+                    existing.Action = existing.Action with { ResumeToolNames = [], SpecialistContinuation = null, SetupContinuation = null };
                 }
 
                 return existing.Action;
@@ -91,7 +103,7 @@ public abstract class BrowserLogins : IUserActionSource
                 Definition.Message,
                 new Uri(origin, $"{Definition.LoginPath}?request={id}").AbsoluteUri,
                 DateTimeOffset.UtcNow.Add(Definition.Lifetime),
-                [.. resumeToolNames], CreateSpecialistContinuation(context, resumeToolNames));
+                [.. resumeToolNames], CreateSpecialistContinuation(context, resumeToolNames), scope, setupContinuation);
             var pending = new Pending(context, action, scope);
             _pending.Add(id, pending);
             pending.Cancellation = cancellationToken.Register(() => Cancel(context));
@@ -107,6 +119,30 @@ public abstract class BrowserLogins : IUserActionSource
         {
             return _pending.Values.FirstOrDefault(p => !p.Done && p.Context.Chat.Owner == owner
                 && p.Context.CommandId == commandId && context?.Chat == p.Context.Chat && context.Actor == p.Context.Actor)?.Action;
+        }
+    }
+
+    public UserActionRequest? Recover(AgentTurnContext context, UserActionRequest action)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(action);
+        if (!Definition.RecoverPendingAfterRestart || action.Provider != Definition.Provider
+            || action.ResumeToolNames.Length == 0 || action.SpecialistContinuation is not null
+            || context.AllowedToolNames is not null || VerifiedActor.Current != context.Actor
+            || PublicOrigin is null)
+        {
+            return null;
+        }
+        lock (_pending)
+        {
+            // A live, consumed or cancelled capability must never be refreshed.
+            // Recovery is only for a durable waiting intent absent after restart.
+            if (_pending.Values.Any(p => SameTurn(p.Context, context)))
+            {
+                return null;
+            }
+            using var turn = AgentTurnContext.Enter(context);
+            return Require(action.ResumeToolNames, action.Scope, CancellationToken.None, action.SetupContinuation);
         }
     }
 
@@ -210,6 +246,7 @@ public abstract class BrowserLogins : IUserActionSource
             }
         }
 
+        var committed = false;
         await accept(p.Context, p.Scope, commit =>
         {
             lock (_pending)
@@ -220,9 +257,16 @@ public abstract class BrowserLogins : IUserActionSource
                 }
 
                 commit();
-                p.Outcome = true;
+                committed = true;
             }
         }).ConfigureAwait(false);
+        lock (_pending)
+        {
+            if (committed && Active(p) && p.State == 2)
+            {
+                p.Outcome = true;
+            }
+        }
     }
 
     public void Reject(string? request)
@@ -252,6 +296,10 @@ public abstract class BrowserLogins : IUserActionSource
 
         foreach (var p in ready)
         {
+            if (p.Outcome == true && p.NextReadinessCheck > DateTimeOffset.UtcNow)
+            {
+                continue;
+            }
             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             deadline.CancelAfter(TimeSpan.FromSeconds(30));
             var continuation = _services.GetRequiredService<IUserActionContinuation>();
@@ -261,6 +309,29 @@ public abstract class BrowserLogins : IUserActionSource
                 // The callback can finish before the original AI turn publishes its login card.
                 // Wait for that durable state instead of losing the one-shot continuation.
                 continue;
+            }
+
+            if (p.Outcome == true)
+            {
+                var waiting = await WaitBeforeResumeAsync(p.Context, p.Scope, deadline.Token).ConfigureAwait(false);
+                if (waiting is not null)
+                {
+                    var changed = false;
+                    lock (_pending)
+                    {
+                        if (!p.Done)
+                        {
+                            changed = p.Action.Stage != "readiness" || p.Action.Message != waiting;
+                            p.Action = p.Action with { Message = waiting, Stage = "readiness" };
+                            p.NextReadinessCheck = DateTimeOffset.UtcNow.Add(Definition.ReadinessCheckInterval);
+                        }
+                    }
+                    if (changed)
+                    {
+                        _ = await continuation.IsWaitingAsync(p.Context, p.Action.Id, deadline.Token).ConfigureAwait(false);
+                    }
+                    continue;
+                }
             }
 
             await continuation.CompleteAsync(p.Context, p.Action.Id, p.Outcome == true, deadline.Token).ConfigureAwait(false);
@@ -286,5 +357,6 @@ public abstract class BrowserLogins : IUserActionSource
         internal bool? Outcome;
         internal bool Done;
         internal CancellationTokenRegistration Cancellation;
+        internal DateTimeOffset NextReadinessCheck;
     }
 }

@@ -10,6 +10,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../DigitalBrain.Contracts/DigitalBrain.Contracts.csproj" />
+    <ProjectReference Include="../DigitalBrain.Sdk/DigitalBrain.Sdk.csproj" />
     <ProjectReference Include="../../Aspire/DigitalBrain.Aspire/DigitalBrain.Aspire.csproj" />
     <ProjectReference Include="../../Modules/UI/DigitalBrain.Modules.UI.Contracts/DigitalBrain.Modules.UI.Contracts.csproj" />
     <ProjectReference Include="../../Modules/AI/Contracts/DigitalBrain.Modules.AI.Contracts.csproj" />

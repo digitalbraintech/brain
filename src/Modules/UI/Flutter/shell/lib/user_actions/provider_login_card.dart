@@ -82,6 +82,7 @@ final class _ProviderLoginCardState extends State<ProviderLoginCard> {
     if (uri == null ||
         open == null ||
         !widget.login.waiting ||
+        widget.login.action.stage != 'login' ||
         _expired ||
         _opening ||
         _cancelling ||
@@ -149,7 +150,13 @@ final class _ProviderLoginCardState extends State<ProviderLoginCard> {
       return 'Cancelling request…';
     }
     if (_expired) {
+      if (widget.login.action.stage == 'readiness') {
+        return 'Verification timed out. Your saved behavior draft is retained.';
+      }
       return 'Sign-in expired. Send your request again to reconnect.';
+    }
+    if (widget.login.action.stage == 'readiness') {
+      return 'Waiting for verified webhook delivery. You can close the browser.';
     }
     if (!trusted) {
       return 'This sign-in link could not be verified.';
@@ -172,6 +179,7 @@ final class _ProviderLoginCardState extends State<ProviderLoginCard> {
     final active = login.waiting && !_cancelling && !_cancelRequested;
     final canAuthorize =
         active &&
+        login.action.stage == 'login' &&
         !_expired &&
         !_opening &&
         trusted &&

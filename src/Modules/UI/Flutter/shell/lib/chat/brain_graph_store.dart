@@ -2,82 +2,124 @@ import 'dart:async';
 import 'package:digitalbrain_flutter/digitalbrain_flutter.dart';
 import 'package:flutter/foundation.dart';
 
-/// Keeps authoritative snapshots without overlapping polls or replaying history
-/// as live traffic. A failed read preserves the last observation, visibly stale.
+/// Source-confirmed graph snapshots. Reconnect starts from a fresh snapshot;
+/// retained history never pulses. Journals are observations, never work queues.
 final class BrainGraphStore extends ChangeNotifier {
   BrainGraphStore({
     required this.read,
+    this.watch,
     this.setSubscription,
     this.interval = const Duration(seconds: 2),
   }) {
-    unawaited(refresh());
+    if (watch == null) {
+      unawaited(refresh());
+    } else {
+      _connect();
+    }
   }
   final ReadBrain? read;
+  final WatchBrain? watch;
   final SetBrainSubscription? setSubscription;
+
+  /// Retry delay only. There is no periodic graph polling.
   final Duration interval;
   BrainSnapshot? snapshot;
   String? failure;
-  bool loading = false, mutating = false;
-  bool stale = false;
+  bool loading = false, mutating = false, stale = false;
   Set<String> activeNodes = {}, activeEdges = {};
   int revision = 0;
-  bool _disposed = false;
-  Timer? _timer;
+  bool _disposed = false, _reconnecting = false;
+  Timer? _retry;
+  StreamSubscription<BrainSnapshot>? _stream;
+  Completer<void>? _readDone;
+
+  void _connect() {
+    if (_disposed || watch == null) return;
+    _retry?.cancel();
+    _stream = watch!().listen(
+      (next) {
+        if (_disposed) return;
+        _apply(next, quiet: _reconnecting);
+        _reconnecting = false;
+      },
+      onError: (Object error) => _disconnected(),
+      onDone: _disconnected,
+    );
+  }
+
+  void _disconnected() {
+    if (_disposed || _retry?.isActive == true) return;
+    _reconnecting = true;
+    failure = 'Reconnecting. Showing the last observation.';
+    stale = true;
+    activeNodes = {};
+    activeEdges = {};
+    notifyListeners();
+    unawaited(_stream?.cancel());
+    _retry = Timer(interval, _connect);
+  }
+
+  void _apply(BrainSnapshot next, {bool quiet = false}) {
+    final previous = quiet ? null : snapshot;
+    activeNodes = {};
+    activeEdges = {};
+    if (previous != null) {
+      final events = previous.activity.map((event) => event.id).toSet();
+      final knownNodes = {for (final node in previous.nodes) node.id: node};
+      activeNodes = next.activity
+          .where((event) {
+            if (event.kind == 'historical' || events.contains(event.id)) {
+              return false;
+            }
+            final known = knownNodes[event.neuronId];
+            if (known == null) {
+              return event.timestamp?.isAfter(previous.observedAt) ?? false;
+            }
+            final cursor = event.direction.toLowerCase() == 'incoming'
+                ? known.incomingSequence
+                : known.outgoingSequence;
+            return event.sequence > cursor;
+          })
+          .map((event) => event.neuronId)
+          .toSet();
+      final counts = {
+        for (final edge in previous.synapses) edge.id: edge.fireCount,
+      };
+      activeEdges = next.synapses
+          .where(
+            (edge) =>
+                counts.containsKey(edge.id) &&
+                edge.fireCount > counts[edge.id]!,
+          )
+          .map((edge) => edge.id)
+          .toSet();
+    }
+    snapshot = next;
+    failure = null;
+    stale = false;
+    revision++;
+    notifyListeners();
+  }
 
   Future<void> refresh() async {
     if (_disposed || loading || read == null) return;
-    _timer?.cancel();
     loading = true;
+    _readDone = Completer<void>();
     try {
       final next = await read!().timeout(const Duration(seconds: 12));
-      if (_disposed) return;
-      final previous = snapshot;
-      activeNodes = {};
-      activeEdges = {};
-      if (previous != null) {
-        final events = previous.activity.map((e) => e.id).toSet();
-        final knownNodes = {for (final node in previous.nodes) node.id: node};
-        activeNodes = next.activity
-            .where((event) {
-              if (events.contains(event.id)) return false;
-              final known = knownNodes[event.neuronId];
-              if (known == null) {
-                // Newly reachable neurons can bring an entire retained journal.
-                // Only entries later than our prior observation are fresh work.
-                return event.timestamp.isAfter(previous.observedAt);
-              }
-              final cursor = event.direction.toLowerCase() == 'incoming'
-                  ? known.incomingSequence
-                  : known.outgoingSequence;
-              return event.sequence > cursor;
-            })
-            .map((e) => e.neuronId)
-            .toSet();
-        final counts = {for (final e in previous.synapses) e.id: e.fireCount};
-        activeEdges = next.synapses
-            .where(
-              (e) => counts.containsKey(e.id) && e.fireCount > counts[e.id]!,
-            )
-            .map((e) => e.id)
-            .toSet();
-      }
-      snapshot = next;
-      failure = null;
-      stale = false;
-      revision++;
+      if (!_disposed) _apply(next);
     } catch (_) {
       if (!_disposed) {
         failure = 'Cannot refresh the brain. Showing the last observation.';
         stale = true;
         activeNodes = {};
         activeEdges = {};
+        notifyListeners();
       }
     } finally {
       loading = false;
-      if (!_disposed) {
-        notifyListeners();
-        _timer = Timer(interval, refresh);
-      }
+      _readDone?.complete();
+      _readDone = null;
     }
   }
 
@@ -100,11 +142,7 @@ final class BrainGraphStore extends ChangeNotifier {
         subscribed: subscribed,
       ).timeout(const Duration(seconds: 15));
       if (_disposed) return false;
-      // A read already in flight may predate the mutation. Wait until it has
-      // finished, then obtain a fresh authoritative snapshot.
-      while (loading && !_disposed) {
-        await Future<void>.delayed(const Duration(milliseconds: 50));
-      }
+      await _readDone?.future;
       if (_disposed) return false;
       await refresh();
       if (failure != null) return false;
@@ -138,7 +176,8 @@ final class BrainGraphStore extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
-    _timer?.cancel();
+    _retry?.cancel();
+    unawaited(_stream?.cancel());
     super.dispose();
   }
 }

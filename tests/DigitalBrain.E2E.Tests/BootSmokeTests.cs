@@ -22,6 +22,14 @@ public sealed class BootSmokeTests(AppHostFixture fixture)
     }
 
     [Fact]
+    public void TestHostDoesNotClaimTheDevelopmentKernelPort()
+    {
+        using var http = fixture.CreateHttpClient("kernel");
+        Assert.NotNull(http.BaseAddress);
+        Assert.NotEqual(5080, http.BaseAddress.Port);
+    }
+
+    [Fact]
     public async Task FacadeSendsAcrossProcessesAndJournals()
     {
         var brain = fixture.BrainFor($"e2e-{Guid.NewGuid().ToString("N")[..8]}");

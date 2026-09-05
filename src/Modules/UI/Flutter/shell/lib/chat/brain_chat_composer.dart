@@ -185,7 +185,7 @@ final class _BrainChatComposerState extends State<BrainChatComposer> {
                   _AssistantHint(
                     label: 'My behaviors',
                     prompt:
-                        'List my admitted C# behaviors and explain what each one does.',
+                        'List my saved C# behaviors and explain what each one does.',
                     onSend: onSend,
                   ),
                   _AssistantHint(

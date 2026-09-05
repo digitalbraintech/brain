@@ -19,8 +19,8 @@ public sealed class ContractOwnershipTests
         Assert.Equal("DigitalBrain.Abstractions.Signals", typeof(DigitalBrainActivated).Namespace);
         Assert.Equal("DigitalBrain.Abstractions.Signals", typeof(JournalProjectionAttribute).Namespace);
         AssertAlias<DigitalBrainActivated>("db.digitalbrain-activated");
-        AssertAlias<AdmitBehavior>("db.admit-behavior");
-        AssertAlias<BehaviorAdmitted>("db.behavior-admitted");
+        AssertAlias<SaveBehaviorScript>("db.behavior-save-script");
+        AssertAlias<BehaviorStateChanged>("db.behavior-state-changed");
         AssertAlias<PublishPost>("db.publish-post");
         AssertAlias<NewPost>("db.new-post");
         Assert.Equal("db.behaviors", AliasOf(typeof(IBehaviors)));
@@ -51,6 +51,7 @@ public sealed class ContractOwnershipTests
         {
             string.Concat("Module", "Id"),
             string.Concat("Un", "routed"),
+            "BehaviorDefinition", "AdmitBehavior", "BehaviorAdmitted", "ReportBehaviorStatus",
         };
         var types = typeof(INeuron).Assembly.GetTypes();
 

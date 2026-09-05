@@ -223,7 +223,9 @@ internal sealed class Chat : Neuron, IChat, IChatKernel
         if (!accepted || action.ExpiresAt <= TimeProvider.GetUtcNow())
         {
             await SettleTurnAsync(record.TurnId, ChatTurnStatus.Failed, null,
-                "Login was not completed or expired. Please send the request again.")
+                action.Stage == "readiness"
+                    ? "Repository access is saved, but webhook verification timed out. Your behavior draft is retained. Verify the public webhook endpoint, then ask Ino to continue this saved behavior."
+                    : "Login was not completed or expired. Please send the request again.")
                 .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
             return;
         }
@@ -265,6 +267,7 @@ internal sealed class Chat : Neuron, IChat, IChatKernel
             AllowedToolNames = [.. action.ResumeToolNames],
             CompletedUserActionId = action.Id,
             SpecialistContinuation = specialist,
+            SetupContinuation = action.SetupContinuation,
             Answer = null,
             Detail = null,
         };
@@ -289,24 +292,56 @@ internal sealed class Chat : Neuron, IChat, IChatKernel
         foreach (var record in LoadTurns().Where(turn => turn.Status == ChatTurnStatus.WaitingForUser))
         {
             var action = record.UserAction;
+            var available = action is null ? null : FindAvailableUserAction(record, sources);
             if (action is not null && action.ExpiresAt > now
-                && UserActionIsAvailable(record, action, sources))
+                && available?.Id == action.Id)
             {
+                if (available.Message != action.Message || available.Stage != action.Stage)
+                {
+                    var turns = LoadTurns();
+                    var index = turns.FindIndex(turn => turn.TurnId == record.TurnId);
+                    turns[index] = record with { UserAction = available, Revision = record.Revision + 1 };
+                    SaveTurns(turns);
+                    await RecordOutgoingAsync(new Responded(new CommandId(record.CommandId), Id,
+                        available.Message, Author: "assistant", UserAction: available, TurnId: new TurnId(record.TurnId))).ConfigureAwait(true);
+                    await WriteStateAsync().ConfigureAwait(true);
+                }
                 continue;
             }
 
+            if (action is not null)
+            {
+                var context = new AgentTurnContext(Id, new CommandId(record.CommandId), record.Actor, record.AllowedToolNames);
+                using var actor = VerifiedActor.Enter(record.Actor);
+                var replacement = sources.Select(source => source.Recover(context, action)).FirstOrDefault(candidate => candidate is not null);
+                if (replacement is not null)
+                {
+                    var turns = LoadTurns();
+                    var index = turns.FindIndex(turn => turn.TurnId == record.TurnId);
+                    turns[index] = record with { UserAction = replacement, Revision = record.Revision + 1 };
+                    SaveTurns(turns);
+                    await RecordOutgoingAsync(new Responded(new CommandId(record.CommandId), Id,
+                        replacement.Message, Author: "assistant", UserAction: replacement, TurnId: new TurnId(record.TurnId)))
+                        .ConfigureAwait(true);
+                    await WriteStateAsync().ConfigureAwait(true);
+                    continue;
+                }
+            }
+
             await SettleTurnAsync(record.TurnId, ChatTurnStatus.Failed, null,
-                "Login expired or was interrupted by a restart. Please send the request again.")
+                action?.Stage == "readiness"
+                    ? "GitHub access is saved, but webhook verification timed out. Your behavior draft is retained. Verify the public webhook endpoint, then ask Ino to continue this saved behavior."
+                    : "Login expired or was interrupted by a restart. Please send the request again.")
                 .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
         }
     }
 
-    private bool UserActionIsAvailable(
-        DurableTurnRecord record, UserActionRequest action, IEnumerable<IUserActionSource> sources)
+    private UserActionRequest? FindAvailableUserAction(
+        DurableTurnRecord record, IEnumerable<IUserActionSource> sources)
     {
         var command = new CommandId(record.CommandId);
         using var scope = AgentTurnContext.Enter(new AgentTurnContext(Id, command, record.Actor, record.AllowedToolNames));
-        return sources.Any(source => source.Find(Id.Owner, command)?.Id == action.Id);
+        return sources.Select(source => source.Find(Id.Owner, command)).FirstOrDefault(action => action?.Id == record.UserAction?.Id);
     }
 
     public Task HandleAsync(SetActiveExecution signal, CancellationToken cancellationToken)
@@ -413,8 +448,24 @@ internal sealed class Chat : Neuron, IChat, IChatKernel
             throw new NeuronAuthorizationException($"Chat '{Id}' refuses an empty note.");
         }
 
+        var publicationId = CurrentDelivery?.SignalId.Value ?? Guid.NewGuid();
+        var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(signal.Text)));
+        var existing = _publicationLog.Select(_publications.Deserialize).FirstOrDefault(entry => entry.Id == publicationId);
+        if (existing is not null)
+        {
+            if (existing.ContentHash != hash)
+            {
+                throw new InvalidOperationException("A note delivery identity cannot be reused for different content.");
+            }
+            return;
+        }
+        if (_publicationLog.Count >= MaxPublications)
+        {
+            throw new InvalidOperationException("This conversation has reached its application publication capacity.");
+        }
         Remember(new ChatTurn(FromUser: false, signal.Text));
-        await RecordOutgoingAsync(new Responded(CommandId.New(), Id, signal.Text, Author: Id.Name))
+        _publicationLog.Add(_publications.SerializeToArray(new ChatPublication(publicationId, hash)));
+        await RecordOutgoingAsync(new Responded(new CommandId(publicationId), Id, signal.Text, Author: Id.Name))
             .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
     }
 
@@ -441,6 +492,7 @@ internal sealed class Chat : Neuron, IChat, IChatKernel
         var queue = LoadQueue();
         if (queue.ActiveTurnId is not { } activeTurnId)
         {
+            await TryStartNextAsync().ConfigureAwait(true);
             return;
         }
 
@@ -453,9 +505,39 @@ internal sealed class Chat : Neuron, IChat, IChatKernel
             return;
         }
 
+        var interrupted = turns[index];
+        if (CanRecoverSetupTurn(interrupted))
+        {
+            turns[index] = interrupted with
+            {
+                Status = ChatTurnStatus.Pending,
+                Revision = interrupted.Revision + 1,
+                SetupRecoveryAttempts = interrupted.SetupRecoveryAttempts + 1,
+                Detail = "Resuming the saved connection setup after restart.",
+            };
+            SaveTurns(turns);
+            if (!queue.PendingTurnIds.Contains(activeTurnId))
+            {
+                queue.PendingTurnIds.Insert(0, activeTurnId);
+            }
+            SaveQueue(queue with { ActiveTurnId = null });
+            await RecordOutgoingAsync(new TurnLifecycle(new TurnId(activeTurnId), new CommandId(interrupted.CommandId), Id,
+                ChatTurnStatus.Pending, "setup-recovered")).ConfigureAwait(true);
+            await WriteStateAsync().ConfigureAwait(true);
+            await TryStartNextAsync().ConfigureAwait(true);
+            return;
+        }
+
         await SettleTurnAsync(activeTurnId, ChatTurnStatus.Failed, result: null, "turn-interrupted")
             .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
     }
+
+    internal static bool CanRecoverSetupTurn(DurableTurnRecord turn)
+        => turn.Status == ChatTurnStatus.Running && turn.SetupRecoveryAttempts < 3
+            && turn.CompletedUserActionId is not null
+            && turn.SetupContinuation is { ToolName: "connect_github_repository" } setup
+            && (setup.BehaviorName is null || setup.BehaviorRevision is not null)
+            && turn.AllowedToolNames is ["connect_github_repository"];
 
     private async Task<TurnAccepted> EnqueueTurnAsync(SendMessage message)
     {
@@ -584,7 +666,8 @@ internal sealed class Chat : Neuron, IChat, IChatKernel
                 Id,
                 record.AllowedToolNames,
                 record.CompletedUserActionId,
-                record.SpecialistContinuation);
+                record.SpecialistContinuation,
+                record.SetupContinuation);
             var result = await worker.RunAsync(goal, cancellationToken)
                 .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
             await SettleTurnAsync(record.TurnId,

@@ -23,7 +23,7 @@ internal sealed class MembraneSpy(NeuronRuntime runtime) : Neuron(runtime), IMem
             .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext)).Count;
 
     public async Task<int> ReadForeignBehaviors(NeuronId victim)
-        => (await GrainFactory.GetGrain<IBehaviorsKernel>(victim.ToGrainId()).ReadCurrent()
+        => (await GrainFactory.GetGrain<IBehaviorsKernel>(victim.ToGrainId()).ReadBehaviorIds()
             .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext)).Count;
 }
 

@@ -6,11 +6,8 @@ using DigitalBrain.Abstractions.Identity;
 using DigitalBrain.AI;
 using DigitalBrain.Core;
 using DigitalBrain.Microsoft.GitHub;
-using DigitalBrain.Product.Interactions;
 using DigitalBrain.Sdk;
-using DigitalBrain.Simulation.Tests.Sdk;
-using Microsoft.Extensions.AI;
-using ModelContextProtocol.Protocol;
+using DigitalBrain.Sdk.Webhooks;
 using Xunit;
 
 namespace DigitalBrain.Simulation.Tests;
@@ -55,35 +52,15 @@ public sealed class GitHubConnectionTests
     }
 
     [Fact]
-    public async Task Delegation_metadata_is_visible_only_to_bound_principal_and_preserves_generic_schema()
+    public void Repository_is_a_reusable_typed_webhook_source_without_an_agent_wrapper()
     {
+        Assert.True(typeof(IWebhook).IsAssignableFrom(typeof(IRepository)));
+        Assert.False(typeof(IAgent).IsAssignableFrom(typeof(IRepository)));
         var binding = Binding();
-        var inner = new AgentDelegation<IRepository>("ask_repository", "Private repository acme/brain", binding.LocalName, Owner);
-        var source = new GitHubRepositoryDelegation(binding, inner);
-        var requests = new CapturingRequests();
-        using var actor = VerifiedActor.Enter(Actor);
-        using var context = new AgentToolContext(new NeuronId("assistant", Owner, PrincipalPartition.InstanceName(Actor.PrincipalId, "assistant")), Actor.PrincipalId, requests);
-        var tool = Assert.Single((await source.GetToolsAsync(context, TestContext.Current.CancellationToken)).OfType<AIFunction>());
-        var original = Assert.Single((await inner.GetToolsAsync(context, TestContext.Current.CancellationToken)).OfType<AIFunction>());
-        Assert.True(JsonElement.DeepEquals(original.JsonSchema, tool.JsonSchema));
-        _ = await tool.InvokeAsync(new() { ["request"] = "Review PR 12" }, TestContext.Current.CancellationToken);
-        Assert.Equal(binding.InstanceName, requests.Instance);
-        Assert.Equal("Review PR 12", requests.Request?.Text);
-        using (var otherActor = VerifiedActor.Enter(new ActorContext(PrincipalId.New(), "same-owner-different-principal")))
-        using (var other = new AgentToolContext(new NeuronId("assistant", Owner, "other"), VerifiedActor.Current!.PrincipalId, requests))
-        {
-            Assert.Empty(await source.GetToolsAsync(other, TestContext.Current.CancellationToken));
-            await Assert.ThrowsAsync<McpOperationException>(() => tool.InvokeAsync(new() { ["request"] = "Wrong actor" }, TestContext.Current.CancellationToken).AsTask());
-        }
-        binding.BeginRecovery();
-        Assert.Empty(await source.GetToolsAsync(context, TestContext.Current.CancellationToken));
-        binding.CompleteRecovery();
-        binding.Revoke();
-        Assert.Empty(await source.GetToolsAsync(context, TestContext.Current.CancellationToken));
-        await Assert.ThrowsAsync<McpOperationException>(() => tool.InvokeAsync(new() { ["request"] = "After revocation" }, TestContext.Current.CancellationToken).AsTask());
-        Assert.Equal(1, requests.Calls);
+        var registry = new GitHubRepositoryBindings([binding]);
+        Assert.Same(binding, registry.FindByRepository(Owner, Actor.PrincipalId, "acme", "brain"));
+        Assert.Null(registry.FindByRepository(Owner, PrincipalId.New(), "acme", "brain"));
     }
-
     [Fact]
     public async Task Installation_tokens_are_read_only_repository_scoped_and_refreshed_only_on_demand()
     {
@@ -96,6 +73,7 @@ public sealed class GitHubConnectionTests
         Assert.Equal(2, fixture.TokenCalls);
         Assert.Equal(42, fixture.TokenRequest!.Value.GetProperty("repository_ids")[0].GetInt64());
         Assert.All(fixture.TokenRequest.Value.GetProperty("permissions").EnumerateObject(), permission => Assert.Equal("read", permission.Value.GetString()));
+        Assert.Equal("read", fixture.TokenRequest.Value.GetProperty("permissions").GetProperty("administration").GetString());
         using var other = VerifiedActor.Enter(new ActorContext(PrincipalId.New(), "other"));
         await Assert.ThrowsAsync<McpOperationException>(() => fixture.Tokens.GetTokenAsync(fixture.Binding, false, TestContext.Current.CancellationToken));
         Assert.Equal(2, fixture.TokenCalls);
@@ -108,19 +86,6 @@ public sealed class GitHubConnectionTests
         using var actor = VerifiedActor.Enter(Actor);
         await Assert.ThrowsAsync<McpOperationException>(() => fixture.Tokens.GetTokenAsync(fixture.Binding, false, TestContext.Current.CancellationToken));
         Assert.Equal(1, fixture.TokenCalls);
-    }
-
-    [Theory]
-    [InlineData("owner", "different")]
-    [InlineData("repo", "different")]
-    [InlineData("method", "merge")]
-    [InlineData("pullNumber", 0)]
-    [InlineData("perPage", 101)]
-    [InlineData("confirmed", true)]
-    public void Native_read_policy_rejects_cross_repository_writes_unknown_fields_and_unbounded_pages(string field, object value)
-    {
-        var arguments = ReadArguments(); arguments[field] = value;
-        Assert.Throws<McpOperationException>(() => GitHubRepositoryTools.ValidateArguments(Binding(), "pull_request_read", arguments));
     }
 
     [Fact]
@@ -238,66 +203,8 @@ public sealed class GitHubConnectionTests
         Assert.False(fixture.Binding.Enabled);
     }
 
-    [Fact]
-    public async Task Native_catalog_keeps_server_schemas_and_checks_actor_again_on_invoke()
-    {
-        using var fixture = new Fixture();
-        var calls = 0;
-        await using var server = new McpDiscoveredToolTests.FakeMcpServer
-        {
-            Tools = [Definition("pull_request_read"), Definition("list_pull_requests"), Definition("get_file_contents"), Definition("merge_pull_request")],
-            OnToolCall = _ => { calls++; return new CallToolResult { Content = [], StructuredContent = JsonSerializer.SerializeToElement(new { observed = true }) }; },
-        };
-        var client = new McpDiscoveredToolClient<GitHubRepositoryTools.GitHubAgentIdentity>(new McpStdioConnection
-        {
-            Name = "github-fixture", Command = "unused", AllowedToolNames = GitHubRepositoryTools.NativeTools,
-        }, null, (_, cancellationToken) => server.ConnectAsync("github", cancellationToken));
-        await using var tools = new GitHubRepositoryTools(fixture.Binding, fixture.Tokens, new AllowScreen(), client);
-        using var actor = VerifiedActor.Enter(Actor);
-        using var context = new AgentToolContext(new NeuronId("repository", Owner, fixture.Binding.InstanceName), Actor.PrincipalId, new NoRequests());
-        var prepared = await tools.GetToolsAsync(context, TestContext.Current.CancellationToken);
-        var read = Assert.Single(prepared.OfType<AIFunction>(), tool => tool.Name == "pull_request_read");
-        Assert.True(JsonElement.DeepEquals(server.Tools[0].InputSchema, read.JsonSchema));
-        Assert.DoesNotContain(prepared, tool => tool.Name == "merge_pull_request");
-        _ = await read.InvokeAsync(new AIFunctionArguments(ReadArguments()), TestContext.Current.CancellationToken);
-        Assert.Equal(1, calls);
-        using var other = VerifiedActor.Enter(new ActorContext(PrincipalId.New(), "other"));
-        await Assert.ThrowsAsync<McpOperationException>(() => read.InvokeAsync(new AIFunctionArguments(ReadArguments()), TestContext.Current.CancellationToken).AsTask());
-        Assert.Equal(1, calls);
-    }
-
-    private static Dictionary<string, object?> ReadArguments() => new() { ["owner"] = "acme", ["repo"] = "brain", ["method"] = "get", ["pullNumber"] = 12 };
     private static GitHubRepositoryBinding Binding(string? privateKey = null) => new("source", Owner, Actor.PrincipalId, 42, 6, 7, "acme", "brain", privateKey ?? Key, "fixture-webhook-secret");
     private static byte[] Decode(string text) => Convert.FromBase64String(text.Replace('-', '+').Replace('_', '/') + new string('=', (4 - text.Length % 4) % 4));
-    private static Tool Definition(string name) => new()
-    {
-        Name = name, Description = "Native GitHub tool", InputSchema = JsonSerializer.SerializeToElement(new
-        {
-            type = "object", properties = new { owner = new { type = "string" }, repo = new { type = "string" }, method = new { type = "string" }, pullNumber = new { type = "number" } },
-            required = new[] { "owner", "repo" },
-        }),
-    };
-    private sealed class AllowScreen : IUntrustedContentScreen
-    {
-        public Task ScreenAsync(string content, CancellationToken cancellationToken) => Task.CompletedTask;
-    }
-    private sealed class NoRequests : IAgentRequests
-    {
-        public Task<AgentReply> RequestAsync<TAgent>(string instanceName, AgentRequest request, CancellationToken cancellationToken = default)
-            where TAgent : IAgent => throw new NotSupportedException();
-    }
-    private sealed class CapturingRequests : IAgentRequests
-    {
-        internal string? Instance;
-        internal AgentRequest? Request;
-        internal int Calls;
-        public Task<AgentReply> RequestAsync<TAgent>(string instanceName, AgentRequest request, CancellationToken cancellationToken = default) where TAgent : IAgent
-        {
-            Instance = instanceName; Request = request; Calls++;
-            return Task.FromResult(new AgentReply("Observed repository evidence"));
-        }
-    }
-
     private sealed class Fixture : IDisposable
     {
         public GitHubRepositoryBinding Binding { get; } = GitHubConnectionTests.Binding();

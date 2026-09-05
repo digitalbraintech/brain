@@ -22,4 +22,10 @@ public interface INeuronGrain : INeuron
 
     [Alias(nameof(UnbindOutgoing))]
     Task UnbindOutgoing(NeuronId subscriber, string signalType);
+
+    [Alias(nameof(FenceSourceEpoch))]
+    Task FenceSourceEpoch(NeuronId source, long minimumEpoch);
+
+    [Alias(nameof(FenceSourceStream))]
+    Task FenceSourceStream(NeuronId source, string stream, long minimumGeneration);
 }

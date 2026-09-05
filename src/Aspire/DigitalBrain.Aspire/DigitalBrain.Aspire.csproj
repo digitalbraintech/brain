@@ -19,5 +19,6 @@
   <ItemGroup>
     <ProjectReference Include="../DigitalBrain.ServiceDefaults/DigitalBrain.ServiceDefaults.csproj" />
     <ProjectReference Include="../../Kernel/DigitalBrain/DigitalBrain.csproj" />
+    <ProjectReference Include="../../Kernel/DigitalBrain.Sdk/DigitalBrain.Sdk.csproj" />
   </ItemGroup>
 </Project>

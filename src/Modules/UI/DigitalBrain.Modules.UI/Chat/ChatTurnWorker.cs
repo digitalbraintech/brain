@@ -185,8 +185,8 @@ internal sealed class ChatTurnWorker(NeuronRuntime runtime) : Neuron(runtime), I
         if (goal.AllowedToolNames is not null)
         {
             system.Append(" The user completed a login action for this existing turn. ")
-                .Append("Complete only the original request below using the available read-only tools. ")
-                .Append("Do not perform writes or treat login consent as approval of a mutation.");
+                .Append("Complete only the original request below using the available tools. ")
+                .Append("Login consent supplies access only. Perform setup changes only when the original request explicitly authorized them; never add unrelated mutations.");
         }
 
         var conversationContext = new ChatMessage(ChatRole.System, system.ToString());
@@ -214,7 +214,8 @@ internal sealed class ChatTurnWorker(NeuronRuntime runtime) : Neuron(runtime), I
 
         var answer = new StringBuilder();
         using (VerifiedActor.Enter(goal.Actor))
-        using (AgentTurnContext.Enter(new AgentTurnContext(goal.Chat, goal.CommandId, goal.Actor, goal.AllowedToolNames)))
+        using (AgentTurnContext.Enter(new AgentTurnContext(goal.Chat, goal.CommandId, goal.Actor, goal.AllowedToolNames,
+            SetupContinuation: goal.SetupContinuation)))
         {
             await foreach (var chunk in responder.AskStreaming(
                 messages,

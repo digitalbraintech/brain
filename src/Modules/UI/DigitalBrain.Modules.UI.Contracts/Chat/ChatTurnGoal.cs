@@ -17,4 +17,5 @@ public sealed record ChatTurnGoal(
     [property: Id(4)] NeuronId Chat,
     [property: Id(5)] string[]? AllowedToolNames = null,
     [property: Id(6)] string? CompletedUserActionId = null,
-    [property: Id(7)] SpecialistContinuation? SpecialistContinuation = null);
+    [property: Id(7)] SpecialistContinuation? SpecialistContinuation = null,
+    [property: Id(8)] SetupContinuation? SetupContinuation = null);

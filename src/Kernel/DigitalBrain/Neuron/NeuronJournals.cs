@@ -85,7 +85,7 @@ internal sealed class NeuronJournals
     {
         var read = WindowFor(watcher.Kind).Read(watcher.Cursor);
 
-        if (read.Delta.Count == 0 && read.ResetSnapshot is null)
+        if (read.Delta.Count == 0 && (read.UnknownEntries?.Count ?? 0) == 0 && read.ResetSnapshot is null)
         {
             return;
         }

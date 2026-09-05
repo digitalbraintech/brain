@@ -152,6 +152,16 @@ internal sealed class SignalSender
             correlation,
             principal: VerifiedActor.Current?.PrincipalId ?? cause?.Principal);
 
+        return await RecordOutgoingAsync(delivery).ConfigureAwait(true);
+    }
+
+    internal async Task<SignalDelivery> RecordOutgoingAsync(SignalDelivery delivery)
+    {
+        ArgumentNullException.ThrowIfNull(delivery);
+        if (delivery.Caller != _source)
+        {
+            throw new NeuronAuthorizationException("An outgoing envelope must belong to its source neuron.");
+        }
         _journals.AppendOutgoing(delivery);
         await _persist(CancellationToken.None)
             .ConfigureAwait(true);

@@ -13,8 +13,8 @@ public sealed class AppHostFixture : BrainAppHostFixture<Projects.DigitalBrain_A
 // (CollectionBehaviorAttribute.DisableTestParallelization -- the assembly-level equivalent --
 // is a hard compile error on this repo's xunit.v3: the obsoleted member is marked error:true.)
 //
-// INVARIANT: every test class in this assembly MUST join this collection -- the kernel listens
-// on a fixed unproxied port (5080), so a concurrently booted second AppHost would collide.
+// Live resource tests join this collection to share its isolated containers and
+// random endpoints. They do not claim the developer's 5080 port or CLI identity.
 [CollectionDefinition(Name, DisableParallelization = true)]
 public sealed class E2ECollection : ICollectionFixture<AppHostFixture>
 {

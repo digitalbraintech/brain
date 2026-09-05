@@ -14,22 +14,34 @@ namespace DigitalBrain.Kernel;
 internal sealed class BrainGraphProjection(IBrainGraphSource source, BrainGraphMetadata? presentationMetadata = null)
 {
     private readonly BrainGraphMetadata _metadata = presentationMetadata ?? new([]);
-    internal const int MaxNodes = 16;
     internal const int MaxActivity = 64;
-    internal const string SnapshotScope = "Current conversation, its known runtime participants, and reachable source-owned synapses. Bounded recent activity; direct runtime calls are not invented as synapses.";
+    private static readonly TimeSpan ReadTimeout = TimeSpan.FromSeconds(5);
+    internal const string SnapshotScope = "Current conversation, saved behaviors, involved neurons, and their source-owned subscriptions. Activity shows recent deliveries and requests separately.";
 
     public async Task<BrainGraphSnapshot> ReadAsync(
         string chatName, ActorContext actor, CancellationToken cancellationToken)
     {
+        using var verifiedActor = VerifiedActor.Enter(actor);
         var chat = NeuronId.For<IChat>(source.Owner, PrincipalScoped.InstanceName(actor.PrincipalId, chatName));
         var ownerRoot = IBrainNeuron.ForOwner(source.Owner);
-        var activeExecution = await source.ReadActiveExecutionAsync(chat, cancellationToken).ConfigureAwait(false);
+        var unavailable = new HashSet<NeuronId>();
+        NeuronId? activeExecution = null;
+        try
+        {
+            activeExecution = await source.ReadActiveExecutionAsync(chat, cancellationToken)
+                .WaitAsync(ReadTimeout, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            unavailable.Add(chat);
+        }
         var participants = new HashSet<NeuronId>
         {
             chat,
             new("chat-turn-worker", source.Owner, chat.Name),
             new("assistant", source.Owner, "assistant"),
             ownerRoot,
+            NeuronId.For<IBehaviors>(source.Owner, "default"),
         };
         if (activeExecution is { } execution && execution.Owner == source.Owner)
         {
@@ -38,12 +50,39 @@ internal sealed class BrainGraphProjection(IBrainGraphSource source, BrainGraphM
 
         var known = new HashSet<NeuronId>(participants);
         var pending = new Queue<NeuronId>(participants);
+        // Saved behaviors are real, durable participants. Their state is read below;
+        // untouched drafts stay in the library until enabled or invoked.
+        try
+        {
+            foreach (var behavior in await source.ReadBehaviorsAsync(actor.PrincipalId, cancellationToken)
+                         .WaitAsync(ReadTimeout, cancellationToken).ConfigureAwait(false))
+            {
+                Discover(behavior);
+            }
+        }
+        catch (Exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            unavailable.Add(NeuronId.For<IBehaviors>(source.Owner, "default"));
+        }
         var reads = new Dictionary<NeuronId, BrainGraphNeuronRead>();
         var truncated = false;
         while (pending.TryDequeue(out var neuron))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var read = await source.ReadAsync(neuron, cancellationToken).ConfigureAwait(false);
+            BrainGraphNeuronRead read;
+            try
+            {
+                read = await source.ReadAsync(neuron, cancellationToken)
+                    .WaitAsync(ReadTimeout, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception) when (!cancellationToken.IsCancellationRequested)
+            {
+                // A persisted participant may belong to a module unavailable in this
+                // host. Keep its identity, but never invent its unread outgoing edges
+                // or expose activation/transport exception details to the browser.
+                unavailable.Add(neuron);
+                read = new([], new(0, [], null), new(0, [], null));
+            }
             reads.Add(neuron, read);
             var privateNeuron = IsPrivate(neuron, actor.PrincipalId, activeExecution);
             foreach (var edge in read.Synapses)
@@ -106,11 +145,22 @@ internal sealed class BrainGraphProjection(IBrainGraphSource source, BrainGraphM
             var localName = PrincipalPartition.TryParse(neuron.Name, out _, out var local) ? local : neuron.Name;
             var lastStatus = Status(read.Outgoing.Delta
                 .Where(delivery => VisibleDelivery(delivery, privateNeuron, actor.PrincipalId)));
+            var program = read.Behavior?.Active ?? read.Behavior?.Draft;
+            if (read.Behavior is { } behavior)
+            {
+                metadata = metadata with { Label = localName, Module = "Behaviors", IconKey = "document",
+                    HandledSignals = program?.InputSignalTypes ?? [] };
+                lastStatus = behavior.PendingCount > 0 ? "Running" : behavior.Enabled ? "Active"
+                    : program?.Validation == BehaviorValidation.Invalid ? "Failed" : "Disabled";
+            }
             nodes.Add(new(InstanceId(neuron), neuron.Type, localName, metadata.Label, metadata.Module,
-                participants.Contains(neuron) ? "participant" : "observed",
-                lastStatus, metadata.HandledSignals,
+                read.Behavior is { Active: null } ? "library" : participants.Contains(neuron) ? "participant" : "observed",
+                unavailable.Contains(neuron) ? "Unavailable" : lastStatus, metadata.HandledSignals,
                 read.Incoming.ResumeSequence, read.Outgoing.ResumeSequence,
-                neuronActivity.LastOrDefault()?.Timestamp, metadata.IconKey));
+                neuronActivity.LastOrDefault()?.Timestamp, metadata.IconKey,
+                program?.OutputSignalTypes, read.Behavior?.Active?.Revision, read.Behavior?.Draft?.Revision,
+                neuron.Type is "chat-turn-worker" or "sessionneuron" or "behaviors" or "execution",
+                (int)(program?.InputPolicy ?? BehaviorInputPolicy.EveryEvent)));
 
             foreach (var edge in read.Synapses)
             {
@@ -155,12 +205,6 @@ internal sealed class BrainGraphProjection(IBrainGraphSource source, BrainGraphM
             {
                 return;
             }
-            if (known.Count >= MaxNodes)
-            {
-                truncated = true;
-                return;
-            }
-
             known.Add(candidate);
             pending.Enqueue(candidate);
         }
@@ -244,7 +288,7 @@ internal sealed class BrainGraphProjection(IBrainGraphSource source, BrainGraphM
             {
                 continue;
             }
-            var sequence = journal.ResumeSequence - journal.Delta.Count + index + 1;
+            var sequence = journal.SequenceOf(index);
             var type = delivery.Signal.GetType().Name;
             var (summary, preview) = Summarize(delivery.Signal);
             var operation = direction == JournalKind.Outgoing ? delivery.Signal as AgentActivity : null;
@@ -260,6 +304,21 @@ internal sealed class BrainGraphProjection(IBrainGraphSource source, BrainGraphM
                 operation?.IsError == true,
                 operation?.Truncated == true || operation?.Kind == "tool" && operation.Preview?.Length > 4096,
                 SafeFailureCode(operation?.FailureCode));
+        }
+
+        // An unreadable historical envelope cannot establish a principal, caller,
+        // timestamp, or signal. Only an independently scoped private journal may
+        // expose its existence; shared journals must keep those entries private.
+        if (privateNeuron)
+        {
+            foreach (var entry in journal.UnknownEntries ?? [])
+            {
+                yield return new($"{InstanceId(neuron)}:{direction}:{entry.Sequence}",
+                    InstanceId(neuron), direction.ToString(), entry.Sequence,
+                    "Unavailable history", null, "", "",
+                    "Historical event unavailable because its type is no longer installed.",
+                    null, Kind: "historical", State: "unavailable");
+            }
         }
     }
 

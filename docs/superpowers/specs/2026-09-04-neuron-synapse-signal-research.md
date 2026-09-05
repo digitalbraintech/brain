@@ -881,7 +881,7 @@ Only what this paper actually decides. Everything else is Open Questions or alre
 - [`2026-09-02-digitalbrain-v2-neuron-substrate-design.md`](./2026-09-02-digitalbrain-v2-neuron-substrate-design.md) — D1/D7/D10; anatomy vs physiology quote.
 - [`2026-09-03-kit-graph-3d-design.md`](./2026-09-03-kit-graph-3d-design.md) — kit 3D graph as **entity snapshot**.
 - [`2026-09-04-mcp-specialist-agents-design.md`](./2026-09-04-mcp-specialist-agents-design.md) — nested `BrainNeuron.Send` deadlock; hop count 1 is **that** spec’s assistant-turn proposal, not substrate code.
-- [`2026-09-04-scripted-behaviors-design.md`](./2026-09-04-scripted-behaviors-design.md) — behaviors as C# outside the silo.
+- [Programmable behaviors](../../programmable-behaviors-implementation.md) — current replacement for the earlier scripting design.
 - Code: `INeuron`, `INeuronGrain`, `IHandle`, `Synapse`, `SynapseKind`, `Signal`, `SignalDelivery`, `Subscribe`, `NeuronReferenceExtensions`, `Neuron`, `NeuronSynapses`, `SignalRouter`, `SignalSender`, `JournalWindow`, `NeuronRuntime`, `SynapseOptions`, `BrainNeuron`, `BehaviorsNeuron`, `IDigitalBrain`, `IGraph`, `ExecutionNeuron`, `ChatTurnWorker`.
 
 ---

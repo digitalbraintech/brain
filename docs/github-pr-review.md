@@ -1,51 +1,35 @@
 # GitHub PR reviews in DigitalBrain
 
-The Microsoft module now contains `IRepository : IAgent`, native read-only GitHub MCP tools,
-and a durable PR review inbox. Your admitted C# controls the CI requirements, reviewer prompts
-and final text. The worker runs two actual `Agent` neurons concurrently after checking current CI.
+A repository is a domain event source: `IRepository : IWebhook`. The SDK accepts signed receipts durably and retries recipients independently. A named `IBehavior` owns your C# policy and accepted work. Ordinary named agent neurons perform reviews. There is no active GitHub-specific review worker or mandatory webhook-wrapper neuron.
 
 ```mermaid
 flowchart LR
-    GH[GitHub webhook] --> Receipt[Durable receipt]
-    Receipt --> Repository[Microsoft · Repository]
-    Repository -->|Bound PR subscriptions| Inbox[PR review inbox]
-    Script[Admitted C# behavior] -->|Read candidates / Start review| Inbox
-    Inbox --> Worker[Review worker]
-    Worker -->|AgentRequest| Architecture[Architecture reviewer]
-    Worker -->|AgentRequest| Quality[Code quality reviewer]
-    Architecture --> Inbox
-    Quality --> Inbox
-    Script -->|Publish review| Inbox
-    Inbox --> Chat[DigitalBrain chat]
+    GitHub[GitHub App callback] --> Repository[IRepository — durable source]
+    Repository -->|PullRequestChanged / Bound| Behavior[IBehavior — your saved C#]
+    Behavior -->|AgentRequest| Architecture[Architecture agent]
+    Behavior -->|AgentRequest| Quality[Quality agent]
+    Architecture -->|AgentReply| Behavior
+    Quality -->|AgentReply| Behavior
+    Behavior -->|Note / Bound| Chat[Your conversation]
 ```
 
-## Configure a repository
+## Operator setup
 
-The AppHost calls `WithConfiguredGitHubRepositories(builder.Configuration)`. An empty section
-keeps GitHub disabled and does not affect Aspire, Gmail or Salesforce.
+Create a GitHub App with repository read permissions for Contents, Pull requests, Checks, Commit statuses and Administration (required-check discovery), plus Metadata. Install it on the intended repositories. The backend exchanges its private key for an installation token scoped to the selected numeric repository and read permissions. The short-lived user OAuth token is used only to establish the intersection of that user's access and the App installation.
 
-Create a GitHub App installed on the chosen repository. Its repository permissions need read
-access to **Contents, Pull requests, Checks and Commit statuses**, plus GitHub's metadata access.
-The application requests an installation token scoped to that one numeric repository and read
-permissions. It does not accept a browser login or a broad personal token as unattended authority.
-
-Add the following metadata to local AppHost configuration (replace every placeholder):
+The AppHost's `WithConfiguredGitHubRepositories` also reads the shared App configuration:
 
 ```json
 {
   "DigitalBrain": {
     "Microsoft": {
       "GitHub": {
-        "Repositories": {
-          "personal": {
-            "Owner": "<DigitalBrain owner>",
-            "Principal": "<signed-in DigitalBrain principal GUID>",
-            "AppId": "<GitHub App numeric ID>",
-            "InstallationId": "<installation numeric ID>",
-            "RepositoryId": "<repository numeric ID>",
-            "RepoOwner": "<GitHub account or organization>",
-            "RepoName": "<repository name>"
-          }
+        "App": {
+          "AppId": "12345",
+          "Slug": "your-app-slug",
+          "ClientId": "your-client-id",
+          "PublicOrigin": "https://brain.example.com",
+          "PublicWebhookUrl": "https://brain.example.com/integrations/github/webhook"
         }
       }
     }
@@ -53,109 +37,80 @@ Add the following metadata to local AppHost configuration (replace every placeho
 }
 ```
 
-Supply secrets through the AppHost's secret configuration or Aspire parameter UI:
+Set private AppHost parameters through user secrets or Aspire:
 
-- `Parameters:github-personal-app-private-key`: the App's PEM private key.
-- `Parameters:github-personal-webhook-secret`: the webhook HMAC secret, at least 16 characters.
+- `Parameters:github-app-private-key`: App PEM private key.
+- `Parameters:github-app-webhook-secret`: configured webhook signing secret.
+- `Parameters:github-app-client-secret`: App OAuth client secret.
 
-These parameters reach the kernel only. They are not projected into the scripting process,
-Flutter, neuron signals or graph metadata. Do not check their values into the repository.
+Hosting projects these secrets to the kernel only. They never enter Flutter, scripts or graph metadata.
 
-The default provider endpoints are `https://api.github.com/` and
-`https://api.githubcopilot.com/mcp/`. Optional `ApiHost` and `McpEndpoint` must be explicit HTTPS
-endpoints. A remote MCP deployment must support the installation token and the admitted native
-tool schemas. Connection errors remain failures; they never broaden access.
+Register the OAuth callback `<PublicOrigin>/integrations/github/callback`. The local login entry point is `/integrations/github/login`. OAuth uses PKCE, a correlated one-use browser capability and a bounded lifetime. A loopback HTTP PublicOrigin is supported for local OAuth development; webhook ingress still requires an externally reachable HTTPS endpoint.
 
-Expose only this exact kernel route through HTTPS:
+Configure the App's single webhook URL as `PublicWebhookUrl`, with the same secret. Subscribe to pull-request, check-run, check-suite, status, repository and installation lifecycle events. The shared endpoint routes authenticated observations to the matching authorized sources. Each source durably accepts its own receipt before success is returned; retries after partial acceptance do not duplicate previously accepted work.
 
-```text
-/integrations/github/personal/webhook
+Expose only the required routes through your chosen HTTPS ingress. The repository does not create a public tunnel or change your GitHub App configuration. An authenticated ping or event must arrive for the current connection revision before DigitalBrain reports the webhook ready.
+
+## Connect from the conversation
+
+Ask Ino:
+
+> Whenever a new PR opens in https://github.com/intochat/digitalbrain, run my custom C# review. Wait until required CI is green, run architecture and code-quality agents concurrently, and report here.
+
+Ino saves a typed behavior and resolves the repository URL through authorized access. Use its GitHub login card if needed. You are not asked for internal binding IDs, principal prefixes or script placeholders.
+
+A successful callback stores the authorized repository connection. The continuation retains the exact repository URL, behavior name and draft revision. If authenticated ingress is still unverified, the card waits for a signed ping or event within the original ten-minute deadline. It does not rerun a different model-selected target. A changed draft requires a fresh request. Cancellation and expiry retain the draft; they do not silently activate it.
+
+Readiness distinguishes operator configuration, authentication, revoked access, public webhook configuration, verified delivery, CI setup and ready state. Required branch/ruleset checks must be discoverable and nonempty. Unknown, ambiguous, inaccessible or unsupported requirements do not count as green. Correct missing configuration, then retry the original connection request.
+
+## Your script owns review policy
+
+The complete [handler](examples/github-pr-review.csx) has input `PullRequestChanged` and output `Note`. It uses the source that delivered the event:
+
+```csharp
+await using IDigitalBrain digitalBrain = await DigitalBrainClient.ConnectAsync(args);
+var change = digitalBrain.Input<PullRequestChanged>();
+var repository = digitalBrain.Get<IRepository>(digitalBrain.InputSource.Name);
+// Read current required checks and exact head/base evidence.
+// Ask distinct architecture and quality agents with Task.WhenAll.
+// Recheck current head/base and CI, then return one Note.
 ```
 
-Set that URL and the same secret on the GitHub App. Select pull-request, check-run, check-suite,
-status and repository lifecycle events. Installation removal/suspension and repository access
-removal revoke the binding. For several repositories on the same App, the App's single webhook
-URL needs a relay that dispatches each delivery to its configured repository route; this code
-does not create that external relay or a public tunnel.
+Repository URLs are resolved asynchronously by the connection flow. `Get<IRepository>(url)` is not a synchronous authorization API.
 
-The route verifies HMAC over the exact bytes, validates installation/repository IDs and persists
-the receipt before returning 202. Delivery IDs deduplicate retries; changed content with the same
-ID returns 409. Unknown or invalid signed events do not become model instructions. The SDK
-acceptance deadline is five seconds and its body limit is 1 MiB. Slow/unavailable storage returns
-503; oversized requests return 413. GitHub does not automatically redeliver failed webhook
-requests, so inspect its delivery log and redeliver when appropriate. Periodic repository
-reconciliation repairs missed current PR/CI observations.
+The supplied handler:
 
-## Start your behavior from chat
+- Ignores draft or closed PRs.
+- Requires complete evidence and a nonempty strict-success CI set.
+- Reviews a verified immutable head/base pair with bounded patch evidence.
+- Calls two distinct named agents concurrently.
+- Refreshes PR state and required checks before returning its combined note.
 
-Ask Ino, for example:
+Save it with `LatestPerSubject | ObserveFromActivation | OncePerVersion`. These generic input policies retain the initial observation boundary across restart, supersede older observations for the same PR, and publish once per head/base version. A pending-CI input returning null does not prevent the later green observation from executing. Different PRs can run concurrently. Script edits create drafts and future activations; accepted work keeps its own revision.
 
-> Every time a new PR opens in my configured personal repository, run my custom review.
-> Wait for these required checks: [exact names and expected GitHub App IDs]. Then run
-> architecture and code-quality reviewers in parallel and post the combined result here.
+The repository owns provider observations and consistency. The behavior owns accepted inputs, claims, completed request checkpoints and output. The script owns which agents to call and what to report. A source-bound SDK connection avoids sending concurrent agent calls through the serialized owner root.
 
-Ino can call `read_behavior_example("github-pr-review")`, customize the supported
-[C# example](examples/github-pr-review.csx), and save it with `admit_behavior`.
-The template automatically uses the current conversation's principal-qualified identity.
-Ino still needs the configured binding ID and your exact CI policy. `admit_behavior` means saved;
-check its subsequent Running status or compilation diagnostics to verify that it started.
+## Reliability and operations
 
-The host supplies `Behavior.Name`, `Behavior.Revision` (a GUID) and `Behavior.SourceHash`.
-`GitHubReviewNames.InstanceName` gives the one durable inbox per binding/named behavior.
-`EnablePullRequestReview` validates that admitted revision and creates real Bound subscriptions
-to PR-opened, updated, closed, check-change and access-revocation signals. The script reads durable
-candidates; it does not treat a bounded journal as the workflow queue.
+The HTTP adapter validates HMAC over exact bytes, payload identity and routing before acceptance. Stable delivery IDs deduplicate retries; a conflicting body returns conflict. Payloads are bounded, and storage failure produces a retryable failure instead of a false success. Agent or recipient latency does not hold the HTTP request open.
 
-The default begins with PRs created after the first enable of that behavior revision. Restarting
-the host preserves that boundary and pending work. Replacing the script creates a new revision
-and a new observation boundary; it fences the previous revision's runs.
+Provider processing happens outside source turns. Contiguous redundant refresh receipts can share one observation while preserving every delivery identity. Lifecycle and user facts are not discarded as equivalent refreshes. Reconciliation remains a bounded recovery mechanism for missed provider observations.
 
-`GitHubReviewPolicy.ChecksSucceeded` requires a nonempty check set. Specify `Kind: "status"`
-for a commit status and `Kind: "check"` for a check run. Pin expected App IDs for check names
-where producer identity matters. The example accepts only `success`; `neutral` or `skipped`
-need an explicit policy change. Pending, missing, red, draft or incomplete evidence never
-starts models. Current test-merge checks are used when GitHub associates checks with that
-verified head/base merge commit; otherwise the head's evidence is used.
+Source-owned subscriptions survive restart. Removing one behavior does not remove the shared App connection or another subscriber. Disable removes that behavior's incoming edges and fences old requests/output. Access revocation is durable. Version changes fence old PR attempts. Completed checkpointed requests survive retries; chat publication deduplicates stable note IDs even after transcript retention.
 
-Both reviewers receive the same bounded patch, head/base/CI SHAs and evidence hash, have separate
-agent histories, and have no shell or write tools. Missing/truncated/binary patches that cannot
-establish complete evidence fail closed. The worker rechecks access, PR revision and CI around
-execution and publication. New commits, closure, cancellation, replacement or revocation fence
-late results. A missing role can retry without repeating its completed sibling.
+C# runs as trusted code in the scripting process. Arbitrary external side effects need their own idempotency. This implementation does not post GitHub comments, reviews or approvals.
 
-The script posts completed results through `PublishPullRequestReview`. Publication is queued,
-and `ReadReviewResults().Published` confirms its durable chat acknowledgement. Failure summaries
-use separate stable `PublishNote` IDs. Neither path posts a GitHub comment, review or approval.
+## Removed architecture
 
-## Stop and inspect
+The old webhook inbox/dispatcher, fixed review grains, repository MCP adapter,
+admission runtime and migration workers are removed. The current repository source
+owns receipts and domain facts; the saved C# behavior owns review policy. There is
+no automatic execution or conversion of old looping scripts.
 
-Ask Ino to remove the named behavior, or send `DisablePullRequestReview` to its inbox. The
-inbox disables immediately when it observes removal/replacement and removes its Bound edges
-through reconciliation. Explicit disable is admitted immediately; edge cleanup retries if a
-source is busy. A host shutdown alone preserves the workflow. The shared webhook stays available
-to other subscribers. As elsewhere in DigitalBrain, a later direct send can create a Learned
-edge; unsubscribe does not create a permanent deny rule.
+## Libraries and verification
 
-The graph shows Repository, PR review, Review worker, Architecture review and Code quality review
-inside Microsoft. Inspect their signals and `ReadReviewResults` for pending, running, completed,
-failed, cancelled, superseded and publication status. Aspire receives `DigitalBrain.GitHub`
-webhook admission/persistence/dispatch spans, snapshot spans, and review spans tagged with
-run and commit identities, alongside existing neuron/model/tool telemetry. A validated W3C
-parent context survives delayed receipt dispatch without carrying baggage. Sensitive AI content continues to
-follow the application's existing telemetry opt-in; credentials are never included in those tags.
+Integration code uses stable Octokit for REST transport and available typed APIs, and Octokit.Webhooks for signature validation. Minimal DigitalBrain domain and durable serialization contracts remain where provider types do not express source identity, versioning or replay. Required-check/ruleset gaps still use bounded provider JSON parsing.
 
-Bounded operational limits are explicit: 32 bindings, 100 open PRs in a full reconciliation,
-1,000 check/status items per SHA, 128 KiB review evidence, 32 KiB per reviewer response,
-128 candidates/runs per inbox, 4,096 retained webhook receipts and 10,000 publication tombstones
-per chat. Capacity failures retain pending work instead of silently declaring success. A new
-named inbox/conversation is required at its ledger capacity; automatic archival is not included.
+Local simulation tests cover signed ingress, conflict/deduplication, partial fanout retries, restart recovery, CI gating, revocation, coalescing and recipient isolation. Live readiness additionally requires the selected App installation and successful delivery through its real public URL. See [recorded validation](programmable-behaviors-validation.md).
 
-External reads and model computation can repeat after a crash. Durable run identity, generation
-fences, retained role results and publication IDs prevent those retries becoming duplicate
-logical reviews or duplicate chat messages. Live GitHub setup must still be verified against
-the selected installation and reachable webhook URL.
-
-References: [GitHub webhook validation](https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries),
-[failed deliveries](https://docs.github.com/en/webhooks/using-webhooks/handling-failed-webhook-deliveries),
-[required status checks](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks),
-[GitHub MCP authentication policies](https://github.com/github/github-mcp-server/blob/main/docs/policies-and-governance.md).
+Provider references: [user access tokens](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/generating-a-user-access-token-for-a-github-app), [installation APIs](https://docs.github.com/en/rest/apps/installations), [required status-check protection](https://docs.github.com/en/rest/branches/branch-protection#get-status-checks-protection), [webhook validation](https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries).

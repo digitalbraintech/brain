@@ -1,4 +1,5 @@
 using DigitalBrain.Abstractions;
+using DigitalBrain.Abstractions.Identity;
 using DigitalBrain.Abstractions.Journals;
 using DigitalBrain.Abstractions.Neurons;
 using DigitalBrain.Abstractions.Signals;
@@ -16,7 +17,9 @@ namespace DigitalBrain.Simulation.Tests;
 public sealed class BehaviorSteps
 {
     private BrainSimulation? _brain;
-    private BehaviorScriptWorker? _worker;
+    private IDigitalBrain? _client;
+    private BehaviorExecutionWorker? _worker;
+    private readonly ActorContext _actor = new(PrincipalId.New(), "owner");
 
     [Given("a running brain")]
     public async Task GivenARunningBrain()
@@ -29,59 +32,39 @@ public sealed class BehaviorSteps
                 [DigitalBrainNames.Mode] = DigitalBrainNames.TestingMode,
             },
         });
+        _client = DigitalBrainClient.Connect(_brain.Grains, _brain.Brain.Owner.Value, _actor);
     }
 
     [Given("DigitalBrain is activated")]
     public async Task GivenDigitalBrainIsActivated()
-        => await Brain.Brain.ActivateAsync(TestContext.Current.CancellationToken);
+        => await Client.ActivateAsync(TestContext.Current.CancellationToken);
 
     [When(@"the user requests a behavior that charts new posts from X account ""(.*)"" onto chart ""(.*)""")]
     public async Task WhenTheUserRequestsAChartingBehavior(string account, string chart)
     {
+        // Composition persists the chart and source subscription once. Each new
+        // source fact invokes the saved body and returns without watching a journal.
+        await Client.GetEntity<IChart>(chart).Render(new ChartState("Elon on X", "line", []));
+        await Client.GetEntity<ISurface>(ISurface.DefaultInstanceName).Open(new SurfaceScene($"chart:{chart}", "Elon on X"), 8);
         var source = $$"""
-            var chart = Brain.GetEntity<IChart>("{{chart}}");
-            await chart.Render(new ChartState("Elon on X", "line", Array.Empty<ChartPoint>()));
-            await Brain.GetEntity<ISurface>("{{ISurface.DefaultInstanceName}}").Open(
-                new SurfaceScene("chart:{{chart}}", "Elon on X"),
-                8);
-            await foreach (var page in Brain.Get<IXAccount>("{{account}}").WatchJournalAsync(
-                JournalKind.Outgoing,
-                0,
-                CancellationToken))
-            {
-                foreach (var delivery in page.Delta)
-                {
-                    if (delivery.Signal is NewPost post)
-                    {
-                        await chart.Append(
-                            new ChartPoint(post.Text, 1, EventId: delivery.SignalId.ToString()),
-                            "Elon on X");
-                    }
-                }
-            }
+            await using IDigitalBrain digitalBrain = await DigitalBrainClient.ConnectAsync(args);
+            var post = digitalBrain.Input<NewPost>();
+            var chart = digitalBrain.GetEntity<IChart>("{{chart}}");
+            await chart.Append(new ChartPoint(post.Text, 1), "Elon on X");
+            return null;
             """;
-
-        var outcome = await Brain.Brain.Get<IBehaviors>().SendAsync(
-            new AdmitBehavior($"{account}-chart", source),
-            TestContext.Current.CancellationToken);
-        Assert.Equal(DeliveryOutcome.Handled, outcome);
-
-        var admitted = await Brain.Brain.Get<IBehaviors>().ReadJournalAsync(
-            JournalKind.Outgoing,
-            0,
-            TestContext.Current.CancellationToken);
-        Assert.Contains(admitted.Delta, delivery => delivery.Signal is BehaviorAdmitted);
-
-        _worker = new BehaviorScriptWorker(
-            new DigitalBrainBehaviorAdmissionSource(Brain.Brain, Brain.Grains),
-            new CSharpStartupScriptRunner(),
-            Brain.Brain,
-            NullLogger<BehaviorScriptWorker>.Instance);
+        var runner = new BehaviorProgramRunner();
+        _worker = new BehaviorExecutionWorker(Brain.Brain, Brain.Grains, runner, NullLogger<BehaviorExecutionWorker>.Instance);
         await _worker.StartAsync(TestContext.Current.CancellationToken);
+        var behavior = Client.Get<IBehavior>($"{account}-chart");
+        var saved = await behavior.SaveScriptAsync(source, TestContext.Current.CancellationToken);
+        Assert.Equal(_actor.PrincipalId, saved.Principal);
+        await behavior.SubscribeAsync<NewPost>(Client.Get<IXAccount>(account), TestContext.Current.CancellationToken);
+        await behavior.ActivateAsync(TestContext.Current.CancellationToken);
 
         await WaitUntilAsync(async () =>
         {
-            var state = await Brain.Brain.GetEntity<IChart>(chart).Read();
+            var state = await Client.GetEntity<IChart>(chart).Read();
             return state is not null;
         });
     }
@@ -89,7 +72,7 @@ public sealed class BehaviorSteps
     [When(@"X account ""(.*)"" publishes ""(.*)""")]
     public async Task WhenXAccountPublishes(string account, string text)
     {
-        var outcome = await Brain.Brain.Get<IXAccount>(account).SendAsync(
+        var outcome = await Client.Get<IXAccount>(account).SendAsync(
             new PublishPost(text),
             TestContext.Current.CancellationToken);
         Assert.Equal(DeliveryOutcome.Handled, outcome);
@@ -100,7 +83,7 @@ public sealed class BehaviorSteps
     {
         await WaitUntilAsync(async () =>
         {
-            var state = await Brain.Brain.GetEntity<IChart>(chart).Read();
+            var state = await Client.GetEntity<IChart>(chart).Read();
             return state?.Points.Any(point => string.Equals(point.Label, label, StringComparison.Ordinal)) == true;
         });
     }
@@ -108,7 +91,7 @@ public sealed class BehaviorSteps
     [Then(@"the dashboard includes chart ""(.*)""")]
     public async Task ThenTheDashboardIncludesChart(string chart)
     {
-        var surface = await Brain.Brain.GetEntity<ISurface>(ISurface.DefaultInstanceName).Read();
+        var surface = await Client.GetEntity<ISurface>(ISurface.DefaultInstanceName).Read();
         Assert.NotNull(surface);
         Assert.Contains(
             surface.Scenes,
@@ -124,6 +107,11 @@ public sealed class BehaviorSteps
             _worker = null;
         }
 
+        if (_client is not null)
+        {
+            await _client.DisposeAsync();
+            _client = null;
+        }
         if (_brain is not null)
         {
             await _brain.DisposeAsync();
@@ -133,6 +121,9 @@ public sealed class BehaviorSteps
 
     private BrainSimulation Brain
         => _brain ?? throw new InvalidOperationException("Given a running brain first.");
+
+    private IDigitalBrain Client
+        => _client ?? throw new InvalidOperationException("Given a running brain first.");
 
     private static async Task WaitUntilAsync(Func<Task<bool>> condition)
     {

@@ -27,42 +27,31 @@ internal sealed partial class Assistant(NeuronRuntime runtime, IChatClient chatC
         A one-off review does not need a saved behavior. Do not claim files were edited or a review
         was posted remotely: the repository tool is read-only.
 
-        For custom automation, write C# and use admit_behavior to save it. Scripts run in the
-        separate Scripting process with Brain (IDigitalBrain), CancellationToken and read-only
-        Behavior (Name, Guid Revision, SourceHash) as globals. Use read_behavior_example for
-        the supported personal-code-review and github-pr-review scripts before customizing them.
-        Use list_behaviors for saved names and status, read_behavior for the exact current source
-        before editing it, and remove_behavior when asked to remove one. Admission is not evidence
-        that compilation or execution succeeded: inspect the reported status and diagnostics.
-        Show the owner the saved C# and explain its trigger and effect.
-        To run a completed behavior again, read its saved source and re-admit it unchanged as a new
-        revision. Finite scripts complete; continuous behaviors keep watching until cancelled.
-
-        Brain.Get<TNeuron>(name) addresses an existing typed neuron. SendAsync requires
-        IHandle<TSignal>. SubscribeToAsync/UnsubscribeFromAsync connect existing typed neurons;
-        Broadcast follows existing synapses only. WatchJournalAsync observes deliveries for custom
-        C# logic; it does not create a Bound synapse. Do not invent new grain types, a capability
-        catalog, a Gherkin compiler, or an English execution runtime.
-        Scripts can use System.IO, System.Diagnostics, LINQ, DigitalBrain.AI, DigitalBrain.Microsoft, DigitalBrain.Google, DigitalBrain.Salesforce, DigitalBrain.Chat,
-        DigitalBrain.Time and DigitalBrain.UI contracts. Pass CancellationToken to watches, requests,
-        delays and process waits. Clean up transient subscriptions in finally; durable workflow
-        subscriptions belong to their inbox and survive host shutdown until explicitly disabled.
-        For GitHub PR automation, use the github-pr-review example and configured binding identity.
-        Required CI check names and expected App IDs must come from the owner's policy or verified
-        repository configuration. Do not guess that a check is named CI or build. An empty required
-        set never allows a review. Repository updates flow through real Bound inbox subscriptions;
-        the script reconciles durable candidates, then StartPullRequestReview admits background work.
-        The inbox runs architecture and quality reviewers concurrently only after verifying CI.
-        Its publication is idempotent and goes to this chat. Removing the behavior disables the
-        inbox and removes its subscriptions after reconciliation; it leaves the shared webhook intact.
-        For a background model task, send SendMessage to a separate named IChat (for example the
-        current chat instance plus .code-review), receive TurnAccepted, and watch its outgoing
-        journal for Responded with that CommandId or failed/cancelled TurnLifecycle with that TurnId.
-        Forward the result as a Note to the original chat. This uses the existing chat worker;
-        a direct IAssistant.RequestAsync(AgentRequest) holds the owner's send path throughout the
-        model call. Cancel the accepted chat turn when a waiting behavior is cancelled.
-        Copy the current chat's instance name exactly, including its principal prefix; do not send
-        personal output to a guessed default chat. Avoid replaying old journal entries unless asked.
+        Saved custom behaviors are individual IBehavior neurons. Discover them with list_behaviors
+        before proposing a new implementation. Read the exact source before editing. When the user
+        asks to run an existing behavior, invoke_behavior with its declared typed input; a run does
+        not require another source revision. Its invocation and participating neurons appear in Studio.
+        For new automation use read_behavior_example, customize ordinary C#, then save_behavior to
+        save a draft. Inspect validation diagnostics and connection readiness before activate_behavior.
+        Scripts use await using IDigitalBrain digitalBrain = await DigitalBrainClient.ConnectAsync(args);
+        digitalBrain.Input<T>() supplies the accepted input. Get<IBehavior>, Get<IWebhook>, Get<IAgent>
+        and other installed contracts address neurons. Named IAgent instances perform independent
+        model tasks; Task.WhenAll over distinct names runs them concurrently outside the owner root.
+        Return a typed signal such as Note, or null when there is nothing to publish. Use
+        publish_behavior_in_this_chat to subscribe this chat to returned Notes. Delivery is durable.
+        subscribe_behavior creates an actual persistent source-owned connection. Composition code
+        may also use behavior.SubscribeAsync(source) or chat.SubscribeAsync<Note>(behavior). Wiring
+        commands execute once and survive restart; handler edits do not reconstruct or replay wiring.
+        disable_behavior disables a behavior while preserving its editable source. Keep provider setup
+        separate from activation: a saved draft is not proof of live monitoring. Missing credentials,
+        unresolved placeholders and unknown required CI checks are setup diagnostics, not green CI.
+        For GitHub use the repository connection/setup tool and verified required checks; do not ask
+        the user for an internal binding ID or guess check names. A changed PR head/base invalidates
+        its older review, and a successful head/base is published once. Do not poll repository state
+        in a forever loop. Receive PullRequestChanged and use ordinary agents for the review process.
+        Pass CancellationToken to asynchronous work. The execution client retains completed model
+        replies on retry while refreshing provider reads. Use local names; the execution connection
+        preserves the initiating principal. Source, graph and behavior definitions share one model.
 
         Delegate email questions to ask_gmail, CRM questions to ask_salesforce, and application
         health/log/trace questions to ask_aspire when those tools are present.

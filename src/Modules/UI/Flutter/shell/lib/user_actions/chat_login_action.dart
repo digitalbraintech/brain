@@ -14,6 +14,7 @@ enum LoginActionStatus {
 const _providerLoginPaths = <String, String>{
   'salesforce': '/integrations/salesforce/login',
   'gmail': '/integrations/gmail/login',
+  'github': '/integrations/github/login',
 };
 
 /// Projects a single durable action against later events for the same command.

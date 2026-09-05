@@ -7,6 +7,9 @@
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="ModelContextProtocol.Core" />
+    <PackageReference Include="Microsoft.Orleans.Client" />
+    <PackageReference Include="Microsoft.Orleans.Clustering.AzureStorage" />
+    <PackageReference Include="Aspire.Azure.Data.Tables" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="DigitalBrain.Simulation.Tests" />

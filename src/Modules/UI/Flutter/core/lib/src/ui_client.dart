@@ -12,8 +12,9 @@ import 'sse_chat_frames.dart';
 import 'sse_frames.dart';
 import 'ui_models.dart';
 import 'models/brain_models.dart';
+import 'models/behavior_models.dart';
 
-final class DigitalBrainUiClient {
+final class DigitalBrainUiClient implements BehaviorStudioApi {
   /// Gated on the kernel; 404 when the kernel runs ungated.
   static const authCheckPath = '/auth/check';
 
@@ -67,6 +68,139 @@ final class DigitalBrainUiClient {
   final Uri baseUri;
   final CookieHttpClient _http;
   final bool _ownsClient;
+
+  @override
+  Future<List<SavedBehavior>> listBehaviors() async {
+    final response = await _request(
+      'GET',
+      '/behaviors',
+      timeout: const Duration(seconds: 15),
+    );
+    return (jsonDecode(response.body) as List)
+        .map(
+          (value) =>
+              SavedBehavior.fromJson((value as Map).cast<String, dynamic>()),
+        )
+        .toList();
+  }
+
+  @override
+  Future<SavedBehavior> readBehavior(String name) async {
+    final response = await _request(
+      'GET',
+      '/behaviors/${Uri.encodeComponent(name)}',
+      timeout: const Duration(seconds: 15),
+    );
+    return SavedBehavior.fromJson(
+      jsonDecode(response.body) as Map<String, dynamic>,
+    );
+  }
+
+  Future<SavedBehavior> _behaviorCommand(
+    String name,
+    String operation,
+    Map<String, Object?> body,
+  ) async {
+    final response = await _request(
+      'POST',
+      '/behaviors/${Uri.encodeComponent(name)}/$operation',
+      body: body,
+      timeout: const Duration(seconds: 30),
+    );
+    return SavedBehavior.fromJson(
+      jsonDecode(response.body) as Map<String, dynamic>,
+    );
+  }
+
+  @override
+  Future<SavedBehavior> saveBehavior(
+    String name, {
+    required String source,
+    required List<String> inputSignalTypes,
+    required List<String> outputSignalTypes,
+    String? expectedDraftRevision,
+    int? inputPolicy,
+  }) => _behaviorCommand(name, 'save', {
+    'source': source,
+    'inputSignalTypes': inputSignalTypes,
+    'outputSignalTypes': outputSignalTypes,
+    'expectedDraftRevision': expectedDraftRevision,
+    'inputPolicy': ?inputPolicy,
+  });
+  @override
+  Future<SavedBehavior> enableBehavior(
+    String name, {
+    String? expectedDraftRevision,
+  }) => _behaviorCommand(name, 'enable', {
+    'expectedDraftRevision': expectedDraftRevision,
+  });
+  @override
+  Future<SavedBehavior> disableBehavior(String name) =>
+      _behaviorCommand(name, 'disable', {});
+  @override
+  Future<SavedBehavior> invokeBehavior(
+    String name, {
+    required String inputType,
+    required Map<String, dynamic> input,
+  }) => _behaviorCommand(name, 'invoke', {
+    'inputType': inputType,
+    'input': input,
+  });
+
+  Stream<BrainSnapshot> watchBrain({required String chatName}) {
+    final abort = Completer<void>();
+    late StreamController<BrainSnapshot> controller;
+    controller = StreamController<BrainSnapshot>(
+      onListen: () async {
+        try {
+          final request = http.AbortableRequest(
+            'GET',
+            baseUri.replace(
+              path: '/chats/${Uri.encodeComponent(chatName)}/brain/events',
+            ),
+            abortTrigger: abort.future,
+          )..headers['accept'] = 'text/event-stream';
+          final response = await _http.send(request);
+          if (response.statusCode != 200) {
+            throw StateError(
+              'Brain stream unavailable (${response.statusCode}).',
+            );
+          }
+          String? event;
+          final data = <String>[];
+          await for (final line
+              in response.stream
+                  .transform(utf8.decoder)
+                  .transform(const LineSplitter())) {
+            if (abort.isCompleted) break;
+            if (line.startsWith('event:')) event = line.substring(6).trim();
+            if (line.startsWith('data:')) {
+              data.add(line.substring(5).trimLeft());
+            }
+            if (line.isEmpty) {
+              if (event == 'brain-snapshot' && data.isNotEmpty) {
+                controller.add(
+                  BrainSnapshot.fromJson(
+                    jsonDecode(data.join('\n')) as Map<String, dynamic>,
+                  ),
+                );
+              }
+              event = null;
+              data.clear();
+            }
+          }
+        } catch (error, stack) {
+          if (!abort.isCompleted) controller.addError(error, stack);
+        } finally {
+          if (!controller.isClosed) await controller.close();
+        }
+      },
+      onCancel: () {
+        if (!abort.isCompleted) abort.complete();
+      },
+    );
+    return controller.stream;
+  }
 
   Future<BrainSnapshot> readBrain({required String chatName}) async {
     final response = await _request(
