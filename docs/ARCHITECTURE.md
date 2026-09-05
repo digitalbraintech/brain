@@ -77,8 +77,9 @@ KitGalleryScreen) is the starting point for the widget side.
 
 User- and assistant-authored C# runs in `DigitalBrain.Scripting` (outside the silo).
 `SaveScriptAsync` creates a draft on an individual `IBehavior`; activation chooses
-its compiled revision. A handler runs for each accepted typed input, sends requests
-through the SDK and returns a signal for its subscribers.
+its compiled revision. A handler runs for each accepted typed input, uses `PublishAsync`
+(broadcast along synapses) and `SendAsync` through `SignalSender`. It does not return
+a signal as publication. `IUserMessages` is the principal inbox for owner messages.
 Chat turns still use `ExecutionNeuron` as per-turn working memory, not as an automation engine.
 Definitions, revisions, accepted inputs, request checkpoints and output intents are
 durable state on each `BehaviorNeuron`. `BehaviorsNeuron` is only the discovery

@@ -23,7 +23,7 @@ A bounded window over a Neuron’s incoming or outgoing Signals. How scripts not
 _Avoid_: event store, execution history, a record of Synapses
 
 **Entity**
-A live snapshot (Chart, Surface). Direct typed reads/writes. Not on the graph: no journal, no synapses, not a signal target.
+A live snapshot (Chart, Surface, Memory). Direct typed reads/writes. Not on the graph: no journal, no synapses, not a signal target.
 _Avoid_: neuron, run history
 
 **IDigitalBrain**
@@ -49,12 +49,11 @@ Trigger is type-safe: you may `Send`/`Publish` `TSignal` only to a neuron that `
 
 ```csharp
 await using IDigitalBrain digitalBrain = await DigitalBrainClient.ConnectAsync(args);
-var source = digitalBrain.Get<IWebhook>("build-events");
-var behavior = digitalBrain.Get<IBehavior>("build-notifier");
-await behavior.SaveScriptAsync<WebhookReceived, Note>(handlerSource);
-await digitalBrain.Get<IChat>("here").SubscribeAsync<Note>(behavior);
-await behavior.SubscribeAsync(source);
-await behavior.ActivateAsync();
+var inbox = digitalBrain.Get<IUserMessages>("default");
+var memoryAgent = digitalBrain.Get<IBehavior>("memory-agent");
+await memoryAgent.SaveScriptAsync<UserMessaged>(handlerSource);
+await memoryAgent.SubscribeToAsync<IUserMessages, UserMessaged>(inbox.Id);
+await memoryAgent.ActivateAsync();
 ```
 
 English is how the owner asks. A compiled script is what they get. There is no second runtime, grant catalog, or JSON capability bus for this path.
