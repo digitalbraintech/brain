@@ -32,6 +32,32 @@ internal static class BrainGraphHttpMaps
                 }
             });
 
+        endpoints.MapGet(HttpSurfacePaths.BrainActivitiesPath,
+            static async Task<IResult> (string chatName, HttpContext http, BrainGraphProjection graph,
+                CancellationToken cancellationToken) =>
+            {
+                http.Response.Headers.CacheControl = "no-store";
+                try
+                {
+                    var snapshot = await graph.ReadAsync(chatName, HttpActor.Current, cancellationToken)
+                        .ConfigureAwait(false);
+                    return Results.Ok(new
+                    {
+                        snapshot.ObservedAt,
+                        snapshot.Truncated,
+                        snapshot.Correlations,
+                    });
+                }
+                catch (ArgumentException)
+                {
+                    return Results.BadRequest(new { message = "A valid local chat name is required." });
+                }
+                catch (NeuronAuthorizationException)
+                {
+                    return Results.StatusCode(StatusCodes.Status403Forbidden);
+                }
+            });
+
         endpoints.MapPost(HttpSurfacePaths.BrainGraphSubscriptionsPath,
             static async Task<IResult> (string chatName, BrainGraphSubscriptionRequest request,
                 BrainGraphProjection graph, CancellationToken cancellationToken) =>

@@ -30,4 +30,5 @@ internal static class HttpSurfacePaths
 
     public const string BrainGraphPath = "/chats/{chatName}/brain";
     public const string BrainGraphSubscriptionsPath = "/chats/{chatName}/brain/subscriptions";
+    public const string BrainActivitiesPath = "/chats/{chatName}/activities";
 }

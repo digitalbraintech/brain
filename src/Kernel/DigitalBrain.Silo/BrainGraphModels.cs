@@ -9,7 +9,8 @@ internal sealed record BrainGraphSnapshot(
     string Scope,
     IReadOnlyList<BrainGraphNode> Nodes,
     IReadOnlyList<BrainGraphSynapse> Synapses,
-    IReadOnlyList<BrainGraphActivity> Activity);
+    IReadOnlyList<BrainGraphActivity> Activity,
+    IReadOnlyList<BrainCorrelation> Correlations);
 
 internal sealed record BrainGraphNode(
     string Id,
@@ -64,6 +65,14 @@ internal sealed record BrainGraphActivity(
     bool IsError = false,
     bool Truncated = false,
     string? FailureCode = null);
+
+internal sealed record BrainCorrelation(
+    string CorrelationId,
+    string Status,
+    string Summary,
+    DateTimeOffset? LastAt,
+    IReadOnlyList<string> NeuronIds,
+    int DeliveryCount);
 
 internal sealed record BrainGraphSubscriptionRequest(
     string SourceId,

@@ -8,6 +8,7 @@ import '../user_actions/user_action_card.dart';
 import '../windowing/windowing_screen.dart';
 
 import 'chat_contracts.dart';
+import 'brain_graph_store.dart';
 import 'graph_home_screen.dart';
 import 'workspace_chrome.dart';
 import 'workspace_session.dart';
@@ -66,6 +67,7 @@ final class _BrainWorkspaceState extends State<BrainWorkspace> {
   static const _compactBreakpoint = 720.0;
 
   late final WorkspaceSession _session;
+  BrainGraphStore? _graph;
   int _destination = graphDestinationIndex;
 
   @override
@@ -73,6 +75,21 @@ final class _BrainWorkspaceState extends State<BrainWorkspace> {
     super.initState();
     _session = WorkspaceSession(chatName: widget.chatName, turns: widget.turns)
       ..addListener(_onSession);
+    _attachGraph();
+  }
+
+  void _attachGraph() {
+    _graph?.removeListener(_onSession);
+    _graph?.dispose();
+    if (widget.onReadBrain == null && widget.onWatchBrain == null) {
+      _graph = null;
+      return;
+    }
+    _graph = BrainGraphStore(
+      read: widget.onReadBrain,
+      watch: widget.onWatchBrain,
+      setSubscription: widget.onSetBrainSubscription,
+    )..addListener(_onSession);
   }
 
   void _onSession() {
@@ -90,6 +107,11 @@ final class _BrainWorkspaceState extends State<BrainWorkspace> {
     if (!identical(oldWidget.turns, widget.turns)) {
       _session.listenTurns(widget.turns);
     }
+    if (oldWidget.onReadBrain != widget.onReadBrain ||
+        oldWidget.onWatchBrain != widget.onWatchBrain ||
+        oldWidget.onSetBrainSubscription != widget.onSetBrainSubscription) {
+      _attachGraph();
+    }
   }
 
   void _selectDestination(int index) {
@@ -100,6 +122,8 @@ final class _BrainWorkspaceState extends State<BrainWorkspace> {
 
   @override
   void dispose() {
+    _graph?.removeListener(_onSession);
+    _graph?.dispose();
     _session
       ..removeListener(_onSession)
       ..dispose();
@@ -129,6 +153,7 @@ final class _BrainWorkspaceState extends State<BrainWorkspace> {
         behaviorStudio: widget.behaviorStudio,
         onSetBrainSubscription: widget.onSetBrainSubscription,
         sceneFactory: widget.graphSceneFactory,
+        graph: _graph,
       ),
       Theme(
         data: KitTheme.dark(),
@@ -138,6 +163,8 @@ final class _BrainWorkspaceState extends State<BrainWorkspace> {
             onboardingDestinationIndex => const OnboardingScreen(),
             activityDestinationIndex => ActivityScreen(
               turns: _session.projectedTurns,
+              correlations: _graph?.snapshot?.correlations ?? const [],
+              truncated: _graph?.snapshot?.truncated ?? false,
               userActions: widget.userActions,
               onOpenUserAction: widget.onOpenSignIn,
             ),

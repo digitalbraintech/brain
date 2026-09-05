@@ -8,6 +8,7 @@ final class BrainSnapshot {
     this.nodes = const [],
     this.synapses = const [],
     this.activity = const [],
+    this.correlations = const [],
   });
   final String rootId, scope;
   final DateTime observedAt;
@@ -15,6 +16,7 @@ final class BrainSnapshot {
   final List<BrainNeuron> nodes;
   final List<BrainSynapse> synapses;
   final List<BrainActivity> activity;
+  final List<BrainCorrelation> correlations;
 
   /// Temporary observed requests, independent of persisted subscriptions.
   List<BrainActivity> get activeDelegations {
@@ -32,21 +34,30 @@ final class BrainSnapshot {
         .toList(growable: false);
   }
 
-  factory BrainSnapshot.fromJson(Map<String, dynamic> json) => BrainSnapshot(
-    rootId: json['rootId'] as String,
-    observedAt: DateTime.parse(json['observedAt'] as String),
-    scope: json['scope'] as String? ?? '',
-    truncated: json['truncated'] == true,
-    nodes: _objects(
-      json['nodes'],
-    ).map(BrainNeuron.fromJson).toList(growable: false),
-    synapses: _objects(
-      json['synapses'],
-    ).map(BrainSynapse.fromJson).toList(growable: false),
-    activity: _objects(
+  factory BrainSnapshot.fromJson(Map<String, dynamic> json) {
+    final activity = _objects(
       json['activity'],
-    ).map(BrainActivity.fromJson).toList(growable: false),
-  );
+    ).map(BrainActivity.fromJson).toList(growable: false);
+    final rawCorrelations = _objects(json['correlations']);
+    return BrainSnapshot(
+      rootId: json['rootId'] as String,
+      observedAt: DateTime.parse(json['observedAt'] as String),
+      scope: json['scope'] as String? ?? '',
+      truncated: json['truncated'] == true,
+      nodes: _objects(
+        json['nodes'],
+      ).map(BrainNeuron.fromJson).toList(growable: false),
+      synapses: _objects(
+        json['synapses'],
+      ).map(BrainSynapse.fromJson).toList(growable: false),
+      activity: activity,
+      correlations: rawCorrelations.isEmpty
+          ? BrainCorrelation.group(activity)
+          : rawCorrelations
+                .map(BrainCorrelation.fromJson)
+                .toList(growable: false),
+    );
+  }
 }
 
 final class BrainNeuron {
@@ -129,6 +140,105 @@ final class BrainSynapse {
     isBlocking: j['isBlocking'] == true,
     canUnsubscribe: j['canUnsubscribe'] == true,
   );
+}
+
+final class BrainCorrelation {
+  const BrainCorrelation({
+    required this.correlationId,
+    required this.status,
+    required this.summary,
+    this.lastAt,
+    this.neuronIds = const [],
+    this.deliveryCount = 0,
+  });
+
+  final String correlationId, status, summary;
+  final DateTime? lastAt;
+  final List<String> neuronIds;
+  final int deliveryCount;
+
+  factory BrainCorrelation.fromJson(Map<String, dynamic> json) =>
+      BrainCorrelation(
+        correlationId: json['correlationId'] as String? ?? '',
+        status: json['status'] as String? ?? 'completed',
+        summary: json['summary'] as String? ?? '',
+        lastAt: _date(json['lastAt']),
+        neuronIds: (json['neuronIds'] as List? ?? []).cast<String>(),
+        deliveryCount: (json['deliveryCount'] as num?)?.toInt() ?? 0,
+      );
+
+  static List<BrainCorrelation> group(List<BrainActivity> activity) {
+    final groups = <String, List<BrainActivity>>{};
+    for (final event in activity) {
+      final id = event.correlationId;
+      if (id == null || id.isEmpty) {
+        continue;
+      }
+      (groups[id] ??= []).add(event);
+    }
+    final correlations = groups.entries.map((entry) {
+      final items = [...entry.value]
+        ..sort((a, b) => (a.timestamp ?? DateTime.fromMillisecondsSinceEpoch(0))
+            .compareTo(b.timestamp ?? DateTime.fromMillisecondsSinceEpoch(0)));
+      final last = items.last;
+      return BrainCorrelation(
+        correlationId: entry.key,
+        status: _status(items),
+        summary: last.summary,
+        lastAt: last.timestamp,
+        neuronIds: items.map((item) => item.neuronId).toSet().toList(),
+        deliveryCount: items.length,
+      );
+    }).toList();
+    correlations.sort(
+      (a, b) => (b.lastAt ?? DateTime.fromMillisecondsSinceEpoch(0)).compareTo(
+        a.lastAt ?? DateTime.fromMillisecondsSinceEpoch(0),
+      ),
+    );
+    return correlations;
+  }
+
+  static String _status(List<BrainActivity> items) {
+    if (items.any(
+      (item) =>
+          item.isError ||
+          item.state == 'failed' ||
+          _turn(item) == 'Failed',
+    )) {
+      return 'failed';
+    }
+    if (items.any(
+      (item) =>
+          _turn(item) == 'WaitingForUser' ||
+          item.failureCode == 'authentication_required',
+    )) {
+      return 'needs-approval';
+    }
+    final open = <String, BrainActivity>{};
+    for (final item in items) {
+      final operation = item.operationId;
+      if (operation != null) {
+        open[operation] = item;
+      }
+    }
+    if (open.values.any((item) => item.state == 'started') ||
+        _turn(items.last) == 'Running' ||
+        _turn(items.last) == 'Pending') {
+      return 'live';
+    }
+    return 'completed';
+  }
+
+  static String? _turn(BrainActivity item) {
+    if (item.signalType != 'TurnLifecycle') {
+      return null;
+    }
+    final preview = item.payloadPreview;
+    if (preview is Map && preview['status'] is String) {
+      return preview['status'] as String;
+    }
+    return null;
+  }
 }
 
 final class BrainActivity {

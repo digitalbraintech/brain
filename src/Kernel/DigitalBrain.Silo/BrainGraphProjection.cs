@@ -16,7 +16,7 @@ internal sealed class BrainGraphProjection(IBrainGraphSource source, BrainGraphM
     private readonly BrainGraphMetadata _metadata = presentationMetadata ?? new([]);
     internal const int MaxActivity = 64;
     private static readonly TimeSpan ReadTimeout = TimeSpan.FromSeconds(5);
-    internal const string SnapshotScope = "Current conversation, saved behaviors, involved neurons, and their source-owned subscriptions. Activity shows recent deliveries and requests separately.";
+    internal const string SnapshotScope = "Current conversation, saved behaviors, involved neurons, and their source-owned subscriptions. Activity groups recent deliveries by conversation correlation.";
 
     public async Task<BrainGraphSnapshot> ReadAsync(
         string chatName, ActorContext actor, CancellationToken cancellationToken)
@@ -194,10 +194,17 @@ internal sealed class BrainGraphProjection(IBrainGraphSource source, BrainGraphM
             }
         }
 
-        truncated |= activity.Count > MaxActivity || reads.Values.Any(read =>
+        var correlations = GroupCorrelations(activity);
+        truncated |= correlations.Count > MaxActivity || reads.Values.Any(read =>
             read.Incoming.ResetSnapshot is not null || read.Outgoing.ResetSnapshot is not null);
+        var selected = correlations.Take(MaxActivity).ToArray();
+        var selectedIds = selected.Select(item => item.CorrelationId).ToHashSet(StringComparer.Ordinal);
+        var selectedActivity = activity
+            .Where(item => selectedIds.Contains(item.CorrelationId))
+            .OrderByDescending(item => item.Timestamp)
+            .ToArray();
         return new(InstanceId(chat), DateTimeOffset.UtcNow, truncated, SnapshotScope,
-            nodes, synapses, [.. activity.OrderByDescending(item => item.Timestamp).Take(MaxActivity)]);
+            nodes, synapses, selectedActivity, selected);
 
         void Discover(NeuronId candidate)
         {
@@ -349,6 +356,61 @@ internal sealed class BrainGraphProjection(IBrainGraphSource source, BrainGraphM
                 { ["signalType"] = subscription.SignalType }),
             _ => ($"{signal.GetType().Name} observed · payload omitted", null),
         };
+
+    internal static IReadOnlyList<BrainCorrelation> GroupCorrelations(
+        IReadOnlyList<BrainGraphActivity> activity)
+    {
+        return [.. activity
+            .Where(item => item.CorrelationId.Length > 0)
+            .GroupBy(item => item.CorrelationId, StringComparer.Ordinal)
+            .Select(group =>
+            {
+                var items = group.OrderBy(item => item.Timestamp).ThenBy(item => item.Sequence).ToArray();
+                var last = items.Last();
+                return new BrainCorrelation(
+                    group.Key,
+                    CorrelationStatus(items),
+                    last.Summary,
+                    last.Timestamp,
+                    [.. items.Select(item => item.NeuronId).Distinct(StringComparer.Ordinal)],
+                    items.Length);
+            })
+            .OrderByDescending(item => item.LastAt)];
+    }
+
+    private static string CorrelationStatus(IReadOnlyList<BrainGraphActivity> items)
+    {
+        if (items.Any(item => item.IsError
+            || string.Equals(item.State, "failed", StringComparison.Ordinal)
+            || TurnStatus(item) is "Failed"))
+        {
+            return "failed";
+        }
+
+        if (items.Any(item => TurnStatus(item) is "WaitingForUser")
+            || items.Any(item => string.Equals(item.FailureCode, "authentication_required", StringComparison.Ordinal)))
+        {
+            return "needs-approval";
+        }
+
+        if (items.Any(item => string.Equals(item.State, "started", StringComparison.Ordinal))
+            && items.GroupBy(item => item.OperationId)
+                .Any(operation => operation.Key is not null
+                    && string.Equals(operation.Last().State, "started", StringComparison.Ordinal))
+            || TurnStatus(items.Last()) is "Running" or "Pending" or "Cancelling")
+        {
+            return "live";
+        }
+
+        return "completed";
+    }
+
+    private static string? TurnStatus(BrainGraphActivity item)
+        => item.SignalType == nameof(TurnLifecycle)
+            && item.PayloadPreview is { } preview
+            && preview.TryGetValue("status", out var status)
+                ? status
+                : null;
 
     private static string Status(IEnumerable<SignalDelivery> deliveries)
     {

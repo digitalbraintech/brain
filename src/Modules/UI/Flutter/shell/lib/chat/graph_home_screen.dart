@@ -48,6 +48,7 @@ BrainSnapshot studioCanvas(BrainSnapshot snapshot, {bool technical = false}) {
     activity: snapshot.activity
         .where((event) => ids.contains(event.neuronId))
         .toList(),
+    correlations: snapshot.correlations,
   );
 }
 
@@ -73,6 +74,7 @@ final class GraphHomeScreen extends StatefulWidget {
     this.behaviorStudio,
     this.onSetBrainSubscription,
     this.conversation = false,
+    this.graph,
   });
   final String chatName;
   final List<ChatTurnEvent> turns;
@@ -93,12 +95,14 @@ final class GraphHomeScreen extends StatefulWidget {
   final BehaviorStudioApi? behaviorStudio;
   final SetBrainSubscription? onSetBrainSubscription;
   final bool conversation;
+  final BrainGraphStore? graph;
   @override
   State<GraphHomeScreen> createState() => _GraphHomeScreenState();
 }
 
 final class _GraphHomeScreenState extends State<GraphHomeScreen> {
   late BrainGraphStore _brain;
+  bool _ownsStore = false;
   final _chatKey = GlobalKey();
   String? _selected;
   bool _directory = false;
@@ -110,6 +114,12 @@ final class _GraphHomeScreenState extends State<GraphHomeScreen> {
   }
 
   void _createStore() {
+    if (widget.graph != null) {
+      _ownsStore = false;
+      _brain = widget.graph!..addListener(_changed);
+      return;
+    }
+    _ownsStore = true;
     _brain = BrainGraphStore(
       read: widget.onReadBrain,
       watch: widget.onWatchBrain,
@@ -127,9 +137,12 @@ final class _GraphHomeScreenState extends State<GraphHomeScreen> {
     if (oldWidget.chatName != widget.chatName ||
         oldWidget.onReadBrain != widget.onReadBrain ||
         oldWidget.onWatchBrain != widget.onWatchBrain ||
-        oldWidget.onSetBrainSubscription != widget.onSetBrainSubscription) {
+        oldWidget.onSetBrainSubscription != widget.onSetBrainSubscription ||
+        oldWidget.graph != widget.graph) {
       _brain.removeListener(_changed);
-      _brain.dispose();
+      if (_ownsStore) {
+        _brain.dispose();
+      }
       _createStore();
       _selected = null;
     }
@@ -138,7 +151,9 @@ final class _GraphHomeScreenState extends State<GraphHomeScreen> {
   @override
   void dispose() {
     _brain.removeListener(_changed);
-    _brain.dispose();
+    if (_ownsStore) {
+      _brain.dispose();
+    }
     super.dispose();
   }
 
