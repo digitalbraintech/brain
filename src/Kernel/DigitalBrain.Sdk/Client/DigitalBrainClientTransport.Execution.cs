@@ -29,21 +29,23 @@ internal sealed partial class DigitalBrainClientTransport
     internal Signal? Input => _claim?.Input.Signal;
     internal NeuronId? InputSource => _claim?.Input.Caller;
 
-    private async Task<SignalDeliveryResult> SendExecutionAsync(
+    private Task<SignalDeliveryResult> SendExecutionAsync(
         NeuronId receiver, Signal signal, CancellationToken cancellationToken)
+        => SourceGrain().SendFrom(receiver, signal, cancellationToken).WaitAsync(cancellationToken);
+
+    internal Task<int> PublishAsync(Signal signal, CancellationToken cancellationToken)
     {
-        var (key, hash) = NextOperation(receiver, signal);
-        var kernel = ExecutionKernel();
-        var delivery = await kernel.PrepareRequest(_claim!, key, hash, receiver, signal)
-            .WaitAsync(cancellationToken).ConfigureAwait(false);
-        var outcome = await _grains.GetGrain<INeuronGrain>(receiver.ToGrainId())
-            .Deliver(delivery, cancellationToken).WaitAsync(cancellationToken).ConfigureAwait(false);
-        if (outcome == DeliveryOutcome.Handled)
+        ArgumentNullException.ThrowIfNull(signal);
+        if (_executionSource is null)
         {
-            await kernel.CompleteRequest(_claim!, key, hash).WaitAsync(cancellationToken).ConfigureAwait(false);
+            throw new InvalidOperationException("Publish is available only while a saved behavior is executing.");
         }
-        return new SignalDeliveryResult(delivery, outcome);
+
+        return SourceGrain().Broadcast(signal, cancellationToken).WaitAsync(cancellationToken);
     }
+
+    private INeuronGrain SourceGrain()
+        => _grains.GetGrain<INeuronGrain>(_executionSource!.Value.ToGrainId());
 
     private async Task<Signal> RequestExecutionAsync(
         NeuronId receiver, Signal signal, Type responseType, CancellationToken cancellationToken)

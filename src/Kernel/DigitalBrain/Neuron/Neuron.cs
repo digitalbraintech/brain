@@ -104,6 +104,13 @@ public abstract class Neuron :
         CancellationToken cancellationToken = default)
         => _sender.SendAsync(receiver, signal, _handling, correlation, cancellationToken);
 
+    protected Task<SignalDeliveryResult> SendAsync(
+        NeuronId receiver,
+        Signal signal,
+        SignalDelivery cause,
+        CancellationToken cancellationToken = default)
+        => _sender.SendAsync(receiver, signal, cause, cause.CorrelationId, cancellationToken);
+
     /// <summary>
     /// Sends from this activation and reads the exact reply from the target's outgoing
     /// journal. It does not re-enter the owner root or wait for a reply to enter this
@@ -187,6 +194,26 @@ public abstract class Neuron :
 
     protected Task<int> BroadcastAsync(Signal signal, CorrelationId correlation)
         => _sender.BroadcastAsync(signal, _handling, correlation);
+
+    protected Task<int> BroadcastAsync(Signal signal, SignalDelivery cause)
+        => _sender.BroadcastAsync(signal, cause, cause.CorrelationId);
+
+    public virtual Task<int> Broadcast(Signal signal, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(signal);
+        cancellationToken.ThrowIfCancellationRequested();
+        return BroadcastAsync(signal);
+    }
+
+    public virtual Task<SignalDeliveryResult> SendFrom(
+        NeuronId receiver,
+        Signal signal,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(signal);
+        cancellationToken.ThrowIfCancellationRequested();
+        return SendAsync(receiver, signal, cancellationToken);
+    }
 
     protected IReadOnlyList<NeuronId> BroadcastRecipients(Signal signal)
         => _components.Router.BroadcastRecipientsFor(signal, Id, _components.Synapses);

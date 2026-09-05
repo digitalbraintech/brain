@@ -28,4 +28,13 @@ public interface INeuronGrain : INeuron
 
     [Alias(nameof(FenceSourceStream))]
     Task FenceSourceStream(NeuronId source, string stream, long minimumGeneration);
+
+    [Alias(nameof(Broadcast))]
+    Task<int> Broadcast(Signal signal, CancellationToken cancellationToken = default);
+
+    [Alias(nameof(SendFrom))]
+    Task<SignalDeliveryResult> SendFrom(
+        NeuronId receiver,
+        Signal signal,
+        CancellationToken cancellationToken = default);
 }

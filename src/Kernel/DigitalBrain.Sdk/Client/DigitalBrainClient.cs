@@ -31,6 +31,9 @@ public sealed partial class DigitalBrainClient : IDigitalBrain, INeuronClient
     public Task ActivateAsync(CancellationToken cancellationToken = default)
         => _transport.ActivateAsync(cancellationToken);
 
+    public Task<int> PublishAsync(Signal signal, CancellationToken cancellationToken = default)
+        => _transport.PublishAsync(signal, cancellationToken);
+
     public NeuronReference<TNeuron> Get<TNeuron>(string name = "default")
         where TNeuron : INeuron
         => _transport.GetReference<TNeuron>(this, name);

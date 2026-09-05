@@ -89,6 +89,38 @@ internal sealed class BehaviorNeuron : Neuron, IBehavior, IBehaviorKernel
         return Task.CompletedTask;
     }
 
+    public override Task<int> Broadcast(Signal signal, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(signal);
+        cancellationToken.ThrowIfCancellationRequested();
+        return BroadcastAsync(signal, RequireClaimedWork().Input);
+    }
+
+    public override Task<SignalDeliveryResult> SendFrom(
+        NeuronId receiver,
+        Signal signal,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(signal);
+        cancellationToken.ThrowIfCancellationRequested();
+        return SendAsync(receiver, signal, RequireClaimedWork().Input, cancellationToken);
+    }
+
+    private BehaviorWork RequireClaimedWork()
+    {
+        var now = TimeProvider.GetUtcNow();
+        var claimed = Load().Work
+            .Where(work => work.ClaimToken is not null && !work.Terminal && work.LeaseUntil > now)
+            .ToArray();
+        if (claimed.Length != 1)
+        {
+            throw new InvalidOperationException(
+                "Script publish/send requires exactly one claimed behavior execution.");
+        }
+
+        return claimed[0];
+    }
+
     public Task<BehaviorView> ReadState()
     {
         RequireActor();
