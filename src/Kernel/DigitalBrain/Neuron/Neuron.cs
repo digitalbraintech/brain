@@ -226,12 +226,12 @@ public abstract class Neuron :
     protected Task SubscribeToAsync<TSource, TSignal>(NeuronId source)
         where TSource : INeuron
         where TSignal : Signal
-        => BindFromAsync(source, typeof(TSignal).Name, typeof(TSource));
+        => BindFromAsync(source, typeof(TSignal).Name, typeof(TSource), correlation: null);
 
     protected Task UnsubscribeFromAsync<TSource, TSignal>(NeuronId source)
         where TSource : INeuron
         where TSignal : Signal
-        => UnbindFromAsync(source, typeof(TSignal).Name, typeof(TSource));
+        => UnbindFromAsync(source, typeof(TSignal).Name, typeof(TSource), correlation: null);
 
     protected Task ReplyAsync(Signal response)
         => _sender.ReplyAsync(
@@ -342,29 +342,29 @@ public abstract class Neuron :
     {
         ArgumentNullException.ThrowIfNull(signal);
         cancellationToken.ThrowIfCancellationRequested();
-        return BindFromAsync(signal.Source, signal.SignalType, expectedSourceType: null);
+        return BindFromAsync(signal.Source, signal.SignalType, expectedSourceType: null, signal.Correlation);
     }
 
     public Task HandleAsync(Unsubscribe signal, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(signal);
         cancellationToken.ThrowIfCancellationRequested();
-        return UnbindFromAsync(signal.Source, signal.SignalType, expectedSourceType: null);
+        return UnbindFromAsync(signal.Source, signal.SignalType, expectedSourceType: null, signal.Correlation);
     }
 
-    public async Task BindOutgoing(NeuronId subscriber, string signalType)
+    public async Task BindOutgoing(NeuronId subscriber, string signalType, CorrelationId? correlation = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(signalType);
         RequireSameOwner(subscriber);
-        _components.Synapses.Bind(subscriber, signalType);
+        _components.Synapses.Bind(subscriber, signalType, correlation);
         await WriteStateAsync().ConfigureAwait(true);
     }
 
-    public async Task UnbindOutgoing(NeuronId subscriber, string signalType)
+    public async Task UnbindOutgoing(NeuronId subscriber, string signalType, CorrelationId? correlation = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(signalType);
         RequireSameOwner(subscriber);
-        _components.Synapses.Unbind(subscriber, signalType);
+        _components.Synapses.Unbind(subscriber, signalType, correlation);
         await WriteStateAsync().ConfigureAwait(true);
     }
 
@@ -411,28 +411,38 @@ public abstract class Neuron :
     private static string StreamFenceKey(NeuronId source, string stream)
         => $"{source}|{stream.Length}:{stream}";
 
-    private async Task BindFromAsync(NeuronId source, string signalType, Type? expectedSourceType)
+    private async Task BindFromAsync(
+        NeuronId source,
+        string signalType,
+        Type? expectedSourceType,
+        CorrelationId? correlation)
     {
         RequireSubscription(source, signalType, expectedSourceType);
         await ValidateSubscriptionAsync(source, signalType, subscribed: true).ConfigureAwait(true);
         using var path = NeuronRequestPath.Enter(Id, source);
         var binding = source == Id
-            ? BindOutgoing(Id, signalType)
-            : GrainFactory.GetGrain<INeuronGrain>(source.ToGrainId()).BindOutgoing(Id, signalType)
+            ? BindOutgoing(Id, signalType, correlation)
+            : GrainFactory.GetGrain<INeuronGrain>(source.ToGrainId())
+                .BindOutgoing(Id, signalType, correlation)
                 .WaitAsync(NeuronCallTimeouts.LookupBound);
         await binding
             .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
         await OnSubscriptionChangedAsync(source, signalType, subscribed: true).ConfigureAwait(true);
     }
 
-    private async Task UnbindFromAsync(NeuronId source, string signalType, Type? expectedSourceType)
+    private async Task UnbindFromAsync(
+        NeuronId source,
+        string signalType,
+        Type? expectedSourceType,
+        CorrelationId? correlation)
     {
         RequireSubscription(source, signalType, expectedSourceType);
         await ValidateSubscriptionAsync(source, signalType, subscribed: false).ConfigureAwait(true);
         using var path = NeuronRequestPath.Enter(Id, source);
         var binding = source == Id
-            ? UnbindOutgoing(Id, signalType)
-            : GrainFactory.GetGrain<INeuronGrain>(source.ToGrainId()).UnbindOutgoing(Id, signalType)
+            ? UnbindOutgoing(Id, signalType, correlation)
+            : GrainFactory.GetGrain<INeuronGrain>(source.ToGrainId())
+                .UnbindOutgoing(Id, signalType, correlation)
                 .WaitAsync(NeuronCallTimeouts.LookupBound);
         await binding
             .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);

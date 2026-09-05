@@ -29,8 +29,10 @@ internal sealed class NeuronSynapses
         _time = time;
     }
 
-    internal static string KeyFor(NeuronId target, string signalType)
-        => $"{target} {signalType}";
+    internal static string KeyFor(NeuronId target, string signalType, CorrelationId? correlation = null)
+        => correlation is { } id
+            ? $"{target} {signalType} {id}"
+            : $"{target} {signalType}";
 
     // Slice 1 pruning is read/routing exclusion. Physical reclamation belongs to a later
     // storage-maintenance decision. Returned records retain stored Weight and are ordered by
@@ -66,12 +68,12 @@ internal sealed class NeuronSynapses
 
     // A successful fire creates or strengthens its synapse. Call only after the receiver
     // handled the signal; an unhandled delivery must not reinforce its path.
-    internal Synapse Reinforce(NeuronId target, string signalType, SynapseKind kind)
+    internal Synapse Reinforce(NeuronId target, string signalType, SynapseKind kind, CorrelationId? correlation = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(signalType);
 
         var now = _time.GetUtcNow();
-        var key = KeyFor(target, signalType);
+        var key = KeyFor(target, signalType, correlation);
 
         var current = _synapses.TryGetValue(key, out var existing)
             ? existing
@@ -82,7 +84,8 @@ internal sealed class NeuronSynapses
                 _options.InitialWeightFor(kind),
                 now,
                 kind,
-                isBlocking: false);
+                isBlocking: false,
+                correlation: correlation);
 
         var potentiated = current.Potentiate(now, _options.HalfLife, _options.PotentiationRate);
 
@@ -90,12 +93,12 @@ internal sealed class NeuronSynapses
         return potentiated;
     }
 
-    internal Synapse Bind(NeuronId target, string signalType)
+    internal Synapse Bind(NeuronId target, string signalType, CorrelationId? correlation = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(signalType);
 
         var now = _time.GetUtcNow();
-        var key = KeyFor(target, signalType);
+        var key = KeyFor(target, signalType, correlation);
         if (_synapses.TryGetValue(key, out var existing))
         {
             _synapses[key] = new Synapse(
@@ -108,7 +111,8 @@ internal sealed class NeuronSynapses
                 existing.LastFiredAt,
                 SynapseKind.Bound,
                 existing.FireCount,
-                isBlocking: false);
+                isBlocking: false,
+                existing.Correlation);
             return _synapses[key];
         }
 
@@ -119,14 +123,15 @@ internal sealed class NeuronSynapses
             _options.InnateWeight,
             now,
             SynapseKind.Bound,
-            isBlocking: false);
+            isBlocking: false,
+            correlation: correlation);
         _synapses[key] = bound;
         return bound;
     }
 
-    internal void Unbind(NeuronId target, string signalType)
+    internal void Unbind(NeuronId target, string signalType, CorrelationId? correlation = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(signalType);
-        _synapses.Remove(KeyFor(target, signalType));
+        _synapses.Remove(KeyFor(target, signalType, correlation));
     }
 }

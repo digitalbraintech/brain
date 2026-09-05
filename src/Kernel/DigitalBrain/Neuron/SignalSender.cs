@@ -101,10 +101,8 @@ internal sealed class SignalSender
         var delivery = await RecordOutgoingAsync(signal, cause, correlation)
             .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
 
-        var receivers = _router.BroadcastRecipientsFor(signal, _source, _synapses)
-            .Distinct()
-            .ToArray();
-        if (receivers.Length == 0)
+        var receivers = _router.Matching(signal, _source, _synapses, delivery.CorrelationId);
+        if (receivers.Count == 0)
         {
             return 0;
         }
@@ -112,8 +110,9 @@ internal sealed class SignalSender
         var signalType = signal.GetType().Name;
         List<Exception>? failures = null;
         var learned = false;
-        foreach (var receiver in receivers)
+        foreach (var synapse in receivers)
         {
+            var receiver = synapse.Target;
             try
             {
                 using var path = NeuronRequestPath.Enter(_source, receiver);
@@ -122,7 +121,7 @@ internal sealed class SignalSender
                     .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
                 if (outcome == DeliveryOutcome.Handled)
                 {
-                    _synapses.Reinforce(receiver, signalType, SynapseKind.Learned);
+                    _synapses.Reinforce(receiver, signalType, SynapseKind.Learned, synapse.Correlation);
                     learned = true;
                 }
             }
@@ -143,7 +142,7 @@ internal sealed class SignalSender
             throw new AggregateException("One or more signal subscribers failed to handle the broadcast.", failures);
         }
 
-        return receivers.Length;
+        return receivers.Count;
     }
 
     internal async Task ReplyAsync(Signal response, SignalDelivery handling)

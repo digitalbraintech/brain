@@ -68,7 +68,7 @@ public abstract class WebhookNeuron : Neuron, IWebhook, IAuthenticatedWebhookIng
         Wake();
     }
 
-    async Task INeuronGrain.BindOutgoing(NeuronId subscriber, string signalType)
+    async Task INeuronGrain.BindOutgoing(NeuronId subscriber, string signalType, CorrelationId? correlation)
     {
         RequireSubscriber(subscriber);
         await RefreshSourceEpochAsync();
@@ -78,7 +78,7 @@ public abstract class WebhookNeuron : Neuron, IWebhook, IAuthenticatedWebhookIng
         }
 
         await EnsureRecoveryAsync();
-        await base.BindOutgoing(subscriber, signalType);
+        await base.BindOutgoing(subscriber, signalType, correlation);
         var fences = State.Fences.Where(fence => fence.Recipient != subscriber).ToList();
         fences.Add(new(subscriber, State.Generation));
         await SaveAsync(State with { Fences = fences });
@@ -86,10 +86,10 @@ public abstract class WebhookNeuron : Neuron, IWebhook, IAuthenticatedWebhookIng
         Wake();
     }
 
-    async Task INeuronGrain.UnbindOutgoing(NeuronId subscriber, string signalType)
+    async Task INeuronGrain.UnbindOutgoing(NeuronId subscriber, string signalType, CorrelationId? correlation)
     {
         RequireSubscriber(subscriber);
-        await base.UnbindOutgoing(subscriber, signalType);
+        await base.UnbindOutgoing(subscriber, signalType, correlation);
         await OnSubscriptionsChangedAsync();
         Wake();
     }

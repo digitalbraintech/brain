@@ -19,7 +19,8 @@ public readonly record struct Synapse
         DateTimeOffset lastFiredAt,
         SynapseKind kind,
         long fireCount = 0,
-        bool isBlocking = false)
+        bool isBlocking = false,
+        CorrelationId? correlation = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(signalType);
         ArgumentOutOfRangeException.ThrowIfNegative(weight);
@@ -42,6 +43,7 @@ public readonly record struct Synapse
         Kind = kind;
         FireCount = fireCount;
         IsBlocking = isBlocking;
+        Correlation = correlation;
     }
 
     [Id(0)] public NeuronId Source { get; }
@@ -52,6 +54,7 @@ public readonly record struct Synapse
     [Id(5)] public SynapseKind Kind { get; }
     [Id(6)] public long FireCount { get; }
     [Id(7)] public bool IsBlocking { get; }
+    [Id(8)] public CorrelationId? Correlation { get; }
 
     // Read-time decay. There is deliberately no timer and no sweep on the hot path: a synapse
     // nobody uses is already weak the next time anyone looks at it.
@@ -87,7 +90,8 @@ public readonly record struct Synapse
             now,
             Kind,
             FireCount + 1,
-            IsBlocking);
+            IsBlocking,
+            Correlation);
     }
 
     public bool IsPrunedAt(DateTimeOffset now, TimeSpan halfLife, double floor)
@@ -95,5 +99,7 @@ public readonly record struct Synapse
             && WeightAt(now, halfLife) < floor;
 
     public override string ToString()
-        => $"{Source} --{SignalType}--> {Target}  w={Weight:F2}  fired={FireCount}  {Kind.ToString().ToLowerInvariant()}";
+        => Correlation is { } correlation
+            ? $"{Source} --{SignalType}:{correlation}--> {Target}  w={Weight:F2}  fired={FireCount}  {Kind.ToString().ToLowerInvariant()}"
+            : $"{Source} --{SignalType}--> {Target}  w={Weight:F2}  fired={FireCount}  {Kind.ToString().ToLowerInvariant()}";
 }

@@ -51,6 +51,25 @@ public static class BehaviorReferenceExtensions
         return behavior.SendAsync(new Subscribe(source, typeof(TSignal).Name), cancellationToken);
     }
 
+    public static Task SubscribeToAsync<TSource, TSignal>(
+        this NeuronReference<IBehavior> behavior,
+        NeuronId source,
+        CorrelationId? correlation,
+        CancellationToken cancellationToken = default)
+        where TSource : INeuron
+        where TSignal : Signal
+    {
+        var expected = NeuronId.For<TSource>(source.Owner, source.Name);
+        if (source != expected)
+        {
+            throw new ArgumentException(
+                $"Neuron '{source}' is not a '{expected.Type}' instance.",
+                nameof(source));
+        }
+
+        return behavior.SendAsync(new Subscribe(source, typeof(TSignal).Name, correlation), cancellationToken);
+    }
+
     public static async Task<BehaviorView> ActivateAsync(
         this NeuronReference<IBehavior> behavior, CancellationToken cancellationToken = default)
         => (await behavior.RequestAsync(new EnableBehavior(), cancellationToken).ConfigureAwait(false)).Behavior;

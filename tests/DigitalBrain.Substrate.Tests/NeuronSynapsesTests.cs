@@ -20,6 +20,9 @@ public interface IPingSource : INeuron
 {
     [Alias(nameof(SendTo))]
     Task<DeliveryOutcome> SendTo(NeuronId target, string text);
+
+    [Alias(nameof(BroadcastPing))]
+    Task<int> BroadcastPing(string text, CorrelationId correlation);
 }
 
 [Alias("DigitalBrain.Substrate.Tests.IPingSink")]
@@ -33,6 +36,9 @@ internal sealed class PingSource(NeuronRuntime runtime) : Neuron(runtime), IPing
     public async Task<DeliveryOutcome> SendTo(NeuronId target, string text)
         => (await SendAsync(target, new Ping(text))
             .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext)).Outcome;
+
+    public Task<int> BroadcastPing(string text, CorrelationId correlation)
+        => BroadcastAsync(new Ping(text), correlation);
 }
 
 internal sealed class PingSink(NeuronRuntime runtime) : Neuron(runtime), IPingSink, IHandle<Ping>
@@ -275,6 +281,42 @@ public sealed class NeuronSynapsesTests
         await source.SendTo(new NeuronId("pingsink", new OwnerId("owner"), "g"), "two");
 
         Assert.Equal(2, (await sourceQuery.ReadSynapses()).Count);
+    }
+
+    [Fact]
+    public async Task Broadcast_DeliversToMatchingWorkspaceSynapseOrUnscoped()
+    {
+        await using var brain = await BrainSimulation.StartAsync(new() { Modules = new([]) });
+        var owner = new OwnerId("owner");
+        var sourceId = new NeuronId("pingsource", owner, "corr-src");
+        var scopedId = new NeuronId("pingsink", owner, "corr-scoped");
+        var anyId = new NeuronId("pingsink", owner, "corr-any");
+        var source = brain.Grains.GetGrain<IPingSource>(sourceId.ToGrainId());
+        var scoped = brain.Grains.GetGrain<IPingSink>(scopedId.ToGrainId());
+        var any = brain.Grains.GetGrain<IPingSink>(anyId.ToGrainId());
+        var sourceQuery = brain.Grains.GetGrain<INeuronQuery>(sourceId.ToGrainId());
+        var main = CorrelationId.New();
+        var review = CorrelationId.New();
+
+        await scoped.HandleAsync(new Subscribe(sourceId, nameof(Ping), main), CancellationToken.None);
+        await any.HandleAsync(new Subscribe(sourceId, nameof(Ping)), CancellationToken.None);
+
+        var bound = await sourceQuery.ReadSynapses();
+        Assert.Contains(bound, synapse => synapse.Target == scopedId && synapse.Correlation == main);
+        Assert.Contains(bound, synapse => synapse.Target == anyId && synapse.Correlation is null);
+
+        await source.BroadcastPing("main", main);
+        await source.BroadcastPing("review", review);
+
+        var scopedIncoming = (await brain.Grains.GetGrain<INeuronQuery>(scopedId.ToGrainId())
+            .ReadJournal(JournalKind.Incoming, 0)).Delta;
+        Assert.Single(scopedIncoming, delivery => delivery.Signal is Ping ping && ping.Text == "main");
+        Assert.DoesNotContain(scopedIncoming, delivery => delivery.Signal is Ping ping && ping.Text == "review");
+
+        var anyIncoming = (await brain.Grains.GetGrain<INeuronQuery>(anyId.ToGrainId())
+            .ReadJournal(JournalKind.Incoming, 0)).Delta;
+        Assert.Contains(anyIncoming, delivery => delivery.Signal is Ping ping && ping.Text == "main");
+        Assert.Contains(anyIncoming, delivery => delivery.Signal is Ping ping && ping.Text == "review");
     }
 
     private sealed class TestDurableDictionary<TKey, TValue>

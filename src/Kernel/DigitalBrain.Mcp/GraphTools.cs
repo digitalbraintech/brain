@@ -5,6 +5,7 @@ using DigitalBrain.Abstractions.Identity;
 using DigitalBrain.Abstractions.Journals;
 using DigitalBrain.Abstractions.Neurons;
 using DigitalBrain.Abstractions.Signals;
+using DigitalBrain.AI;
 using DigitalBrain.Chat;
 using DigitalBrain.Core;
 using DigitalBrain.UI;
@@ -21,7 +22,7 @@ internal sealed class GraphTools(IDigitalBrain brain)
     [McpServerTool(Name = McpSurface.ReadSynapses)]
     [Description("Read source-owned synapses on a neuron. Use to verify subscribe/unsubscribe.")]
     public async Task<string> ReadSynapsesAsync(
-        [Description("Neuron kind: chat, xaccount, behavior, usermessages")] string kind,
+        [Description("Neuron kind: chat, xaccount, behavior, usermessages, composer, assistant")] string kind,
         [Description("Local instance name, for example 'main' or 'probe'")] string name = "default",
         CancellationToken cancellationToken = default)
     {
@@ -41,7 +42,7 @@ internal sealed class GraphTools(IDigitalBrain brain)
     [McpServerTool(Name = McpSurface.ReadJournal)]
     [Description("Read a neuron's incoming or outgoing journal. Use to verify publish/broadcast delivery.")]
     public async Task<string> ReadJournalAsync(
-        [Description("Neuron kind: chat, xaccount, behavior, usermessages")] string kind,
+        [Description("Neuron kind: chat, xaccount, behavior, usermessages, composer, assistant")] string kind,
         [Description("Local instance name")] string name = "default",
         [Description("Incoming or Outgoing")] string direction = "Outgoing",
         CancellationToken cancellationToken = default)
@@ -167,9 +168,10 @@ internal sealed class GraphTools(IDigitalBrain brain)
         "chat" => GraphSubject.Of(brain.Get<IChat>(Instance(name))),
         "xaccount" => GraphSubject.Of(brain.Get<IXAccount>(Instance(name))),
         "behavior" => GraphSubject.Of(brain.Get<IBehavior>(Instance(name))),
-        "usermessages" => GraphSubject.Of(brain.Get<IComposer>(Instance(name))),
+        "usermessages" or "composer" => GraphSubject.Of(brain.Get<IComposer>(IComposer.DefaultInstanceName)),
+        "assistant" => GraphSubject.Of(brain.Get<IAssistant>("assistant")),
         _ => throw new ArgumentException(
-            "kind must be chat, xaccount, behavior, or usermessages.", nameof(kind)),
+            "kind must be chat, xaccount, behavior, usermessages, composer, or assistant.", nameof(kind)),
     };
 
     private readonly record struct GraphSubject(

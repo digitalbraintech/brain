@@ -18,10 +18,10 @@ public interface INeuronGrain : INeuron
         CancellationToken cancellationToken = default);
 
     [Alias(nameof(BindOutgoing))]
-    Task BindOutgoing(NeuronId subscriber, string signalType);
+    Task BindOutgoing(NeuronId subscriber, string signalType, CorrelationId? correlation = null);
 
     [Alias(nameof(UnbindOutgoing))]
-    Task UnbindOutgoing(NeuronId subscriber, string signalType);
+    Task UnbindOutgoing(NeuronId subscriber, string signalType, CorrelationId? correlation = null);
 
     [Alias(nameof(FenceSourceEpoch))]
     Task FenceSourceEpoch(NeuronId source, long minimumEpoch);

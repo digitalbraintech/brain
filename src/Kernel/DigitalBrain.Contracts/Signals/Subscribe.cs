@@ -7,10 +7,12 @@ namespace DigitalBrain.Abstractions.Signals;
 [Alias("db.subscribe")]
 public sealed record Subscribe(
     [property: Id(0)] NeuronId Source,
-    [property: Id(1)] string SignalType) : Signal;
+    [property: Id(1)] string SignalType,
+    [property: Id(2)] CorrelationId? Correlation = null) : Signal;
 
 [GenerateSerializer]
 [Alias("db.unsubscribe")]
 public sealed record Unsubscribe(
     [property: Id(0)] NeuronId Source,
-    [property: Id(1)] string SignalType) : Signal;
+    [property: Id(1)] string SignalType,
+    [property: Id(2)] CorrelationId? Correlation = null) : Signal;

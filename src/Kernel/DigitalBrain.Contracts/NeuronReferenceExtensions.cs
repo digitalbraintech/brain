@@ -53,21 +53,12 @@ public static class NeuronReferenceExtensions
         where TSelf : INeuron, IHandle<TSignal>
         where TSource : INeuron
         where TSignal : Signal
-    {
-        var expected = NeuronId.For<TSource>(source.Owner, source.Name);
-        if (source != expected)
-        {
-            throw new ArgumentException(
-                $"Neuron '{source}' is not a '{expected.Type}' instance.",
-                nameof(source));
-        }
+        => subscriber.SubscribeToAsync<TSelf, TSource, TSignal>(source, correlation: null, cancellationToken);
 
-        return subscriber.SendAsync(new Subscribe(source, typeof(TSignal).Name), cancellationToken);
-    }
-
-    public static Task UnsubscribeFromAsync<TSelf, TSource, TSignal>(
+    public static Task SubscribeToAsync<TSelf, TSource, TSignal>(
         this NeuronReference<TSelf> subscriber,
         NeuronId source,
+        CorrelationId? correlation,
         CancellationToken cancellationToken = default)
         where TSelf : INeuron, IHandle<TSignal>
         where TSource : INeuron
@@ -81,6 +72,35 @@ public static class NeuronReferenceExtensions
                 nameof(source));
         }
 
-        return subscriber.SendAsync(new Unsubscribe(source, typeof(TSignal).Name), cancellationToken);
+        return subscriber.SendAsync(new Subscribe(source, typeof(TSignal).Name, correlation), cancellationToken);
+    }
+
+    public static Task UnsubscribeFromAsync<TSelf, TSource, TSignal>(
+        this NeuronReference<TSelf> subscriber,
+        NeuronId source,
+        CancellationToken cancellationToken = default)
+        where TSelf : INeuron, IHandle<TSignal>
+        where TSource : INeuron
+        where TSignal : Signal
+        => subscriber.UnsubscribeFromAsync<TSelf, TSource, TSignal>(source, correlation: null, cancellationToken);
+
+    public static Task UnsubscribeFromAsync<TSelf, TSource, TSignal>(
+        this NeuronReference<TSelf> subscriber,
+        NeuronId source,
+        CorrelationId? correlation,
+        CancellationToken cancellationToken = default)
+        where TSelf : INeuron, IHandle<TSignal>
+        where TSource : INeuron
+        where TSignal : Signal
+    {
+        var expected = NeuronId.For<TSource>(source.Owner, source.Name);
+        if (source != expected)
+        {
+            throw new ArgumentException(
+                $"Neuron '{source}' is not a '{expected.Type}' instance.",
+                nameof(source));
+        }
+
+        return subscriber.SendAsync(new Unsubscribe(source, typeof(TSignal).Name, correlation), cancellationToken);
     }
 }

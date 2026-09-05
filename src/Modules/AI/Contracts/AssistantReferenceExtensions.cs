@@ -13,6 +13,15 @@ public static class AssistantReferenceExtensions
         CancellationToken cancellationToken = default)
         where TSource : INeuron
         where TSignal : Signal
+        => subscriber.SubscribeToAsync<TSource, TSignal>(source, correlation: null, cancellationToken);
+
+    public static Task SubscribeToAsync<TSource, TSignal>(
+        this NeuronReference<IAssistant> subscriber,
+        NeuronId source,
+        CorrelationId? correlation,
+        CancellationToken cancellationToken = default)
+        where TSource : INeuron
+        where TSignal : Signal
     {
         var expected = NeuronId.For<TSource>(source.Owner, source.Name);
         if (source != expected)
@@ -22,6 +31,6 @@ public static class AssistantReferenceExtensions
                 nameof(source));
         }
 
-        return subscriber.SendAsync(new Subscribe(source, typeof(TSignal).Name), cancellationToken);
+        return subscriber.SendAsync(new Subscribe(source, typeof(TSignal).Name, correlation), cancellationToken);
     }
 }

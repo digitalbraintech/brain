@@ -49,7 +49,7 @@ internal sealed partial class DigitalBrainClientTransport
         ArgumentNullException.ThrowIfNull(client);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         RequireDomainNeuronContract(typeof(TNeuron));
-        if (typeof(TNeuron) != typeof(IBehaviors) && (_claim is not null || _connectionActor is not null
+        if (!IsOwnerGlobalNeuron(typeof(TNeuron)) && (_claim is not null || _connectionActor is not null
             || typeof(IBehavior).IsAssignableFrom(typeof(TNeuron)) || typeof(IWebhook).IsAssignableFrom(typeof(TNeuron))))
         {
             name = ScopeName(name);
@@ -64,6 +64,18 @@ internal sealed partial class DigitalBrainClientTransport
         RequireDomainEntityContract(typeof(TEntity));
         return _grains.GetGrain<TEntity>(EntityId.For<TEntity>(Owner,
             _claim is not null || _connectionActor is not null ? ScopeName(name) : name).ToGrainId());
+    }
+
+    private static bool IsOwnerGlobalNeuron(Type neuronType)
+    {
+        if (neuronType == typeof(IBehaviors))
+        {
+            return true;
+        }
+
+        var type = NeuronId.GrainTypeNameOf(neuronType);
+        return type.Equals("usermessages", StringComparison.OrdinalIgnoreCase)
+            || type.Equals("assistant", StringComparison.OrdinalIgnoreCase);
     }
 
     private string ScopeName(string name)
