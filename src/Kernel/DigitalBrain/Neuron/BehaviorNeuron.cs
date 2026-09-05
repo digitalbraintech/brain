@@ -300,11 +300,17 @@ internal sealed class BehaviorNeuron : Neuron, IBehavior, IBehaviorKernel
     protected override bool CanHandle(string signalType)
     {
         var state = Load();
-        var program = state.Draft ?? state.Active;
-        return base.CanHandle(signalType) || program is not null && program.InputSignalTypes.Contains(signalType, StringComparer.Ordinal)
-            || state.Active is not null && state.Active.InputSignalTypes.Contains(signalType, StringComparer.Ordinal)
-            || state.Subscriptions.Any(subscription => subscription.SignalType == signalType)
-            || state.SubscriptionIntents.Any(intent => intent.Subscription.SignalType == signalType);
+        if (base.CanHandle(signalType))
+        {
+            return true;
+        }
+
+        var draft = state.Draft is { Validation: BehaviorValidation.Valid } valid
+            ? valid.InputSignalTypes
+            : [];
+        var active = state.Active?.InputSignalTypes ?? [];
+        return draft.Contains(signalType, StringComparer.Ordinal)
+            || active.Contains(signalType, StringComparer.Ordinal);
     }
 
     protected override async Task<DeliveryOutcome> HandleUnmatchedAsync(SignalDelivery delivery, CancellationToken cancellationToken)

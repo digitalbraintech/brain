@@ -32,7 +32,7 @@ public sealed class ConfiguredWebhookTests
         var kernel = sim.Grains.GetGrain<IBehaviorKernel>(behavior.Id.ToGrainId());
         var saved = await behavior.RequestAsync(new SaveBehaviorScript("return null;", [nameof(WebhookReceived)], []), token);
         await kernel.ValidateDraft(saved.Behavior.Draft!.Revision, []);
-        await behavior.SubscribeAsync(source, token);
+        await behavior.SubscribeToAsync<IWebhook, WebhookReceived>(source.Id, token);
         await behavior.ActivateAsync(token);
         var handler = new ConfiguredWebhookHandler(registration, sim.Grains);
         var accepted = Request("build-42", "{\"build\":42}");

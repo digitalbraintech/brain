@@ -7,7 +7,7 @@ namespace DigitalBrain.Microsoft.GitHub;
 
 [Alias("github-repository")]
 public interface IRepository : IWebhook, IHandle<ReadPullRequest>, IHandle<ReadPullRequests>,
-    IHandle<ReadReviewEvidence>, IHandle<ReadRequiredChecks>, IEmits<PullRequestChanged>, IEmits<RepositoryAccessRevoked>;
+    IHandle<ReadReviewEvidence>, IHandle<ReadRequiredChecks>;
 
 [GenerateSerializer, Alias("github.read-pull-request")]
 public sealed record ReadPullRequest([property: Id(0)] int Number,

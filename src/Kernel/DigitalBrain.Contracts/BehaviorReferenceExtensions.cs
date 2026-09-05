@@ -1,3 +1,4 @@
+using DigitalBrain.Abstractions.Identity;
 using DigitalBrain.Abstractions.Neurons;
 using DigitalBrain.Abstractions.Signals;
 
@@ -20,10 +21,35 @@ public static class BehaviorReferenceExtensions
             [typeof(TInput).Name], [typeof(TOutput).Name]), cancellationToken).ConfigureAwait(false)).Behavior,
             cancellationToken).ConfigureAwait(false);
 
+    public static async Task<BehaviorView> SaveScriptAsync<TInput>(
+        this NeuronReference<IBehavior> behavior, string source, CancellationToken cancellationToken = default)
+        where TInput : Signal
+        => await AwaitValidation(behavior, (await behavior.RequestAsync(new SaveBehaviorScript(source,
+            [typeof(TInput).Name]), cancellationToken).ConfigureAwait(false)).Behavior, cancellationToken)
+            .ConfigureAwait(false);
+
     public static async Task<BehaviorView> SaveScriptAsync(
         this NeuronReference<IBehavior> behavior, string source, CancellationToken cancellationToken = default)
         => await AwaitValidation(behavior, (await behavior.RequestAsync(new SaveBehaviorScript(source), cancellationToken)
             .ConfigureAwait(false)).Behavior, cancellationToken).ConfigureAwait(false);
+
+    public static Task SubscribeToAsync<TSource, TSignal>(
+        this NeuronReference<IBehavior> behavior,
+        NeuronId source,
+        CancellationToken cancellationToken = default)
+        where TSource : INeuron
+        where TSignal : Signal
+    {
+        var expected = NeuronId.For<TSource>(source.Owner, source.Name);
+        if (source != expected)
+        {
+            throw new ArgumentException(
+                $"Neuron '{source}' is not a '{expected.Type}' instance.",
+                nameof(source));
+        }
+
+        return behavior.SendAsync(new Subscribe(source, typeof(TSignal).Name), cancellationToken);
+    }
 
     public static async Task<BehaviorView> ActivateAsync(
         this NeuronReference<IBehavior> behavior, CancellationToken cancellationToken = default)

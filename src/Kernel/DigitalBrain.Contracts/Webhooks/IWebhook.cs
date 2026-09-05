@@ -5,7 +5,7 @@ namespace DigitalBrain.Sdk.Webhooks;
 
 /// <summary>A source-owned, durable subscription endpoint for authenticated external events.</summary>
 [Alias("db.webhook")]
-public interface IWebhook : INeuron, IHandle<ReadWebhook>, IEmits<WebhookReceived>;
+public interface IWebhook : INeuron, IHandle<ReadWebhook>;
 
 [GenerateSerializer, Alias("db.webhook.read")]
 public sealed record ReadWebhook : Signal<WebhookStatus>;

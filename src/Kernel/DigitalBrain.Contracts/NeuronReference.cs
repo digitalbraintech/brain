@@ -27,38 +27,12 @@ public readonly struct NeuronReference<TNeuron> : IEquatable<NeuronReference<TNe
             var read = await _client.SendRequestAsync<BehaviorRead>(Id, new ReadBehavior(), cancellationToken).ConfigureAwait(false);
             return (read.Behavior.Draft ?? read.Behavior.Active)?.OutputSignalTypes ?? [];
         }
-        return typeof(TNeuron).GetInterfaces().Where(t => t.IsGenericType
-                && t.GetGenericTypeDefinition() == typeof(IEmits<>))
-            .Select(t => t.GetGenericArguments()[0].Name).Distinct(StringComparer.Ordinal).ToArray();
+        return [];
     }
 
     public Task SubscribeAsync<TSignal>(INeuronReference source, CancellationToken cancellationToken = default)
         where TSignal : Signal
         => SubscribeCoreAsync(source, typeof(TSignal).Name, cancellationToken);
-
-    public async Task SubscribeAsync(INeuronReference source, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(source);
-        IReadOnlyList<string> accepted;
-        if (typeof(TNeuron) == typeof(IBehavior))
-        {
-            var read = await _client.SendRequestAsync<BehaviorRead>(Id, new ReadBehavior(), cancellationToken).ConfigureAwait(false);
-            accepted = (read.Behavior.Draft ?? read.Behavior.Active)?.InputSignalTypes ?? [];
-        }
-        else
-        {
-            accepted = typeof(TNeuron).GetInterfaces().Where(t => t.IsGenericType
-                    && t.GetGenericTypeDefinition() == typeof(IHandle<>))
-                .Select(t => t.GetGenericArguments()[0].Name).ToArray();
-        }
-        var published = await source.PublishedSignalTypesAsync(cancellationToken).ConfigureAwait(false);
-        var compatible = accepted.Intersect(published, StringComparer.Ordinal).ToArray();
-        if (compatible.Length != 1)
-        {
-            throw new InvalidOperationException("A subscription needs exactly one compatible signal type. Use SubscribeAsync<TSignal>(source) to choose explicitly.");
-        }
-        await SubscribeCoreAsync(source, compatible[0], cancellationToken).ConfigureAwait(false);
-    }
 
     public async Task UnsubscribeAsync<TSignal>(INeuronReference source, CancellationToken cancellationToken = default)
         where TSignal : Signal
