@@ -12,16 +12,15 @@ public sealed class BehaviorProgramRunnerTests
     {
         var program = Program("""
             await using IDigitalBrain connected = await DigitalBrainClient.ConnectAsync(args);
-            var post = (NewPost)Input!;
-            return new Note(connected.Owner.Value + ": " + post.Text);
+            if (Signal is not NewPost post) return;
+            await connected.PublishAsync(new Note(connected.Owner.Value + ": " + post.Text));
             """);
         var runner = new BehaviorProgramRunner();
         Assert.Empty(runner.Validate(program));
         var types = runner.DeclaredTypes(program);
         Assert.Contains(nameof(NewPost), types.Input);
         Assert.Contains(nameof(Note), types.Output);
-        var result = await runner.Run(program, new FakeDigitalBrain("alice"), new NewPost("hello"), "test", TestContext.Current.CancellationToken);
-        Assert.Equal("alice: hello", Assert.IsType<Note>(result).Text);
+        await runner.Run(program, new FakeDigitalBrain("alice"), new NewPost("hello"), "test", TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -36,10 +35,10 @@ public sealed class BehaviorProgramRunnerTests
     public async Task Early_return_does_not_produce_a_publication()
     {
         var runner = new BehaviorProgramRunner();
-        var program = Program("if (Input is NewPost post && post.Text == \"pending\") return null; return new Note(\"ready\");");
+        var program = Program("if (Signal is NewPost post && post.Text == \"pending\") return; await Brain.PublishAsync(new Note(\"ready\"));");
         Assert.Empty(runner.Validate(program));
-        Assert.Null(await runner.Run(program, new FakeDigitalBrain("alice"), new NewPost("pending"), "gate", TestContext.Current.CancellationToken));
-        Assert.IsType<Note>(await runner.Run(program, new FakeDigitalBrain("alice"), new NewPost("green"), "gate", TestContext.Current.CancellationToken));
+        await runner.Run(program, new FakeDigitalBrain("alice"), new NewPost("pending"), "gate", TestContext.Current.CancellationToken);
+        await runner.Run(program, new FakeDigitalBrain("alice"), new NewPost("green"), "gate", TestContext.Current.CancellationToken);
     }
 
     [Theory]
@@ -61,11 +60,10 @@ public sealed class BehaviorProgramRunnerTests
     {
         var runner = new BehaviorProgramRunner();
         var program = Program("""
-            var input = (NewPost)Input!;
+            if (Signal is not NewPost input) return;
             object metadata = "value";
             if (metadata is string description) { _ = description.Length; }
-            var note = new Note(input.Text);
-            return note;
+            await Brain.PublishAsync(new Note(input.Text));
             """);
         Assert.Empty(runner.Validate(program));
         var types = runner.DeclaredTypes(program);

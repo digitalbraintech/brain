@@ -13,7 +13,7 @@ using Microsoft.CodeAnalysis.Scripting;
 namespace DigitalBrain.Scripting.Startup;
 internal sealed class BehaviorProgramRunner
 {
-    private readonly ConcurrentDictionary<(Guid Revision, string SourceHash, string Runtime), Script<Signal?>> _compiled = new();
+    private readonly ConcurrentDictionary<(Guid Revision, string SourceHash, string Runtime), Script<object>> _compiled = new();
     public static string RuntimeFingerprint { get; } = RuntimeIdentity();
 
     private static string RuntimeIdentity()
@@ -68,22 +68,28 @@ internal sealed class BehaviorProgramRunner
         var inputs = program.InputSignalTypes.Length > 0 ? program.InputSignalTypes : inferredInputTypes
             .Select(node => semantics.GetTypeInfo(node).Type).Where(IsSignal).Select(type => type!.Name).Distinct(StringComparer.Ordinal).ToArray();
         var returns = syntax.DescendantNodes().OfType<ReturnStatementSyntax>().Where(node => node.Expression is not null).Select(node => node.Expression!).ToArray();
+        var publishOutputs = syntax.DescendantNodes().OfType<InvocationExpressionSyntax>()
+            .Where(node => node.Expression.ToString().Contains("PublishAsync", StringComparison.Ordinal))
+            .SelectMany(node => node.ArgumentList.Arguments)
+            .Select(argument => argument.Expression)
+            .OfType<ObjectCreationExpressionSyntax>()
+            .Select(creation => semantics.GetTypeInfo(creation).Type);
         var outputs = program.OutputSignalTypes.Length > 0 ? program.OutputSignalTypes : returns
             .Select(expression => semantics.GetTypeInfo(expression).Type).Where(IsSignal)
             .Where(type => type!.Name != nameof(Signal)).Select(type => type!.Name)
+            .Concat(publishOutputs.Where(IsSignal).Select(type => type!.Name))
             .Concat(returns.Any(IsInput) ? inputs : []).Distinct(StringComparer.Ordinal).ToArray();
         return (inputs, outputs);
     }
 
-    public async Task<Signal?> Run(BehaviorProgram program, IDigitalBrain brain, Signal input, string name, CancellationToken cancellationToken)
+    public async Task Run(BehaviorProgram program, IDigitalBrain brain, Signal input, string name, CancellationToken cancellationToken)
     {
         var hash = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(program.Source)));
         using var connection = DigitalBrainClient.BindExecution(brain);
-        var result = await Compile(program).RunAsync(new StartupScriptContext(brain, cancellationToken, new(name, program.Revision, hash), input), cancellationToken).ConfigureAwait(false);
-        return result.ReturnValue;
+        await Compile(program).RunAsync(new StartupScriptContext(brain, cancellationToken, new(name, program.Revision, hash), input), cancellationToken).ConfigureAwait(false);
     }
 
-    private Script<Signal?> Compile(BehaviorProgram program) => _compiled.GetOrAdd((program.Revision,
+    private Script<object> Compile(BehaviorProgram program) => _compiled.GetOrAdd((program.Revision,
         Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(program.Source))), RuntimeFingerprint), _ =>
     {
         // Roslyn script globals are fields, which cannot contain ordinary C# using
@@ -105,8 +111,8 @@ internal sealed class BehaviorProgramRunner
 
         var entry = $"__DigitalBrainBehavior_{program.Revision:N}";
         var source = string.Join(Environment.NewLine, syntax.Usings.Select(directive => directive.ToString()))
-            + $"\nasync System.Threading.Tasks.Task<DigitalBrain.Abstractions.Signals.Signal?> {entry}()\n{{\n#line 1 \"behavior.csx\"\n"
-            + new string(body) + $"\n#line default\nreturn null;\n}}\nreturn await {entry}();";
-        return CSharpScript.Create<Signal?>(source, CSharpStartupScriptRunner.Options, typeof(StartupScriptContext));
+            + $"\nasync System.Threading.Tasks.Task {entry}()\n{{\n#line 1 \"behavior.csx\"\n"
+            + new string(body) + $"\n#line default\n}}\nawait {entry}();\nreturn 0;";
+        return CSharpScript.Create<object>(source, CSharpStartupScriptRunner.Options, typeof(StartupScriptContext));
     });
 }

@@ -19,9 +19,6 @@ public interface IDigitalBrain : IAsyncDisposable
     Task<int> PublishAsync(Signal signal, CancellationToken cancellationToken = default)
         => throw new InvalidOperationException("Publish is available only while a saved behavior is executing.");
 
-    TSignal Input<TSignal>() where TSignal : Signal
-        => throw new InvalidOperationException("Input is available only while a saved behavior is executing.");
-
     NeuronId InputSource
         => throw new InvalidOperationException("InputSource is available only while a saved behavior is executing.");
 

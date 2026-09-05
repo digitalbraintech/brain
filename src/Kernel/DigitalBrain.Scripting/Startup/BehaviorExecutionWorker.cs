@@ -188,9 +188,9 @@ internal sealed class BehaviorExecutionWorker(IDigitalBrain brain, IGrainFactory
             }
 
             await using var client = DigitalBrainClient.ConnectExecution(grains, id, claim);
-            var output = await runner.Run(claim.Program, client, claim.Input.Signal, id.Name, deadline.Token).ConfigureAwait(false);
+            await runner.Run(claim.Program, client, claim.Input.Signal, id.Name, deadline.Token).ConfigureAwait(false);
             deadline.Token.ThrowIfCancellationRequested();
-            await behavior.Complete(claim, output).WaitAsync(stoppingToken).ConfigureAwait(false);
+            await behavior.Complete(claim, output: null).WaitAsync(stoppingToken).ConfigureAwait(false);
         }
         catch (Exception exception)
         {

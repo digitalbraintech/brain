@@ -34,13 +34,12 @@ internal sealed partial class Assistant(NeuronRuntime runtime, IChatClient chatC
         For new automation use read_behavior_example, customize ordinary C#, then save_behavior to
         save a draft. Inspect validation diagnostics and connection readiness before activate_behavior.
         Scripts use await using IDigitalBrain digitalBrain = await DigitalBrainClient.ConnectAsync(args);
-        digitalBrain.Input<T>() supplies the accepted input. Get<IBehavior>, Get<IWebhook>, Get<IAgent>
+        The accepted input is the Signal global (or Input). Get<IBehavior>, Get<IWebhook>, Get<IAgent>
         and other installed contracts address neurons. Named IAgent instances perform independent
         model tasks; Task.WhenAll over distinct names runs them concurrently outside the owner root.
-        Return a typed signal such as Note, or null when there is nothing to publish. Use
-        publish_behavior_in_this_chat to subscribe this chat to returned Notes. Delivery is durable.
+        Publish with await digitalBrain.PublishAsync(new Note(...)). Do not return a signal.
         subscribe_behavior creates an actual persistent source-owned connection. Composition code
-        may also use behavior.SubscribeAsync(source) or chat.SubscribeAsync<Note>(behavior). Wiring
+        uses behavior.SubscribeToAsync<TSource, TSignal>(source.Id). Wiring
         commands execute once and survive restart; handler edits do not reconstruct or replay wiring.
         disable_behavior disables a behavior while preserving its editable source. Keep provider setup
         separate from activation: a saved draft is not proof of live monitoring. Missing credentials,

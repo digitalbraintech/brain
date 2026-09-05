@@ -37,8 +37,8 @@ internal sealed partial class Assistant
 
         async Task<string> Save(
             [Description("Stable local behavior name")] string name,
-            [Description("Ordinary C# handler: connect with DigitalBrainClient.ConnectAsync(args), read Input<T>(), call neurons, return a signal or null")] string source,
-            [Description("Input signal type names; null infers Input<T>()")] string[]? inputSignalTypes,
+            [Description("Ordinary C# handler: connect with DigitalBrainClient.ConnectAsync(args), read Signal, call neurons, PublishAsync a fact")] string source,
+            [Description("Input signal type names; null infers Signal is T")] string[]? inputSignalTypes,
             [Description("Returned signal type names; null infers source")] string[]? outputSignalTypes,
             [Description("EveryEvent by default. PR review requires LatestPerSubject, ObserveFromActivation and OncePerVersion flags.")] BehaviorInputPolicy inputPolicy,
             CancellationToken cancellationToken)

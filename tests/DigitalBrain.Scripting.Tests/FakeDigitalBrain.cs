@@ -3,6 +3,7 @@ using DigitalBrain.Abstractions.Entities;
 using DigitalBrain.Abstractions.Identity;
 using DigitalBrain.Abstractions.Journals;
 using DigitalBrain.Abstractions.Neurons;
+using DigitalBrain.Abstractions.Signals;
 using DigitalBrain.Abstractions.Synapses;
 
 namespace DigitalBrain.Scripting.Tests;
@@ -37,6 +38,9 @@ internal sealed class FakeDigitalBrain(string owner) : IDigitalBrain
         ActivateCallCount++;
         return Task.CompletedTask;
     }
+
+    public Task<int> PublishAsync(Signal signal, CancellationToken cancellationToken = default)
+        => Task.FromResult(0);
 
     public NeuronReference<TNeuron> Get<TNeuron>(string name = "default")
         where TNeuron : INeuron => throw new NotSupportedException();

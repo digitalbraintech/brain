@@ -72,10 +72,6 @@ public sealed partial class DigitalBrainClient
         return new ExecutionScope(previous);
     }
 
-    public TSignal Input<TSignal>() where TSignal : Signal
-        => _transport.Input is TSignal input ? input
-            : throw new InvalidOperationException($"The current behavior input is not '{typeof(TSignal).Name}'.");
-
     public NeuronId InputSource => _transport.InputSource
         ?? throw new InvalidOperationException("InputSource is available only while a saved behavior is executing.");
 
