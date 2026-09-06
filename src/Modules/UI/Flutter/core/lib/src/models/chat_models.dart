@@ -432,3 +432,36 @@ final class ChatTimerOffer {
     );
   }
 }
+
+/// State of a named surface kit entity, read from /kit/surfaces/{name}.
+final class KitSurfaceState {
+  const KitSurfaceState({required this.scenes});
+
+  final List<KitSurfaceScene> scenes;
+
+  factory KitSurfaceState.fromJson(Map<String, Object?> json) {
+    final raw = json['scenes'];
+    return KitSurfaceState(
+      scenes: raw is List
+          ? raw
+                .whereType<Map>()
+                .map(
+                  (e) => KitSurfaceScene.fromJson(Map<String, Object?>.from(e)),
+                )
+                .toList(growable: false)
+          : const <KitSurfaceScene>[],
+    );
+  }
+}
+
+final class KitSurfaceScene {
+  const KitSurfaceScene({required this.surfaceKey, required this.title});
+
+  final String surfaceKey;
+  final String title;
+
+  factory KitSurfaceScene.fromJson(Map<String, Object?> json) => KitSurfaceScene(
+    surfaceKey: json['surfaceKey'] as String? ?? '',
+    title: json['title'] as String? ?? '',
+  );
+}

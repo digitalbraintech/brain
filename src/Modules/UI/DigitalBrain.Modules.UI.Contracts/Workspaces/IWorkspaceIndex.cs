@@ -40,5 +40,6 @@ public interface IWorkspaceInject
         string workspaceName,
         string text,
         ActorContext actor,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        CommandId? commandId = null);
 }

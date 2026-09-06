@@ -322,7 +322,16 @@ internal sealed class BehaviorNeuron : Neuron, IBehavior, IBehaviorKernel
     protected override async Task ValidateSubscriptionAsync(NeuronId source, string signalType, bool subscribed)
     {
         var principal = RequireActor();
-        if (source.Owner != Id.Owner || !PrincipalPartition.OwnsInstance(principal, source.Name))
+        if (source.Owner != Id.Owner)
+        {
+            throw new NeuronAuthorizationException("Behavior subscriptions must use this principal's source instances.");
+        }
+
+        // Owner-global sources (inbox, Ino) are the composition roots start.cs wires.
+        // Principal-partitioned sources still must belong to this actor.
+        var ownerGlobal = source.Type.Equals("usermessages", StringComparison.OrdinalIgnoreCase)
+            || source.Type.Equals("assistant", StringComparison.OrdinalIgnoreCase);
+        if (!ownerGlobal && !PrincipalPartition.OwnsInstance(principal, source.Name))
         {
             throw new NeuronAuthorizationException("Behavior subscriptions must use this principal's source instances.");
         }

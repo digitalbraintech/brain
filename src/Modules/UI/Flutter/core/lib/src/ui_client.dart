@@ -460,6 +460,14 @@ final class DigitalBrainUiClient implements BehaviorStudioApi {
     return body == null ? null : ChatGraphOffer.fromJson(body);
   }
 
+  Future<KitSurfaceState?> readSurface(String surfaceName) async {
+    final body = await _getKitEntity(
+      '/kit/surfaces/$surfaceName',
+      'kit surface',
+    );
+    return body == null ? null : KitSurfaceState.fromJson(body);
+  }
+
   Future<ChatSpreadsheetOffer?> readSpreadsheet(String spreadsheetName) async {
     final body = await _getKitEntity(
       '/kit/spreadsheets/$spreadsheetName',

@@ -13,7 +13,8 @@ public sealed class WorkspaceInject(IDigitalBrain brain, IGrainFactory grains) :
         string workspaceName,
         string text,
         ActorContext actor,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        CommandId? commandId = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(workspaceName);
         ArgumentException.ThrowIfNullOrWhiteSpace(text);
@@ -38,7 +39,7 @@ public sealed class WorkspaceInject(IDigitalBrain brain, IGrainFactory grains) :
                 ?? throw new InvalidOperationException("Workspace 'main' could not be created.");
         }
 
-        var command = CommandId.New();
+        var command = commandId ?? CommandId.New();
         var inbox = brain.Get<IComposer>(IComposer.DefaultInstanceName);
         var correlation = new CorrelationId(Guid.Parse(record.CorrelationId));
         var session = grains.GetGrain<IBrainNeuron>(IBrainNeuron.ForOwner(brain.Owner).ToGrainId());

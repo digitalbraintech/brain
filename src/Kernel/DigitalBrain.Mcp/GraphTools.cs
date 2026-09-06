@@ -16,8 +16,9 @@ namespace DigitalBrain.Mcp;
 [McpServerToolType]
 internal sealed class GraphTools(IDigitalBrain brain)
 {
-    private static readonly PrincipalId Operator =
-        new(Guid.Parse("00000000-0000-0000-0000-0000000000a1"));
+    private static readonly ActorContext OwnerActor = new(
+        new PrincipalId(Guid.Parse("0000dead-0000-0000-0000-000000000001")),
+        "owner");
 
     [McpServerTool(Name = McpSurface.ReadSynapses)]
     [Description("Read source-owned synapses on a neuron. Use to verify subscribe/unsubscribe.")]
@@ -159,9 +160,51 @@ internal sealed class GraphTools(IDigitalBrain brain)
         }, JsonSerializerOptions.Web);
     }
 
-    private IDisposable Enter() => VerifiedActor.Enter(new ActorContext(Operator, "operator"));
+    [McpServerTool(Name = McpSurface.SaveScript)]
+    [Description("Save C# behavior source on an IBehavior neuron. Validation runs on the scripting host. Activate separately.")]
+    public async Task<string> SaveScriptAsync(
+        [Description("Local behavior name, for example 'message-chart'")] string name,
+        [Description("C# handler body. Use Brain and Signal globals.")] string source,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentException.ThrowIfNullOrWhiteSpace(source);
+        using var actor = Enter();
+        await brain.ActivateAsync(cancellationToken).ConfigureAwait(false);
+        var view = await brain.Get<IBehavior>(name).SaveScriptAsync(source, cancellationToken).ConfigureAwait(false);
+        return JsonSerializer.Serialize(new
+        {
+            id = view.Id.ToString(),
+            enabled = view.Enabled,
+            draftRevision = view.Draft?.Revision,
+            validation = view.Draft?.Validation.ToString(),
+            diagnostics = view.Draft?.Diagnostics,
+            inputs = view.Draft?.InputSignalTypes,
+            outputs = view.Draft?.OutputSignalTypes,
+        }, JsonSerializerOptions.Web);
+    }
 
-    private string Instance(string name) => PrincipalPartition.InstanceName(Operator, name);
+    [McpServerTool(Name = McpSurface.EnableBehavior)]
+    [Description("Activate a saved behavior so subscribed synapses invoke it.")]
+    public async Task<string> EnableBehaviorAsync(
+        [Description("Local behavior name")] string name,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        using var actor = Enter();
+        await brain.ActivateAsync(cancellationToken).ConfigureAwait(false);
+        var view = await brain.Get<IBehavior>(name).ActivateAsync(cancellationToken).ConfigureAwait(false);
+        return JsonSerializer.Serialize(new
+        {
+            id = view.Id.ToString(),
+            enabled = view.Enabled,
+            activeRevision = view.Active?.Revision,
+        }, JsonSerializerOptions.Web);
+    }
+
+    private IDisposable Enter() => VerifiedActor.Enter(OwnerActor);
+
+    private string Instance(string name) => PrincipalPartition.InstanceName(OwnerActor.PrincipalId, name);
 
     private GraphSubject Resolve(string kind, string name) => kind.Trim().ToLowerInvariant() switch
     {

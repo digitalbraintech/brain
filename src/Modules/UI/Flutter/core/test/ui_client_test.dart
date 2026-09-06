@@ -527,6 +527,38 @@ data: {"role":"assistant","contents":[{"\$type":"text","text":"ignore"}]}
     expect(graph.edges.single.dotted, isTrue);
   });
 
+  test('readSurface GETs /kit/surfaces/{name} and parses scenes', () async {
+    http.BaseRequest? seen;
+    final client = DigitalBrainUiClient(
+      baseUri: Uri.parse('http://ui.example:5080'),
+      httpClient: MockClient((request) async {
+        seen = request;
+        return http.Response(
+          jsonEncode({
+            'scenes': [
+              {'surfaceKey': 'chart:ino-replies', 'title': 'Ino replies'},
+            ],
+          }),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+    );
+
+    final surface = await client.readSurface('desk');
+
+    expect(seen, isNotNull);
+    expect(seen!.method, 'GET');
+    expect(
+      seen!.url.toString(),
+      'http://ui.example:5080/kit/surfaces/desk',
+    );
+    expect(surface, isNotNull);
+    expect(surface!.scenes, hasLength(1));
+    expect(surface.scenes.single.surfaceKey, 'chart:ino-replies');
+    expect(surface.scenes.single.title, 'Ino replies');
+  });
+
   test('readGraph returns null on 404', () async {
     final client = DigitalBrainUiClient(
       baseUri: Uri.parse('http://ui.example:5080'),

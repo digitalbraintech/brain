@@ -14,6 +14,7 @@ typedef ReadChart = Future<ChatChartOffer?> Function(String name);
 typedef ReadImageBytes = Future<Uint8List?> Function(String name);
 typedef ReadSpreadsheet = Future<ChatSpreadsheetOffer?> Function(String name);
 typedef ReadGraph = Future<ChatGraphOffer?> Function(String name);
+typedef ReadSurface = Future<KitSurfaceState?> Function(String name);
 
 const ownerUserId = 'owner';
 const assistantUserId = 'assistant';

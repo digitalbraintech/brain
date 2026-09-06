@@ -24,6 +24,7 @@ final class BrainChatApp extends StatelessWidget {
     this.onReadImageBytes,
     this.onReadSpreadsheet,
     this.onReadGraph,
+    this.onReadSurface,
     this.onReadBrain,
     this.onWatchBrain,
     this.behaviorStudio,
@@ -46,6 +47,7 @@ final class BrainChatApp extends StatelessWidget {
   final ReadImageBytes? onReadImageBytes;
   final ReadSpreadsheet? onReadSpreadsheet;
   final ReadGraph? onReadGraph;
+  final ReadSurface? onReadSurface;
   final ReadBrain? onReadBrain;
   final WatchBrain? onWatchBrain;
   final BehaviorStudioApi? behaviorStudio;
@@ -75,6 +77,7 @@ final class BrainChatApp extends StatelessWidget {
         onReadImageBytes: onReadImageBytes,
         onReadSpreadsheet: onReadSpreadsheet,
         onReadGraph: onReadGraph,
+        onReadSurface: onReadSurface,
         onReadBrain: onReadBrain,
         onWatchBrain: onWatchBrain,
         behaviorStudio: behaviorStudio,

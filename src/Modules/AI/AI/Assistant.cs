@@ -31,7 +31,7 @@ internal sealed partial class Assistant(NeuronRuntime runtime, IChatClient chatC
     {
         ArgumentNullException.ThrowIfNull(fact);
         cancellationToken.ThrowIfCancellationRequested();
-        return RecordOutgoingAsync(fact, correlation);
+        return BroadcastAsync(fact, correlation);
     }
 
     public async Task<DeliveryOutcome> SendFact(

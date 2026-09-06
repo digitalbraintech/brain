@@ -29,6 +29,7 @@ final class BrainWorkspace extends StatefulWidget {
     this.onReadImageBytes,
     this.onReadSpreadsheet,
     this.onReadGraph,
+    this.onReadSurface,
     this.onReadBrain,
     this.onWatchBrain,
     this.behaviorStudio,
@@ -51,6 +52,7 @@ final class BrainWorkspace extends StatefulWidget {
   final ReadImageBytes? onReadImageBytes;
   final ReadSpreadsheet? onReadSpreadsheet;
   final ReadGraph? onReadGraph;
+  final ReadSurface? onReadSurface;
   final ReadBrain? onReadBrain;
   final WatchBrain? onWatchBrain;
   final BehaviorStudioApi? behaviorStudio;
@@ -169,7 +171,9 @@ final class _BrainWorkspaceState extends State<BrainWorkspace> {
               onOpenUserAction: widget.onOpenSignIn,
             ),
             kitDestinationIndex => const KitGalleryScreen(),
-            windowingDestinationIndex => const WindowingScreen(),
+            windowingDestinationIndex => WindowingScreen(
+              onReadSurface: widget.onReadSurface,
+            ),
             _ => const SizedBox.shrink(),
           },
         ),

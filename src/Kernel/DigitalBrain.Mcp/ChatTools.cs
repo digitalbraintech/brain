@@ -4,7 +4,10 @@ using System.Text.Json;
 using DigitalBrain.Abstractions;
 using DigitalBrain.Abstractions.Identity;
 using DigitalBrain.Abstractions.Journals;
+using DigitalBrain.Abstractions.Neurons;
+using DigitalBrain.AI;
 using DigitalBrain.Chat;
+using DigitalBrain.Core;
 using DigitalBrain.UI;
 using ModelContextProtocol;
 using ModelContextProtocol.Protocol;
@@ -13,20 +16,24 @@ using ModelContextProtocol.Server;
 namespace DigitalBrain.Mcp;
 
 [McpServerToolType]
-internal sealed class ChatTools(IDigitalBrain brain)
+internal sealed class ChatTools(IDigitalBrain brain, IGrainFactory grains)
 {
     private const int DefaultTimeoutSeconds = 300;
     private const int MaximumTimeoutSeconds = 300;
-    private static readonly PrincipalId Operator =
-        new(Guid.Parse("00000000-0000-0000-0000-0000000000a1"));
+
+    // Same single-owner principal as kernel HTTP (HttpActor). Inbox, workspace
+    // correlation, behaviors, and kit entities must share this partition.
+    private static readonly ActorContext OwnerActor = new(
+        new PrincipalId(Guid.Parse("0000dead-0000-0000-0000-000000000001")),
+        "owner");
 
     [McpServerTool(Name = McpSurface.SendChatMessage)]
-    [Description("Send a message to the assistant. If a login action is required, complete it in the browser and retry with the same text, commandId and chatName to retrieve the resumed response. Never send credentials in chat.")]
+    [Description("Inject UserMessaged into the owner inbox for a workspace. Ino answers along the start.cs synapse. If a login action is required, complete it in the browser and retry with the same text, commandId and chatName. Never send credentials in chat.")]
     public async Task<CallToolResult> SendChatMessageAsync(
         [Description("Message to send to DigitalBrain")] string text,
         [Description("Caller-generated command id used to resume an interrupted call")]
         string commandId,
-        [Description("Conversation name, for example 'main'")] string chatName = "main",
+        [Description("Workspace name, for example 'main'")] string chatName = "main",
         [Description("Maximum wait in seconds, from 1 through 300")]
         int timeoutSeconds = DefaultTimeoutSeconds,
         CancellationToken cancellationToken = default,
@@ -43,64 +50,84 @@ internal sealed class ChatTools(IDigitalBrain brain)
             throw new ArgumentException("The command id must be a non-empty GUID.", nameof(commandId));
         }
 
-        var chatInstance = PrincipalPartition.InstanceName(Operator, chatName);
         var command = new CommandId(commandIdentity);
 
-        await brain.ActivateAsync(cancellationToken);
-        await brain.Get<IChat>(chatInstance).RequestAsync(
-            new SendMessage(command, text, new ActorContext(Operator, "operator")),
-            cancellationToken);
+        using var actor = VerifiedActor.Enter(OwnerActor);
+        await brain.ActivateAsync(cancellationToken).ConfigureAwait(false);
+        var ino = brain.Get<IAssistant>("assistant");
+        var before = await ino.ReadJournalAsync(JournalKind.Outgoing, long.MaxValue, cancellationToken)
+            .ConfigureAwait(false);
+        await InjectAsync(chatName, text, command, cancellationToken).ConfigureAwait(false);
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
 
         try
         {
-            return await WaitForResponseAsync(chatInstance, command, server, timeout.Token);
+            return await WaitForResponseAsync(ino, command, before.ResumeSequence, server, timeout.Token)
+                .ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             throw new TimeoutException(
-                $"DigitalBrain did not answer command '{commandId}' in conversation "
+                $"DigitalBrain did not answer command '{commandId}' in workspace "
                 + $"'{chatName}' within {timeoutSeconds} seconds.");
         }
     }
 
-    private async Task<CallToolResult> WaitForResponseAsync(
-        string chatName,
+    private async Task InjectAsync(
+        string workspaceName,
+        string text,
+        CommandId command,
+        CancellationToken cancellationToken)
+    {
+        var index = brain.GetEntity<IWorkspaceIndex>(IWorkspaceIndex.DefaultInstanceName);
+        var record = await index.Find(workspaceName).ConfigureAwait(false);
+        if (record is null)
+        {
+            if (!string.Equals(workspaceName, "main", StringComparison.Ordinal))
+            {
+                throw new NeuronAuthorizationException($"Unknown workspace '{workspaceName}'.");
+            }
+
+            await index.Ensure("main", "Main").ConfigureAwait(false);
+            record = await index.Find("main").ConfigureAwait(false)
+                ?? throw new InvalidOperationException("Workspace 'main' could not be created.");
+        }
+
+        var inbox = brain.Get<IComposer>(IComposer.DefaultInstanceName);
+        var correlation = new CorrelationId(Guid.Parse(record.CorrelationId));
+        var session = grains.GetGrain<IBrainNeuron>(IBrainNeuron.ForOwner(brain.Owner).ToGrainId());
+        await session.SendWithCorrelation(
+                inbox.Id,
+                new UserMessaged(command, inbox.Id, text, OwnerActor),
+                correlation,
+                cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    private static async Task<CallToolResult> WaitForResponseAsync(
+        NeuronReference<IAssistant> ino,
         CommandId commandId,
+        long afterSequence,
         McpServer? server,
         CancellationToken cancellationToken)
     {
-        var chatReference = brain.Get<IChat>(chatName);
-        var snapshot = await ReadTurnAsync(chatReference, commandId, cancellationToken);
-        if (ResultFromSnapshot(snapshot, server) is { } current)
-        {
-            return current;
-        }
-
-        await foreach (var page in chatReference.WatchJournalAsync(
+        await foreach (var page in ino.WatchJournalAsync(
             JournalKind.Outgoing,
-            afterSequence: 0,
-            cancellationToken))
+            afterSequence,
+            cancellationToken).ConfigureAwait(false))
         {
-            // Journals contain every attempt, including an older login prompt. The
-            // durable current status decides whether any of those events is relevant.
-            snapshot = await ReadTurnAsync(chatReference, commandId, cancellationToken);
-            if (ResultFromSnapshot(snapshot, server) is { } result)
-            {
-                return result;
-            }
-
             foreach (var delivery in page.Delta)
             {
-                // Compatibility for retained turns completed before answers were
-                // included in snapshots. Never replay a pending-action response.
-                if (snapshot.Status == ChatTurnStatus.Completed
-                    && delivery.Signal is Responded { UserAction: null } response
-                    && response.CommandId == commandId)
+                if (delivery.Signal is Responded responded && responded.CommandId == commandId)
                 {
-                    return TextResult(response.Text);
+                    if (ResultFromUserAction(responded, server) is { } pending)
+                    {
+                        return pending;
+                    }
+
+                    return TextResult(responded.Text);
                 }
             }
         }
@@ -108,75 +135,41 @@ internal sealed class ChatTools(IDigitalBrain brain)
         throw new InvalidOperationException("The journal watch ended before the assistant responded.");
     }
 
-    private static async Task<ChatTurnSnapshot> ReadTurnAsync(
-        NeuronReference<IChat> chat, CommandId commandId, CancellationToken cancellationToken)
+    private static CallToolResult? ResultFromUserAction(Responded responded, McpServer? server)
     {
-        var turns = (await chat.RequestAsync(new ReadTurns(), cancellationToken)).Turns;
-        return turns.FirstOrDefault(turn => turn.CommandId == commandId)
-            ?? throw new InvalidOperationException("The requested chat turn is no longer retained.");
-    }
-
-    private static CallToolResult? ResultFromSnapshot(ChatTurnSnapshot turn, McpServer? server)
-    {
-        if (turn.Status == ChatTurnStatus.WaitingForUser && turn.UserAction is { } action)
+        if (responded.UserAction is not { } action)
         {
-            if (server?.ClientCapabilities?.Elicitation?.Url is not null)
-            {
-                // Release the tool call while the user authorizes in a browser.
-                // The client completes this URL and retries the same command id.
-                throw new UrlElicitationRequiredException(action.Message,
-                [
-                    new ElicitRequestParams
-                    {
-                        Mode = "url",
-                        ElicitationId = action.Id,
-                        Url = action.LoginUrl,
-                        Message = action.Message,
-                    },
-                ]);
-            }
-
-            return new CallToolResult
-            {
-                Content = [new TextContentBlock
-                {
-                    Text = $"{action.Message}\n\n[Log in to {action.DisplayName}]({action.LoginUrl})\n\n"
-                        + "After authorizing, repeat send_chat_message with the same text, commandId and chatName. Do not paste credentials into chat.",
-                }],
-                StructuredContent = JsonSerializer.SerializeToElement(new
-                {
-                    status = nameof(ChatTurnStatus.WaitingForUser),
-                    commandId = turn.CommandId.ToString(),
-                    turnId = turn.TurnId.ToString(),
-                    userAction = action,
-                }, JsonSerializerOptions.Web),
-            };
+            return null;
         }
 
-        if (turn.Status == ChatTurnStatus.Completed && turn.Answer is { } answer)
+        if (server?.ClientCapabilities?.Elicitation?.Url is not null)
         {
-            return TextResult(answer);
-        }
-
-        if (turn.Status is ChatTurnStatus.Failed or ChatTurnStatus.Cancelled)
-        {
-            var message = turn.Status == ChatTurnStatus.Cancelled
-                ? "This request was cancelled. Send a new command to try again."
-                : turn.Detail ?? "This request failed. Send a new command to try again.";
-            return new CallToolResult
-            {
-                IsError = true,
-                Content = [new TextContentBlock { Text = message }],
-                StructuredContent = JsonSerializer.SerializeToElement(new
+            throw new UrlElicitationRequiredException(action.Message,
+            [
+                new ElicitRequestParams
                 {
-                    status = turn.Status.ToString(),
-                    commandId = turn.CommandId.ToString(),
-                    turnId = turn.TurnId.ToString(),
-                }),
-            };
+                    Mode = "url",
+                    ElicitationId = action.Id,
+                    Url = action.LoginUrl,
+                    Message = action.Message,
+                },
+            ]);
         }
 
-        return null;
+        return new CallToolResult
+        {
+            Content = [new TextContentBlock
+            {
+                Text = $"{action.Message}\n\n[Log in to {action.DisplayName}]({action.LoginUrl})\n\n"
+                    + "After authorizing, repeat send_chat_message with the same text, commandId and chatName. Do not paste credentials into chat.",
+            }],
+            StructuredContent = JsonSerializer.SerializeToElement(new
+            {
+                status = nameof(ChatTurnStatus.WaitingForUser),
+                commandId = responded.CommandId.ToString(),
+                userAction = action,
+            }, JsonSerializerOptions.Web),
+        };
     }
 
     private static CallToolResult TextResult(string text)

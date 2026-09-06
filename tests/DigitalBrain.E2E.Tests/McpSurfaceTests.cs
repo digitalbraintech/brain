@@ -44,7 +44,7 @@ public sealed class McpSurfaceTests(AppHostFixture fixture)
             {
                 ["text"] = "MCP end-to-end check",
                 ["commandId"] = Guid.NewGuid().ToString("D"),
-                ["chatName"] = "mcp-e2e",
+                ["chatName"] = "main",
                 ["timeoutSeconds"] = 30,
             },
             cancellationToken: cancellationToken);
