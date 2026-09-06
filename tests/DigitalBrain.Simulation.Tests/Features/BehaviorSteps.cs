@@ -48,10 +48,9 @@ public sealed class BehaviorSteps
         await Client.GetEntity<ISurface>(ISurface.DefaultInstanceName).Open(new SurfaceScene($"chart:{chart}", "Elon on X"), 8);
         var source = $$"""
             await using IDigitalBrain digitalBrain = await DigitalBrainClient.ConnectAsync(args);
-            var post = digitalBrain.Input<NewPost>();
+            if (Signal is not NewPost post) return;
             var chart = digitalBrain.GetEntity<IChart>("{{chart}}");
             await chart.Append(new ChartPoint(post.Text, 1), "Elon on X");
-            return null;
             """;
         var runner = new BehaviorProgramRunner();
         _worker = new BehaviorExecutionWorker(Brain.Brain, Brain.Grains, runner, NullLogger<BehaviorExecutionWorker>.Instance);

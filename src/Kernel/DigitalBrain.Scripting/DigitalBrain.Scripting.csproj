@@ -20,7 +20,6 @@
     <ProjectReference Include="../../Modules/Time/Contracts/DigitalBrain.Modules.Time.Contracts.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <InternalsVisibleTo Include="DigitalBrain.Scripting.Tests" />
     <InternalsVisibleTo Include="DigitalBrain.Simulation.Tests" />
   </ItemGroup>
   <ItemGroup>

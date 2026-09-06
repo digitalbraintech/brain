@@ -23,12 +23,7 @@
     <PackageReference Include="Concentus.Oggfile" />
     <PackageReference Include="NAudio" />
   </ItemGroup>
-  <ItemGroup>
-    <InternalsVisibleTo Include="DigitalBrain.Simulation.Tests" />
-    <!-- Voice-to-text selection is internal wiring; its conformance tests live beside
-         the other single-source-of-truth suites. -->
-    <InternalsVisibleTo Include="DigitalBrain.Aspire.Tests" />
-  </ItemGroup>
+
   <ItemGroup>
     <EmbeddedResource Include="../../../../docs/examples/github-pr-review.csx" LogicalName="DigitalBrain.Examples.github-pr-review.csx" />
     <EmbeddedResource Include="../../../../docs/examples/personal-code-review.csx" LogicalName="DigitalBrain.Examples.personal-code-review.csx" />

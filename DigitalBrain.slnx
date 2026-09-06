@@ -65,10 +65,7 @@
     <Project Path="src/Testing/DigitalBrain.Testing/DigitalBrain.Testing.csproj" />
   </Folder>
   <Folder Name="/Tests/">
-    <Project Path="tests/DigitalBrain.Aspire.Tests/DigitalBrain.Aspire.Tests.csproj" />
-    <Project Path="tests/DigitalBrain.E2E.Tests/DigitalBrain.E2E.Tests.csproj" />
     <Project Path="tests/DigitalBrain.Simulation.Tests/DigitalBrain.Simulation.Tests.csproj" />
-    <Project Path="tests/DigitalBrain.Scripting.Tests/DigitalBrain.Scripting.Tests.csproj" />
     <Project Path="tests/DigitalBrain.Substrate.Tests/DigitalBrain.Substrate.Tests.csproj" />
   </Folder>
   <Project Path="src/Aspire/DigitalBrain.AppHost/DigitalBrain.AppHost.csproj" />

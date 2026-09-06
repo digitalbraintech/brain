@@ -11,9 +11,7 @@
     <PackageReference Include="Microsoft.Orleans.Clustering.AzureStorage" />
     <PackageReference Include="Aspire.Azure.Data.Tables" />
   </ItemGroup>
-  <ItemGroup>
-    <InternalsVisibleTo Include="DigitalBrain.Simulation.Tests" />
-  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="../../Product/DigitalBrain.Product.Contracts/DigitalBrain.Product.Contracts.csproj" />
     <ProjectReference Include="../DigitalBrain.Contracts/DigitalBrain.Contracts.csproj" />

@@ -6,40 +6,15 @@
     <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
     <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
     <NoWarn>$(NoWarn);ORLEANSEXP005</NoWarn>
-    <!-- Host pin for Foundry Local native assets on Windows desktop runs only. -->
-    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == '' and '$(CI)' != 'true' and $([MSBuild]::IsOSPlatform('Windows'))">win-x64</RuntimeIdentifier>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="xunit.v3.mtp-v2" />
     <PackageReference Include="Reqnroll.xunit.v3" />
-    <!-- Host pin mirroring DigitalBrain.Silo. Windows-only: native Foundry assets crash the
-         MTP test host handshake on Linux CI (exit code 5). -->
-    <PackageReference Include="Microsoft.AI.Foundry.Local" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/Kernel/DigitalBrain.Scripting/DigitalBrain.Scripting.csproj" />
-    <ProjectReference Include="../../src/Product/DigitalBrain.Product.Contracts/DigitalBrain.Product.Contracts.csproj" />
-    <ProjectReference Include="../../src/Testing/DigitalBrain.Testing/DigitalBrain.Testing.csproj" />
     <ProjectReference Include="../../src/Kernel/DigitalBrain.Sdk/DigitalBrain.Sdk.csproj" />
-    <ProjectReference Include="../../src/Modules/Time/Time/DigitalBrain.Modules.Time.csproj" />
-    <ProjectReference Include="../../src/Modules/Time/Contracts/DigitalBrain.Modules.Time.Contracts.csproj" />
-    <ProjectReference Include="../../src/Modules/Excel/Excel/DigitalBrain.Modules.Excel.csproj" />
-    <ProjectReference Include="../../src/Modules/Excel/Contracts/DigitalBrain.Modules.Excel.Contracts.csproj" />
+    <ProjectReference Include="../../src/Testing/DigitalBrain.Testing/DigitalBrain.Testing.csproj" />
     <ProjectReference Include="../../src/Modules/UI/DigitalBrain.Modules.UI/DigitalBrain.Modules.UI.csproj" />
-    <ProjectReference Include="../../src/Modules/UI/DigitalBrain.Modules.UI.Contracts/DigitalBrain.Modules.UI.Contracts.csproj" />
-    <ProjectReference Include="../../src/Modules/AI/AI/DigitalBrain.Modules.AI.csproj" />
-    <ProjectReference Include="../../src/Modules/Microsoft/Microsoft/DigitalBrain.Modules.Microsoft.csproj" />
-    <ProjectReference Include="../../src/Modules/AI/Contracts/DigitalBrain.Modules.AI.Contracts.csproj" />
-    <ProjectReference Include="../../src/Modules/Memory/Memory/DigitalBrain.Modules.Memory.csproj" />
-    <ProjectReference Include="../../src/Modules/Memory/Contracts/DigitalBrain.Modules.Memory.Contracts.csproj" />
-    <ProjectReference Include="../../src/Modules/Execution/Contracts/DigitalBrain.Modules.Execution.Contracts.csproj" />
-    <ProjectReference Include="../../src/Modules/Execution/Execution/DigitalBrain.Modules.Execution.csproj" />
-    <ProjectReference Include="../../src/Modules/Google/Google/DigitalBrain.Modules.Google.csproj" />
-    <ProjectReference Include="../../src/Modules/Salesforce/Salesforce/DigitalBrain.Modules.Salesforce.csproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <!-- The mock-LLM corpus the fixture points DigitalBrain:AI:Corpus:Path at. -->
-    <None Include="../corpus/**" CopyToOutputDirectory="PreserveNewest" LinkBase="corpus" />
-    <None Include="../../docs/examples/personal-code-review.csx" CopyToOutputDirectory="PreserveNewest" Link="examples/personal-code-review.csx" />
   </ItemGroup>
 </Project>

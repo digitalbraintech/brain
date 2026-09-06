@@ -24,7 +24,4 @@
     <ProjectReference Include="../DigitalBrain/DigitalBrain.csproj" />
     <ProjectReference Include="../DigitalBrain.Sdk/DigitalBrain.Sdk.csproj" />
   </ItemGroup>
-  <ItemGroup>
-    <InternalsVisibleTo Include="DigitalBrain.E2E.Tests" />
-  </ItemGroup>
 </Project>
