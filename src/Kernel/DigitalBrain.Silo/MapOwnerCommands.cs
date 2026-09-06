@@ -1,6 +1,7 @@
 using DigitalBrain.Product.Identity;
 using DigitalBrain.Abstractions;
 using DigitalBrain.Chat;
+using DigitalBrain.Core;
 using DigitalBrain.UI;
 
 using DigitalBrain.Abstractions.Identity;
@@ -18,6 +19,7 @@ internal static class OwnerCommandsHttpMaps
                 HttpContext http,
                 OwnerCommandRequest request,
                 IDigitalBrain brain,
+                IWorkspaceInject inject,
                 CancellationToken cancellationToken) =>
             {
                 ArgumentNullException.ThrowIfNull(http);
@@ -41,16 +43,19 @@ internal static class OwnerCommandsHttpMaps
                         return;
                     }
 
-                    if (!TryPrincipalResource(actor.PrincipalId, request.ChatName, out var chatInstance))
+                    using (VerifiedActor.Enter(actor))
                     {
-                        http.Response.StatusCode = StatusCodes.Status400BadRequest;
-                        return;
+                        await SseResponse.WriteAsync(
+                            http.Response,
+                            ChatTurnStream.SendAsync(
+                                brain,
+                                inject,
+                                request.ChatName,
+                                request.Text,
+                                actor,
+                                cancellationToken),
+                            cancellationToken).ConfigureAwait(false);
                     }
-
-                    await SseResponse.WriteAsync(
-                        http.Response,
-                        ChatTurnStream.SendAsync(brain, chatInstance, request.Text, actor, cancellationToken),
-                        cancellationToken).ConfigureAwait(false);
                     return;
                 }
 

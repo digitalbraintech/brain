@@ -1,3 +1,6 @@
+using DigitalBrain.Abstractions.Identity;
+using DigitalBrain.Abstractions.Neurons;
+using DigitalBrain.Abstractions.Signals;
 using DigitalBrain.AI;
 using DigitalBrain.Chat;
 using DigitalBrain.Core;
@@ -17,7 +20,40 @@ internal sealed partial class Assistant(NeuronRuntime runtime, IChatClient chatC
     {
         ArgumentNullException.ThrowIfNull(signal);
         cancellationToken.ThrowIfCancellationRequested();
+        var correlation = CurrentDelivery?.CorrelationId ?? CorrelationId.New();
+        var worker = GrainFactory.GetGrain<IAgentTurnWorker>(
+            GrainId.Create(IAgentTurnWorker.GrainTypeName, IAgentTurnWorker.KeyFor(Id.Owner, correlation)));
+        _ = worker.Enqueue(correlation, signal.CommandId, signal.Text, signal.Actor, CancellationToken.None);
         return Task.CompletedTask;
+    }
+
+    public Task RecordTurnFact(Signal fact, CorrelationId correlation, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(fact);
+        cancellationToken.ThrowIfCancellationRequested();
+        return RecordOutgoingAsync(fact, correlation);
+    }
+
+    public async Task<DeliveryOutcome> SendFact(
+        NeuronId target,
+        Signal signal,
+        CorrelationId correlation,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(signal);
+        cancellationToken.ThrowIfCancellationRequested();
+        return (await SendAsync(target, signal, correlation, cancellationToken).ConfigureAwait(true)).Outcome;
+    }
+
+    public Task<AgentReply> RequestSpecialist(
+        NeuronId target,
+        AgentRequest request,
+        CorrelationId correlation,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        cancellationToken.ThrowIfCancellationRequested();
+        return RequestAsync(target, request, correlation, cancellationToken);
     }
 
     protected override string Instructions =>

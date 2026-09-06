@@ -230,8 +230,7 @@ internal sealed class ChatTurnWorker(NeuronRuntime runtime) : Neuron(runtime), I
     }
 
     private IAgentKernel DefaultResponder(OwnerId owner)
-        => GrainFactory.GetGrain<IAgentKernel>(
-            NeuronId.For<IAssistant>(owner, "assistant").ToGrainId());
+        => GrainFactory.GetGrain<IAgentKernel>(IAgentKernel.IdFor(owner));
 
     private static ChatMessage AsChatMessage(ChatTurn turn)
         => new(turn.FromUser ? ChatRole.User : ChatRole.Assistant, turn.Text);

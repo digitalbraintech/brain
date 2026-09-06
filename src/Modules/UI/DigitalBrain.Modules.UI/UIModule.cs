@@ -31,5 +31,6 @@ public sealed class UIModule : Core.IModule
             sp.GetRequiredService<IGrainFactory>(),
             sp.GetService<IImageGeneration>(),
             sp.GetRequiredService<IKitImageStore>()));
+        builder.Services.AddTransient<IWorkspaceInject, WorkspaceInject>();
     }
 }

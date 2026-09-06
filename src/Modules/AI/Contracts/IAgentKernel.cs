@@ -10,6 +10,11 @@ namespace DigitalBrain.AI;
 [Alias("agent.runtime")]
 public interface IAgentKernel : IGrainWithStringKey
 {
+    const string GrainTypeName = "agent-kernel";
+
+    static GrainId IdFor(OwnerId owner)
+        => GrainId.Create(GrainTypeName, $"{owner.Value}/assistant");
+
     [Alias(nameof(Ask))]
     [ResponseTimeout(NeuronCallTimeouts.LongRunning)]
     Task<AgentReply> Ask(

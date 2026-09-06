@@ -37,15 +37,12 @@ public sealed class ComposerAssistantTests(SimulationFixture fixture)
             cancellationToken: cancellationToken);
         Assert.Equal("hello inbox", ((UserMessaged)incoming.Signal).Text);
 
-        await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
-
-        var outgoing = await ino.ReadJournalAsync(JournalKind.Outgoing, cancellationToken: cancellationToken);
-        Assert.DoesNotContain(outgoing.Delta, delivery => delivery.Signal is AgentActivity);
-
-        var workerId = ChatTurnWorker.ForChat(new NeuronId("chat", brain.Owner, "main"));
-        var worker = fixture.Sim.Grains.GetGrain<INeuronQuery>(workerId.ToGrainId());
-        var workerJournal = await worker.ReadJournal(JournalKind.Outgoing, 0)
-            .WaitAsync(cancellationToken);
-        Assert.DoesNotContain(workerJournal.Delta, delivery => delivery.Signal is AgentActivity);
+        var responded = await JournalWait.ForAsync(
+            ino,
+            JournalKind.Outgoing,
+            delivery => delivery.Signal is Responded reply && reply.CommandId == command,
+            timeout: TimeSpan.FromSeconds(60),
+            cancellationToken: cancellationToken);
+        Assert.False(string.IsNullOrWhiteSpace(((Responded)responded.Signal).Text));
     }
 }

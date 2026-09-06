@@ -215,6 +215,17 @@ public abstract class Neuron :
         return SendAsync(receiver, signal, cancellationToken);
     }
 
+    public virtual Task<SignalDeliveryResult> SendFromWithCorrelation(
+        NeuronId receiver,
+        Signal signal,
+        CorrelationId correlation,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(signal);
+        cancellationToken.ThrowIfCancellationRequested();
+        return SendAsync(receiver, signal, correlation, cancellationToken);
+    }
+
     protected IReadOnlyList<NeuronId> BroadcastRecipients(Signal signal)
         => _components.Router.BroadcastRecipientsFor(signal, Id, _components.Synapses);
 

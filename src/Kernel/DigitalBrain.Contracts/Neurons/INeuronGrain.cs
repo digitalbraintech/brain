@@ -37,4 +37,11 @@ public interface INeuronGrain : INeuron
         NeuronId receiver,
         Signal signal,
         CancellationToken cancellationToken = default);
+
+    [Alias(nameof(SendFromWithCorrelation))]
+    Task<SignalDeliveryResult> SendFromWithCorrelation(
+        NeuronId receiver,
+        Signal signal,
+        CorrelationId correlation,
+        CancellationToken cancellationToken = default);
 }

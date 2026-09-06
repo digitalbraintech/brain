@@ -4,8 +4,10 @@ using DigitalBrain.Abstractions;
 using DigitalBrain.Abstractions.Identity;
 using DigitalBrain.Abstractions.Journals;
 using DigitalBrain.Abstractions.Neurons;
+using DigitalBrain.AI;
 using DigitalBrain.Chat;
 using DigitalBrain.Product.Identity;
+using DigitalBrain.UI;
 using Microsoft.Extensions.AI;
 
 namespace DigitalBrain.Kernel;
@@ -19,24 +21,24 @@ internal static class ChatTurnStream
 
     public static async IAsyncEnumerable<SseItem<object>> SendAsync(
         IDigitalBrain brain,
-        string chatInstance,
+        IWorkspaceInject inject,
+        string workspaceName,
         string text,
         ActorContext actor,
         [EnumeratorCancellation] CancellationToken requestAborted)
     {
         using var budget = new CancellationTokenSource(TurnBudget);
-        var command = CommandId.New();
-        var chat = brain.Get<IChat>(chatInstance);
-        var before = await chat.ReadJournalAsync(JournalKind.Outgoing, long.MaxValue, budget.Token)
+        var ino = brain.Get<IAssistant>("assistant");
+        var before = await ino.ReadJournalAsync(JournalKind.Outgoing, long.MaxValue, budget.Token)
             .ConfigureAwait(false);
-        var accepted = await chat.RequestAsync(new SendMessage(command, text, actor), budget.Token)
+        var command = await inject.InjectUserMessage(workspaceName, text, actor, budget.Token)
             .ConfigureAwait(false);
         yield return new SseItem<object>(
-            new ChatStreamAccepted(command.ToString(), accepted.TurnId.ToString()),
+            new ChatStreamAccepted(command.ToString(), command.ToString()),
             HttpSurfacePaths.ChatAcceptedEvent);
 
         using var observer = CancellationTokenSource.CreateLinkedTokenSource(requestAborted, budget.Token);
-        await using var pages = chat.WatchJournalAsync(JournalKind.Outgoing, before.ResumeSequence, observer.Token)
+        await using var pages = ino.WatchJournalAsync(JournalKind.Outgoing, before.ResumeSequence, observer.Token)
             .GetAsyncEnumerator(observer.Token);
         while (true)
         {
@@ -55,7 +57,7 @@ internal static class ChatTurnStream
             {
                 yield return Error(new ChatStreamError(
                     "The response stream ended before an answer arrived. Check Activity for the request status.",
-                    timedOut ? "TimedOut" : "Disconnected", accepted.TurnId.ToString(), command.ToString()));
+                    timedOut ? "TimedOut" : "Disconnected", command.ToString(), command.ToString()));
                 yield break;
             }
 
@@ -63,7 +65,7 @@ internal static class ChatTurnStream
             {
                 yield return Error(new ChatStreamError(
                     "The live response could not be recovered after a gap in activity. Check Activity for the request status.",
-                    "Disconnected", accepted.TurnId.ToString(), command.ToString()));
+                    "Disconnected", command.ToString(), command.ToString()));
                 yield break;
             }
 
@@ -76,7 +78,7 @@ internal static class ChatTurnStream
                     yield break;
                 }
 
-                if (delivery.Signal is TurnLifecycle life && life.TurnId == accepted.TurnId
+                if (delivery.Signal is TurnLifecycle life
                     && life.Status is ChatTurnStatus.Failed or ChatTurnStatus.Cancelled or ChatTurnStatus.Completed)
                 {
                     yield return Error(ForTerminal(life));

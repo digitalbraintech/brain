@@ -82,11 +82,6 @@ internal sealed class Chat : Neuron, IChat, IChatKernel
         cancellationToken.ThrowIfCancellationRequested();
         await FailUnavailableUserActionsAsync().ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
         await FailTurnInterruptedByRestartAsync().ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
-        if (PrincipalPartition.TryParse(Id.Name, out var principal, out _))
-        {
-            var inbox = NeuronId.For<IComposer>(Id.Owner, PrincipalPartition.InstanceName(principal, "default"));
-            await BindOutgoing(inbox, nameof(UserMessaged)).ConfigureAwait(true);
-        }
     }
 
     public async Task HandleAsync(SendMessage signal, CancellationToken cancellationToken)
@@ -882,9 +877,7 @@ internal sealed class Chat : Neuron, IChat, IChatKernel
     {
         Remember(message.CommandId, message.Text, message.Actor);
         Remember(new ChatTurn(FromUser: true, message.Text));
-        return BroadcastAsync(
-            new UserMessaged(message.CommandId, Id, message.Text, message.Actor),
-            ConversationCorrelation);
+        return Task.CompletedTask;
     }
 
     private void Remember(CommandId commandId, string text, ActorContext? actor)

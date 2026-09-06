@@ -2,6 +2,8 @@ using DigitalBrain.Product.Identity;
 using DigitalBrain.Abstractions;
 using DigitalBrain.AI;
 using DigitalBrain.Chat;
+using DigitalBrain.Core;
+using DigitalBrain.UI;
 
 using DigitalBrain.Abstractions.Identity;
 namespace DigitalBrain.Kernel;
@@ -21,6 +23,7 @@ internal static class ChatVoiceHttpMaps
                 HttpContext http,
                 string chatName,
                 IDigitalBrain brain,
+                IWorkspaceInject inject,
                 IAudioTranscriptionService transcription,
                 CancellationToken cancellationToken) =>
             {
@@ -32,7 +35,7 @@ internal static class ChatVoiceHttpMaps
                 var actor = HttpActor.Current;
 
                 if (string.IsNullOrWhiteSpace(chatName)
-                    || !TryPrincipalResource(actor.PrincipalId, chatName, out var chatInstance))
+                    || !TryPrincipalResource(actor.PrincipalId, chatName, out _))
                 {
                     http.Response.StatusCode = StatusCodes.Status400BadRequest;
                     return;
@@ -98,11 +101,13 @@ internal static class ChatVoiceHttpMaps
                     return;
                 }
 
-                // Same observer SSE path as typed chat.send.
-                await SseResponse.WriteAsync(
-                    http.Response,
-                    ChatTurnStream.SendAsync(brain, chatInstance, text.Trim(), actor, cancellationToken),
-                    cancellationToken).ConfigureAwait(false);
+                using (VerifiedActor.Enter(actor))
+                {
+                    await SseResponse.WriteAsync(
+                        http.Response,
+                        ChatTurnStream.SendAsync(brain, inject, chatName, text.Trim(), actor, cancellationToken),
+                        cancellationToken).ConfigureAwait(false);
+                }
             });
 
         return endpoints;

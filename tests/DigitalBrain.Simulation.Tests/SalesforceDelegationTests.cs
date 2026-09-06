@@ -31,7 +31,7 @@ public sealed class SalesforceDelegationTests
         var ino = simulation.Brain.Get<IAssistant>("assistant").Id;
         var target = NeuronId.For<ISalesforce>(ino.Owner, PrincipalPartition.InstanceName(actor.PrincipalId, "salesforce-local"));
         using var verified = VerifiedActor.Enter(actor);
-        var reply = await simulation.Grains.GetGrain<IAgentKernel>(ino.ToGrainId())
+        var reply = await simulation.Grains.GetGrain<IAgentKernel>(IAgentKernel.IdFor(ino.Owner))
             .Ask(new AgentRequest("Who is connected to Salesforce?"), CorrelationId.New(), TestContext.Current.CancellationToken);
 
         Assert.Contains("Salesforce fixture", reply.Text, StringComparison.Ordinal);

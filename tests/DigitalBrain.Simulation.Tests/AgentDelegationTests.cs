@@ -158,7 +158,7 @@ public sealed class AgentDelegationTests
         using var turn = AgentTurnContext.Enter(new AgentTurnContext(chat, CommandId.New(), actor, ["ask_probe"]));
 
         var failure = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            simulation.Grains.GetGrain<IAgentKernel>(assistant.ToGrainId())
+            simulation.Grains.GetGrain<IAgentKernel>(IAgentKernel.IdFor(assistant.Owner))
                 .Ask(new AgentRequest("check status"), CorrelationId.New(), TestContext.Current.CancellationToken));
 
         Assert.Contains("restricted", failure.Message, StringComparison.Ordinal);
@@ -178,7 +178,7 @@ public sealed class AgentDelegationTests
         var actor = new ActorContext(new PrincipalId(Guid.NewGuid()), "owner");
         var assistant = simulation.Brain.Get<IAssistant>("assistant").Id;
         using var verified = VerifiedActor.Enter(actor);
-        await simulation.Grains.GetGrain<IAgentKernel>(assistant.ToGrainId())
+        await simulation.Grains.GetGrain<IAgentKernel>(IAgentKernel.IdFor(assistant.Owner))
             .Ask(new AgentRequest("check status"), CorrelationId.New(), TestContext.Current.CancellationToken);
         var context = Assert.Single(delegation.Contexts);
         var before = await Query(simulation, assistant).ReadJournal(JournalKind.Outgoing, 0);

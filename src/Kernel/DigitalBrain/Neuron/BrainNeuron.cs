@@ -52,6 +52,16 @@ internal sealed class BrainNeuron : Neuron, IBrainNeuron
         return SendAsync(receiver, signal, cancellationToken);
     }
 
+    public Task<SignalDeliveryResult> SendWithCorrelation(
+        NeuronId receiver,
+        Signal signal,
+        CorrelationId correlation,
+        CancellationToken cancellationToken = default)
+    {
+        RequireSameOwner(receiver);
+        return SendAsync(receiver, signal, correlation, cancellationToken);
+    }
+
     public Task<JournalRead> ReadNeuronJournal(NeuronId subject, JournalKind kind, long afterSequence)
     {
         RequireSameOwner(subject);
