@@ -7,6 +7,9 @@ sealed class KitPart {
 
   Map<String, Object?> toMetadata();
 
+  /// Plain text for the chat copy control. Empty means no copy affordance.
+  String get copyText;
+
   static KitPart? tryParse(Map<String, dynamic>? metadata) {
     if (metadata == null) {
       return null;
@@ -37,6 +40,9 @@ final class KitTimerPart extends KitPart {
 
   @override
   String get kind => kindName;
+
+  @override
+  String get copyText => '$label · ${dueAt.toUtc().toIso8601String()}';
 
   factory KitTimerPart.fromMetadata(Map<String, dynamic> metadata) {
     final rawDueAt = metadata['dueAt'] as String?;
@@ -73,6 +79,9 @@ final class KitButtonPart extends KitPart {
 
   @override
   String get kind => kindName;
+
+  @override
+  String get copyText => label;
 
   factory KitButtonPart.fromMetadata(Map<String, dynamic> metadata) {
     return KitButtonPart(
@@ -125,6 +134,12 @@ final class KitChartPart extends KitPart {
   @override
   String get kind => kindName;
 
+  @override
+  String get copyText {
+    final rows = [for (final point in points) '${point.label}\t${point.value}'];
+    return [title, ...rows].join('\n');
+  }
+
   factory KitChartPart.fromMetadata(Map<String, dynamic> metadata) {
     final raw = metadata['points'];
     final points = raw is List
@@ -164,6 +179,16 @@ final class KitCardPart extends KitPart {
 
   @override
   String get kind => kindName;
+
+  @override
+  String get copyText {
+    final lines = <String>[
+      if (title.isNotEmpty) title,
+      if (body.isNotEmpty) body,
+      for (final field in fields) '${field.label}: ${field.value}',
+    ];
+    return lines.join('\n');
+  }
 
   factory KitCardPart.fromMetadata(Map<String, dynamic> metadata) {
     final raw = metadata['fields'];
@@ -207,6 +232,9 @@ final class KitChartRefPart extends KitPart {
   @override
   String get kind => kindName;
 
+  @override
+  String get copyText => caption;
+
   factory KitChartRefPart.fromMetadata(Map<String, dynamic> metadata) {
     return KitChartRefPart(
       name: metadata['name'] as String? ?? '',
@@ -232,6 +260,9 @@ final class KitImageRefPart extends KitPart {
 
   @override
   String get kind => kindName;
+
+  @override
+  String get copyText => caption;
 
   factory KitImageRefPart.fromMetadata(Map<String, dynamic> metadata) {
     return KitImageRefPart(
@@ -265,6 +296,13 @@ final class KitSheetPart extends KitPart {
 
   @override
   String get kind => kindName;
+
+  @override
+  String get copyText {
+    final header = columns.join('\t');
+    final body = [for (final row in rows) row.join('\t')];
+    return [if (title.isNotEmpty) title, header, ...body].join('\n');
+  }
 
   factory KitSheetPart.fromMetadata(Map<String, dynamic> metadata) {
     final rawColumns = metadata['columns'];
@@ -319,6 +357,9 @@ final class KitSheetRefPart extends KitPart {
   @override
   String get kind => kindName;
 
+  @override
+  String get copyText => caption;
+
   factory KitSheetRefPart.fromMetadata(Map<String, dynamic> metadata) {
     return KitSheetRefPart(
       name: metadata['name'] as String? ?? '',
@@ -344,6 +385,9 @@ final class KitGraphRefPart extends KitPart {
 
   @override
   String get kind => kindName;
+
+  @override
+  String get copyText => caption;
 
   factory KitGraphRefPart.fromMetadata(Map<String, dynamic> metadata) {
     return KitGraphRefPart(

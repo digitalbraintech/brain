@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:digitalbrain_flutter/digitalbrain_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_chat_core/flutter_chat_core.dart';
+import 'package:flutter_chat_ui/flutter_chat_ui.dart';
 
 import '../components/button/kit_button.dart';
 import '../components/card/kit_card.dart';
@@ -17,6 +18,7 @@ import '../components/image/kit_image.dart';
 import '../components/sheet/kit_sheet.dart';
 import '../models/kit_part.dart';
 import '../theme/kit_theme.dart';
+import 'kit_copyable_message.dart';
 
 typedef KitButtonPressed = void Function(KitButtonPart part);
 typedef KitChartRefReader = Future<ChatChartOffer?> Function(String name);
@@ -60,42 +62,135 @@ abstract final class KitChatBuilders {
       );
     }
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: switch (part) {
-        KitButtonPart(:final buttonId) => KitButton(
-          key: Key('chat_kit_button_$buttonId'),
-          part: part,
-          dense: true,
-          onPressed: onButtonPressed,
-        ),
-        KitChartPart() => KitChart(part: part, height: 180),
-        KitCardPart() => KitCard(part: part),
-        KitTimerPart() => KitClock(part: part),
-        KitChartRefPart(:final name, :final caption) => _KitChartRefLoader(
-          name: name,
-          caption: caption,
-          reader: onReadChart,
-        ),
-        KitImageRefPart(:final name, :final caption) => _KitImageRefLoader(
-          name: name,
-          caption: caption,
-          reader: onReadImageBytes,
-        ),
-        KitSheetPart() => KitSheet(part: part),
-        KitSheetRefPart(:final name, :final caption) => _KitSheetRefLoader(
-          name: name,
-          caption: caption,
-          reader: onReadSpreadsheet,
-        ),
-        KitGraphRefPart(:final name, :final caption) => _KitGraphRefLoader(
-          name: name,
-          caption: caption,
-          reader: onReadGraph,
-          sceneFactory: graphSceneFactory,
-        ),
-      },
+    return KitCopyableMessage(
+      copyText: (_) => part.copyText,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: switch (part) {
+          KitButtonPart(:final buttonId) => KitButton(
+            key: Key('chat_kit_button_$buttonId'),
+            part: part,
+            dense: true,
+            onPressed: onButtonPressed,
+          ),
+          KitChartPart() => KitChart(part: part, height: 180),
+          KitCardPart() => KitCard(part: part),
+          KitTimerPart() => KitClock(part: part),
+          KitChartRefPart(:final name, :final caption) => _KitChartRefLoader(
+            name: name,
+            caption: caption,
+            reader: onReadChart,
+          ),
+          KitImageRefPart(:final name, :final caption) => _KitImageRefLoader(
+            name: name,
+            caption: caption,
+            reader: onReadImageBytes,
+          ),
+          KitSheetPart() => KitSheet(part: part),
+          KitSheetRefPart(:final name, :final caption) => _KitSheetRefLoader(
+            name: name,
+            caption: caption,
+            reader: onReadSpreadsheet,
+          ),
+          KitGraphRefPart(:final name, :final caption) => _KitGraphRefLoader(
+            name: name,
+            caption: caption,
+            reader: onReadGraph,
+            sceneFactory: graphSceneFactory,
+          ),
+        },
+      ),
     );
+  }
+
+  /// Wraps text, stream, and custom bubbles with selection + copy.
+  static Builders withCopy(Builders? host) {
+    final base = host ?? const Builders();
+    final text = base.textMessageBuilder;
+    final stream = base.textStreamMessageBuilder;
+    final custom = base.customMessageBuilder;
+    var builders = base.copyWith(
+      textMessageBuilder:
+          (
+            context,
+            message,
+            index, {
+            required bool isSentByMe,
+            MessageGroupStatus? groupStatus,
+          }) {
+            final child =
+                text?.call(
+                  context,
+                  message,
+                  index,
+                  isSentByMe: isSentByMe,
+                  groupStatus: groupStatus,
+                ) ??
+                SimpleTextMessage(message: message, index: index);
+            return KitCopyableMessage(
+              copyText: (_) => message.text,
+              child: child,
+            );
+          },
+    );
+    if (stream != null) {
+      builders = builders.copyWith(
+        textStreamMessageBuilder:
+            (
+              context,
+              message,
+              index, {
+              required bool isSentByMe,
+              MessageGroupStatus? groupStatus,
+            }) {
+              return KitCopyableMessage(
+                copyText: (context) =>
+                    KitStreamCopy.streamText(context, message.streamId),
+                child: stream(
+                  context,
+                  message,
+                  index,
+                  isSentByMe: isSentByMe,
+                  groupStatus: groupStatus,
+                ),
+              );
+            },
+      );
+    }
+    if (custom != null) {
+      builders = builders.copyWith(
+        customMessageBuilder:
+            (
+              context,
+              message,
+              index, {
+              required bool isSentByMe,
+              MessageGroupStatus? groupStatus,
+            }) {
+              final child = custom(
+                context,
+                message,
+                index,
+                isSentByMe: isSentByMe,
+                groupStatus: groupStatus,
+              );
+              if (child is KitCopyableMessage) {
+                return child;
+              }
+              final part = KitPart.tryParse(
+                message.metadata == null
+                    ? null
+                    : Map<String, dynamic>.from(message.metadata!),
+              );
+              final copy = part?.copyText ?? '';
+              if (copy.trim().isEmpty) {
+                return child;
+              }
+              return KitCopyableMessage(copyText: (_) => copy, child: child);
+            },
+      );
+    }
+    return builders;
   }
 
   /// Drop-in partial [Builders] for chat surfaces that only need kit customs.

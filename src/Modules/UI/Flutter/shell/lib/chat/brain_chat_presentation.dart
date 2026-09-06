@@ -12,11 +12,20 @@ extension _BrainChatPresentation on _BrainChatScreenState {
         child: OverlayPortal(
           controller: _historyPortal,
           overlayChildBuilder: _buildHistoryOverlay,
-          child: widget.presentation == BrainChatPresentation.compact
-              ? (_historyOpen
-                    ? const SizedBox(height: 76)
-                    : _buildCompactChat())
-              : _buildFullChat(),
+          child: KitStreamCopy(
+            notifier: _streamStates,
+            textFor: (streamId) => switch (_streamStates.stateFor(streamId)) {
+              StreamStateLoading() => '',
+              StreamStateStreaming(:final accumulatedText) => accumulatedText,
+              StreamStateCompleted(:final finalText) => finalText,
+              StreamStateError(:final accumulatedText) => accumulatedText ?? '',
+            },
+            child: widget.presentation == BrainChatPresentation.compact
+                ? (_historyOpen
+                      ? const SizedBox(height: 76)
+                      : _buildCompactChat())
+                : _buildFullChat(),
+          ),
         ),
       ),
     ),
@@ -270,12 +279,15 @@ extension _BrainChatPresentation on _BrainChatScreenState {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            KitMarkdown(
-                              text,
-                              style: const TextStyle(
-                                color: LumenPalette.ink,
-                                fontSize: 14,
-                                height: 1.55,
+                            KitCopyableMessage(
+                              copyText: (_) => text,
+                              child: KitMarkdown(
+                                text,
+                                style: const TextStyle(
+                                  color: LumenPalette.ink,
+                                  fontSize: 14,
+                                  height: 1.55,
+                                ),
                               ),
                             ),
                             for (final login in activeLogins) ...[

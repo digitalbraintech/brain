@@ -2,6 +2,7 @@ library;
 
 export 'src/chat/kit_chat.dart';
 export 'src/chat/kit_chat_builders.dart';
+export 'src/chat/kit_copyable_message.dart';
 export 'src/chat/kit_message_factory.dart';
 export 'src/components/button/kit_button.dart';
 export 'src/components/card/kit_card.dart';

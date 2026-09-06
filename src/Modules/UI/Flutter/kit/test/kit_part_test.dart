@@ -28,6 +28,7 @@ void main() {
     final parsed = KitPart.tryParse(part.toMetadata()) as KitChartPart;
     expect(parsed.points, hasLength(2));
     expect(parsed.points.first.label, 'Mon');
+    expect(parsed.copyText, 'Sales\nMon\t1\nTue\t2');
   });
 
   test('KitMessageFactory emits CustomMessage for parts', () {

@@ -1,6 +1,6 @@
+import 'package:digitalbrain_ui_kit/digitalbrain_ui_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_chat_core/flutter_chat_core.dart';
-import 'package:flutter_chat_ui/flutter_chat_ui.dart';
 import 'package:flyer_chat_text_message/flyer_chat_text_message.dart';
 
 import '../brain_theme.dart';
@@ -89,7 +89,7 @@ final class _ShellChatDemoState extends State<ShellChatDemo> {
         border: Border.all(color: BrainPalette.line),
       ),
       clipBehavior: Clip.antiAlias,
-      child: Chat(
+      child: KitChat(
         chatController: _controller,
         currentUserId: ownerUserId,
         resolveUser: (id) async => switch (id) {
@@ -97,7 +97,6 @@ final class _ShellChatDemoState extends State<ShellChatDemo> {
           assistantUserId => _assistant,
           _ => null,
         },
-        theme: BrainChatTheme.dark(),
         onMessageSend: _onSend,
         builders: Builders(
           textMessageBuilder:

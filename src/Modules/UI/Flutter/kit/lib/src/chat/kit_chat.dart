@@ -3,6 +3,7 @@ import 'package:flutter_chat_core/flutter_chat_core.dart';
 import 'package:flutter_chat_ui/flutter_chat_ui.dart';
 
 import '../theme/kit_theme.dart';
+import 'kit_chat_builders.dart';
 
 /// The shared chat surface for full pages and embedded assistant panels.
 ///
@@ -31,7 +32,7 @@ final class KitChat extends StatelessWidget {
     chatController: chatController,
     currentUserId: currentUserId,
     resolveUser: resolveUser,
-    builders: builders,
+    builders: KitChatBuilders.withCopy(builders),
     onMessageSend: onMessageSend,
     onAttachmentTap: onAttachmentTap,
     theme: Theme.of(context).brightness == Brightness.light
