@@ -1,6 +1,6 @@
 using DigitalBrain.Abstractions.Identity;
 using DigitalBrain.Abstractions.Neurons;
-using DigitalBrain.Product.Identity;
+using DigitalBrain.Abstractions.Signals;
 
 namespace DigitalBrain.AI;
 
@@ -15,9 +15,6 @@ public interface IAgentTurnWorker : IGrainWithStringKey
     [Alias(nameof(Enqueue))]
     [ResponseTimeout(NeuronCallTimeouts.LongRunning)]
     Task Enqueue(
-        CorrelationId correlation,
-        CommandId command,
-        string text,
-        ActorContext? actor,
+        SignalDelivery delivery,
         CancellationToken cancellationToken = default);
 }

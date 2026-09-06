@@ -19,6 +19,25 @@ namespace DigitalBrain.E2E.Tests;
 
 public sealed class BrainGraphProjectionTests
 {
+    [Fact]
+    public async Task Startup_micro_api_wiring_is_visible_without_telemetry_activity_noise()
+    {
+        var source = new TestSource();
+        var execution = NeuronId.For<IActivitySource>(Owner, IActivitySource.DefaultInstanceName);
+        var activities = NeuronId.For<IActivities>(Owner, IActivities.DefaultInstanceName);
+        var renderer = NeuronId.For<IUIRenderer>(Owner, ISurface.DefaultInstanceName);
+        var observed = SignalDelivery.Create(new ReadActivities(), activities, 1, TimeProvider.System, principal: Actor.PrincipalId);
+        source.Set(execution, [Edge(execution, activities, nameof(ActivityExecutionChanged))]);
+        source.Set(activities, [Edge(activities, renderer, nameof(ActivityChanged))], outgoing: new(1, [observed], null));
+        var snapshot = await new BrainGraphProjection(source).ReadAsync("main", Actor, TestContext.Current.CancellationToken);
+        Assert.Contains(snapshot.Synapses, edge => edge.SourceId == BrainGraphProjection.InstanceId(execution)
+            && edge.TargetId == BrainGraphProjection.InstanceId(activities));
+        Assert.Contains(snapshot.Synapses, edge => edge.SourceId == BrainGraphProjection.InstanceId(activities)
+            && edge.TargetId == BrainGraphProjection.InstanceId(renderer));
+        Assert.Empty(snapshot.Activity);
+        Assert.Empty(snapshot.Correlations);
+    }
+
     private static readonly OwnerId Owner = new("graph-owner");
     private static readonly ActorContext Actor = HttpActor.Current;
     private static readonly NeuronId Chat = ChatNamed("main");
@@ -403,8 +422,8 @@ public sealed class BrainGraphProjectionTests
         var snapshot = await new BrainGraphProjection(source).ReadAsync("main", Actor, TestContext.Current.CancellationToken);
 
         Assert.False(snapshot.Truncated);
-        Assert.Equal(32, snapshot.Nodes.Count);
-        Assert.Equal(32, source.Queried.Count);
+        Assert.Equal(35, snapshot.Nodes.Count);
+        Assert.Equal(35, source.Queried.Count);
         Assert.Equal(30, snapshot.Synapses.Count);
         Assert.All(snapshot.Synapses, edge => Assert.Contains(snapshot.Nodes, node => node.Id == edge.TargetId));
     }

@@ -36,3 +36,14 @@ Future<void> prepareShellSurface(WidgetTester tester) async {
 Future<void> drainShellTimers(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 400));
 }
+
+/// The preserved destinations are now deliberately behind Settings > OldUI.
+Future<void> enterOldUi(WidgetTester tester) async {
+  await tester.pump();
+  final settings = find.byKey(const Key('home_settings'));
+  if (settings.evaluate().isEmpty) return;
+  await tester.tap(settings);
+  await tester.pump();
+  await tester.tap(find.byKey(const Key('settings_old_ui')));
+  await tester.pump();
+}

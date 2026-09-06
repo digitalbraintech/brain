@@ -1,6 +1,8 @@
 using DigitalBrain.Abstractions;
 using DigitalBrain.Abstractions.Identity;
 using DigitalBrain.Core;
+using DigitalBrain.Abstractions.Signals;
+using DigitalBrain.Abstractions.Neurons;
 
 namespace DigitalBrain.UI;
 
@@ -23,7 +25,7 @@ internal sealed class UIRenderer(NeuronRuntime runtime) : Neuron(runtime), IUIRe
         var surface = EntityId.For<ISurface>(Id.Owner, Id.Name);
         await GrainFactory
             .GetGrain<ISurface>(surface.ToGrainId())
-            .Open(new SurfaceScene(signal.SurfaceKey, signal.Title), RetainedScenes)
+            .Open(new SurfaceScene(signal.SurfaceKey, signal.Title, signal.Root), RetainedScenes)
             .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
 
         await RecordOutgoingAsync(new SurfaceOpened(signal.CommandId, Id, signal.SurfaceKey, signal.Title))
@@ -35,5 +37,18 @@ internal sealed class UIRenderer(NeuronRuntime runtime) : Neuron(runtime), IUIRe
         ArgumentNullException.ThrowIfNull(signal);
         cancellationToken.ThrowIfCancellationRequested();
         return Task.CompletedTask;
+    }
+
+    public async Task HandleAsync(ActivityChanged signal, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (signal.Activity.Principal != CurrentDelivery?.Principal)
+        {
+            throw new NeuronAuthorizationException("Surface activity updates must retain their verified principal.");
+        }
+        var surface = EntityId.For<ISurface>(Id.Owner, Id.Name);
+        await GrainFactory.GetGrain<ISurface>(surface.ToGrainId()).ApplyActivity(signal.Activity, 100)
+            .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
+        await RecordOutgoingAsync(signal).ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
     }
 }

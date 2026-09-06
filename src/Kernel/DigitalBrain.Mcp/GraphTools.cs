@@ -20,6 +20,19 @@ internal sealed class GraphTools(IDigitalBrain brain)
         new PrincipalId(Guid.Parse("0000dead-0000-0000-0000-000000000001")),
         "owner");
 
+    [McpServerTool(Name = McpSurface.ReadActivities)]
+    [Description("Read durable activities for the current owner and principal, with explicit execution status and causal signal traces. A journal observation alone is not completion.")]
+    public async Task<string> ReadActivitiesAsync(
+        [Description("Maximum number of recent activities, from 1 to 500")] int limit = 100,
+        CancellationToken cancellationToken = default)
+    {
+        using var actor = Enter();
+        await brain.ActivateAsync(cancellationToken).ConfigureAwait(false);
+        var snapshot = await brain.Get<IActivities>(IActivities.DefaultInstanceName)
+            .RequestAsync(new ReadActivities(limit), cancellationToken).ConfigureAwait(false);
+        return JsonSerializer.Serialize(snapshot, JsonSerializerOptions.Web);
+    }
+
     [McpServerTool(Name = McpSurface.ReadSynapses)]
     [Description("Read source-owned synapses on a neuron. Use to verify subscribe/unsubscribe.")]
     public async Task<string> ReadSynapsesAsync(
@@ -60,7 +73,8 @@ internal sealed class GraphTools(IDigitalBrain brain)
         {
             resumeSequence = read.ResumeSequence,
             truncated = read.ResetSnapshot is not null,
-            deliveries = read.Delta.Select(delivery => new
+            deliveries = read.Delta.Where(delivery => delivery.Signal is not (ActivityChanged or ActivityExecutionChanged)
+                || delivery.Principal is null || delivery.Principal == OwnerActor.PrincipalId).Select(delivery => new
             {
                 signalType = delivery.Signal.GetType().Name,
                 correlationId = delivery.CorrelationId.ToString(),
@@ -213,8 +227,11 @@ internal sealed class GraphTools(IDigitalBrain brain)
         "behavior" => GraphSubject.Of(brain.Get<IBehavior>(Instance(name))),
         "usermessages" or "composer" => GraphSubject.Of(brain.Get<IComposer>(IComposer.DefaultInstanceName)),
         "assistant" => GraphSubject.Of(brain.Get<IAssistant>("assistant")),
+        "activities" => GraphSubject.Of(brain.Get<IActivities>(name == "default" ? IActivities.DefaultInstanceName : name)),
+        "activitysource" or "execution" => GraphSubject.Of(brain.Get<IActivitySource>(name == "default" ? IActivitySource.DefaultInstanceName : name)),
+        "uirenderer" => GraphSubject.Of(brain.Get<IUIRenderer>(name)),
         _ => throw new ArgumentException(
-            "kind must be chat, xaccount, behavior, usermessages, composer, or assistant.", nameof(kind)),
+            "kind must be chat, xaccount, behavior, usermessages, composer, assistant, activities, activitysource, execution, or uirenderer.", nameof(kind)),
     };
 
     private readonly record struct GraphSubject(

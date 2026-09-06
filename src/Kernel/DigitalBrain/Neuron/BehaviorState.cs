@@ -72,6 +72,8 @@ internal sealed record BehaviorOutput
     [Id(6)] public long? SubjectGeneration { get; init; }
     [Id(7)] public string? CompletionKey { get; init; }
     [Id(8)] public SignalDelivery? Input { get; init; }
+    [Id(9)] public Guid WorkId { get; init; }
+    [Id(10)] public Guid ProgramRevision { get; init; }
 }
 
 [GenerateSerializer]

@@ -494,7 +494,7 @@ final class _SynapsePainter extends CustomPainter {
         ..strokeWidth = emphasis ? 2.5 : 1.5
         ..style = PaintingStyle.stroke;
       final metric = route.path.computeMetrics().first;
-      if (edge.kind == 'Learned') {
+      if (edge.kind == 'Learned' || edge.kind == 'Observed') {
         for (double distance = 0; distance < metric.length; distance += 12) {
           canvas.drawPath(
             metric.extractPath(distance, math.min(metric.length, distance + 6)),

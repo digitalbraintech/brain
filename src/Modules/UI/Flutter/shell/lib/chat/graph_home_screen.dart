@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:digitalbrain_flutter/digitalbrain_flutter.dart';
 import 'package:digitalbrain_ui_kit/digitalbrain_ui_kit.dart';
 import 'package:flutter/material.dart';
@@ -7,6 +8,9 @@ import 'brain_graph_store.dart';
 import 'behavior_studio.dart';
 import 'chat_contracts.dart';
 import 'graph_examples_screen.dart';
+import 'activity_projection.dart';
+
+part 'activity_home.dart';
 
 /// Presentation only. The full authenticated graph remains available to the
 /// inspector; hiding plumbing never creates or removes a neuron or an edge.
@@ -79,6 +83,9 @@ final class GraphHomeScreen extends StatefulWidget {
     this.onSetBrainSubscription,
     this.conversation = false,
     this.graph,
+    this.surfaceRoot,
+    this.onWatchActivities,
+    this.onReadActivityResults,
   });
   final String chatName;
   final List<ChatTurnEvent> turns;
@@ -100,6 +107,9 @@ final class GraphHomeScreen extends StatefulWidget {
   final SetBrainSubscription? onSetBrainSubscription;
   final bool conversation;
   final BrainGraphStore? graph;
+  final SurfaceComponent? surfaceRoot;
+  final WatchExecutionActivities? onWatchActivities;
+  final ReadActivityResults? onReadActivityResults;
   @override
   State<GraphHomeScreen> createState() => _GraphHomeScreenState();
 }
@@ -111,10 +121,34 @@ final class _GraphHomeScreenState extends State<GraphHomeScreen> {
   String? _selected;
   bool _directory = false;
   bool _technical = false;
+  List<ExecutionActivity> _activities = const [];
+  StreamSubscription<List<ExecutionActivity>>? _activityStream;
+  Timer? _activityRetry;
+  String? _activityFailure,
+      _selectedActivity,
+      _selectedCommand,
+      _localActivity,
+      _localTitle;
+  bool _allActivities = false, _systemGraph = false;
+  String? _editingBehavior;
+  final List<String> _openBehaviors = [];
+  final Map<String, double> _splitFractions = {};
+  Map<String, List<ExecutionActivityEvent>> _activityPulses = {};
+  bool _receivedActivities = false;
+  Timer? _pulseClear;
+  final Map<String, List<ChatTurnEvent>> _activityResults = {};
+  final Map<String, int> _resultVersions = {};
+  Timer? _resultsTimer;
+  int _resultsRequest = 0;
+  String? _resultsError, _resultsFor;
+  int? _resultsVersion;
+  bool _resultsLoading = false;
   @override
   void initState() {
     super.initState();
     _createStore();
+    _connectActivities();
+    _applySceneScope();
   }
 
   void _createStore() {
@@ -135,9 +169,19 @@ final class _GraphHomeScreenState extends State<GraphHomeScreen> {
     if (mounted) setState(() {});
   }
 
+  void _update(VoidCallback change) => setState(change);
+
   @override
   void didUpdateWidget(covariant GraphHomeScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (_sceneScope(oldWidget.surfaceRoot) != _sceneScope(widget.surfaceRoot)) {
+      _applySceneScope();
+    }
+    if (widget.onWatchActivities != oldWidget.onWatchActivities) {
+      _activityRetry?.cancel();
+      unawaited(_activityStream?.cancel());
+      _connectActivities();
+    }
     if (oldWidget.chatName != widget.chatName ||
         oldWidget.onReadBrain != widget.onReadBrain ||
         oldWidget.onWatchBrain != widget.onWatchBrain ||
@@ -154,6 +198,11 @@ final class _GraphHomeScreenState extends State<GraphHomeScreen> {
 
   @override
   void dispose() {
+    _resultsTimer?.cancel();
+    _resultsRequest++;
+    _pulseClear?.cancel();
+    _activityRetry?.cancel();
+    unawaited(_activityStream?.cancel());
     _brain.removeListener(_changed);
     if (_ownsStore) {
       _brain.dispose();
@@ -162,224 +211,233 @@ final class _GraphHomeScreenState extends State<GraphHomeScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Material(
-    key: const Key('graph_home_screen'),
-    color: LumenPalette.background,
-    child: LayoutBuilder(
-      builder: (context, constraints) {
-        final narrow = constraints.maxWidth < 680;
-        final snapshot = _brain.snapshot;
-        final canvas = snapshot == null
-            ? null
-            : studioCanvas(snapshot, technical: _technical);
-        final inspector = _selected != null || _directory;
-        return Stack(
-          children: [
-            Column(
-              children: [
-                if (!widget.conversation) ...[
-                  Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      narrow ? 20 : 36,
-                      22,
-                      narrow ? 20 : 36,
-                      6,
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Column(
+  Widget build(BuildContext context) => widget.surfaceRoot != null
+      ? _composedHome(widget.surfaceRoot!)
+      : Material(
+          key: const Key('graph_home_screen'),
+          color: LumenPalette.background,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final narrow = constraints.maxWidth < 680;
+              final snapshot = _brain.snapshot;
+              final canvas = snapshot == null
+                  ? null
+                  : studioCanvas(snapshot, technical: _technical);
+              final inspector = _selected != null || _directory;
+              return Stack(
+                children: [
+                  Column(
+                    children: [
+                      if (!widget.conversation) ...[
+                        Padding(
+                          padding: EdgeInsets.fromLTRB(
+                            narrow ? 20 : 36,
+                            22,
+                            narrow ? 20 : 36,
+                            6,
+                          ),
+                          child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                'A little more headspace.',
-                                style: TextStyle(
-                                  fontFamily: 'Georgia',
-                                  fontSize: narrow ? 27 : 34,
-                                  letterSpacing: -1,
-                                  color: LumenPalette.ink,
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'A little more headspace.',
+                                      style: TextStyle(
+                                        fontFamily: 'Georgia',
+                                        fontSize: narrow ? 27 : 34,
+                                        letterSpacing: -1,
+                                        color: LumenPalette.ink,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 7),
+                                    Text(
+                                      snapshot == null
+                                          ? 'Your assistant, and the connections behind it.'
+                                          : '${snapshot.nodes.length} neurons · ${snapshot.synapses.length} synapses · your current conversation',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: LumenPalette.muted,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                              const SizedBox(height: 7),
-                              Text(
-                                snapshot == null
-                                    ? 'Your assistant, and the connections behind it.'
-                                    : '${snapshot.nodes.length} neurons · ${snapshot.synapses.length} synapses · your current conversation',
-                                style: const TextStyle(
-                                  fontSize: 12,
+                              const SizedBox(width: 10),
+                              if (widget.behaviorStudio != null)
+                                LumenIconButton(
+                                  key: const Key('behavior_library'),
+                                  icon: const Icon(Icons.code, size: 18),
+                                  label: 'Behavior Studio',
+                                  onPressed: () => _studio(),
+                                ),
+                              LumenIconButton(
+                                icon: const Icon(
+                                  Icons.settings_ethernet,
+                                  size: 18,
+                                ),
+                                label: 'Show runtime details',
+                                selected: _technical,
+                                onPressed: () =>
+                                    setState(() => _technical = !_technical),
+                              ),
+                              LumenIconButton(
+                                key: const Key('brain_directory'),
+                                icon: const Icon(
+                                  Icons.list_alt_rounded,
+                                  size: 18,
+                                ),
+                                label: 'Neuron directory',
+                                selected: _directory,
+                                onPressed: () => setState(() {
+                                  _directory = !_directory;
+                                  _selected = null;
+                                }),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          key: const Key('graph_brain_panel'),
+                          child: snapshot == null
+                              ? _emptyGraph()
+                              : LumenBrainGraph(
+                                  snapshot: canvas!,
+                                  selectedId: _selected,
+                                  activeNodes: _brain.activeNodes,
+                                  stale: _brain.stale,
+                                  activeEdges: _brain.activeEdges,
+                                  onNeuron: (node) => setState(() {
+                                    _selected = node.id;
+                                    _directory = false;
+                                  }),
+                                  onSynapse: (edge) => setState(() {
+                                    _selected = edge.id;
+                                    _directory = false;
+                                  }),
+                                  onActivity: (event) => setState(() {
+                                    _selected =
+                                        'operation:${event.operationId}';
+                                    _directory = false;
+                                  }),
+                                ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 8,
+                          ),
+                          child: Wrap(
+                            alignment: WrapAlignment.center,
+                            spacing: 16,
+                            runSpacing: 6,
+                            children: [
+                              const Text(
+                                '━━ Bound   ┄┄ Learned   → Signal direction',
+                                style: TextStyle(
                                   color: LumenPalette.muted,
+                                  fontSize: 10,
+                                ),
+                              ),
+                              Text(
+                                _brain.failure != null
+                                    ? 'Observation unavailable'
+                                    : snapshot == null
+                                    ? (widget.onReadBrain == null
+                                          ? 'Not connected'
+                                          : 'Connecting…')
+                                    : 'Observed ${_time(snapshot.observedAt)}${snapshot.truncated ? ' · limited view' : ''}',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: _brain.failure == null
+                                      ? LumenPalette.muted
+                                      : LumenPalette.error,
+                                ),
+                              ),
+                              InkWell(
+                                onTap: _examples,
+                                child: const Text(
+                                  'Play an example ↗',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: LumenPalette.accent,
+                                  ),
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        const SizedBox(width: 10),
-                        if (widget.behaviorStudio != null)
-                          LumenIconButton(
-                            key: const Key('behavior_library'),
-                            icon: const Icon(Icons.code, size: 18),
-                            label: 'Behavior Studio',
-                            onPressed: () => _studio(),
+                      ],
+                      if (_brain.failure != null && !widget.conversation)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  _brain.failure!,
+                                  style: const TextStyle(
+                                    color: LumenPalette.error,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: _brain.refresh,
+                                child: const Text('Retry'),
+                              ),
+                            ],
                           ),
-                        LumenIconButton(
-                          icon: const Icon(Icons.settings_ethernet, size: 18),
-                          label: 'Show runtime details',
-                          selected: _technical,
-                          onPressed: () =>
-                              setState(() => _technical = !_technical),
                         ),
-                        LumenIconButton(
-                          key: const Key('brain_directory'),
-                          icon: const Icon(Icons.list_alt_rounded, size: 18),
-                          label: 'Neuron directory',
-                          selected: _directory,
-                          onPressed: () => setState(() {
-                            _directory = !_directory;
+                      if (widget.conversation)
+                        Expanded(child: _chat())
+                      else
+                        Padding(
+                          key: const Key('graph_chat_panel'),
+                          padding: EdgeInsets.fromLTRB(
+                            narrow ? 12 : 28,
+                            0,
+                            narrow ? 12 : 28,
+                            16,
+                          ),
+                          child: Center(
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 780),
+                              child: _chat(),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  if (inspector && !widget.conversation) ...[
+                    if (narrow)
+                      Positioned.fill(
+                        child: GestureDetector(
+                          onTap: () => setState(() {
                             _selected = null;
+                            _directory = false;
                           }),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    key: const Key('graph_brain_panel'),
-                    child: snapshot == null
-                        ? _emptyGraph()
-                        : LumenBrainGraph(
-                            snapshot: canvas!,
-                            selectedId: _selected,
-                            activeNodes: _brain.activeNodes,
-                            stale: _brain.stale,
-                            activeEdges: _brain.activeEdges,
-                            onNeuron: (node) => setState(() {
-                              _selected = node.id;
-                              _directory = false;
-                            }),
-                            onSynapse: (edge) => setState(() {
-                              _selected = edge.id;
-                              _directory = false;
-                            }),
-                            onActivity: (event) => setState(() {
-                              _selected = 'operation:${event.operationId}';
-                              _directory = false;
-                            }),
-                          ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 8,
-                    ),
-                    child: Wrap(
-                      alignment: WrapAlignment.center,
-                      spacing: 16,
-                      runSpacing: 6,
-                      children: [
-                        const Text(
-                          '━━ Bound   ┄┄ Learned   → Signal direction',
-                          style: TextStyle(
-                            color: LumenPalette.muted,
-                            fontSize: 10,
+                          child: ColoredBox(
+                            color: Colors.black.withValues(alpha: .16),
                           ),
                         ),
-                        Text(
-                          _brain.failure != null
-                              ? 'Observation unavailable'
-                              : snapshot == null
-                              ? (widget.onReadBrain == null
-                                    ? 'Not connected'
-                                    : 'Connecting…')
-                              : 'Observed ${_time(snapshot.observedAt)}${snapshot.truncated ? ' · limited view' : ''}',
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: _brain.failure == null
-                                ? LumenPalette.muted
-                                : LumenPalette.error,
-                          ),
-                        ),
-                        InkWell(
-                          onTap: _examples,
-                          child: const Text(
-                            'Play an example ↗',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: LumenPalette.accent,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-                if (_brain.failure != null && !widget.conversation)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            _brain.failure!,
-                            style: const TextStyle(
-                              color: LumenPalette.error,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: _brain.refresh,
-                          child: const Text('Retry'),
-                        ),
-                      ],
-                    ),
-                  ),
-                if (widget.conversation)
-                  Expanded(child: _chat())
-                else
-                  Padding(
-                    key: const Key('graph_chat_panel'),
-                    padding: EdgeInsets.fromLTRB(
-                      narrow ? 12 : 28,
-                      0,
-                      narrow ? 12 : 28,
-                      16,
-                    ),
-                    child: Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 780),
-                        child: _chat(),
                       ),
+                    Positioned(
+                      top: narrow ? 50 : 12,
+                      bottom: 12,
+                      right: 12,
+                      left: narrow ? 12 : null,
+                      width: narrow ? null : 350,
+                      child: _inspector(snapshot),
                     ),
-                  ),
-              ],
-            ),
-            if (inspector && !widget.conversation) ...[
-              if (narrow)
-                Positioned.fill(
-                  child: GestureDetector(
-                    onTap: () => setState(() {
-                      _selected = null;
-                      _directory = false;
-                    }),
-                    child: ColoredBox(
-                      color: Colors.black.withValues(alpha: .16),
-                    ),
-                  ),
-                ),
-              Positioned(
-                top: narrow ? 50 : 12,
-                bottom: 12,
-                right: 12,
-                left: narrow ? 12 : null,
-                width: narrow ? null : 350,
-                child: _inspector(snapshot),
-              ),
-            ],
-          ],
+                  ],
+                ],
+              );
+            },
+          ),
         );
-      },
-    ),
-  );
 
   Widget _chat() => BrainChatScreen(
     key: _chatKey,
@@ -575,6 +633,18 @@ final class _GraphHomeScreenState extends State<GraphHomeScreen> {
       _detail('Outputs', node.outputSignals.join(', ')),
     if (node.activeRevision != null)
       _detail('Active revision', node.activeRevision!),
+    for (final revision
+        in _focusedActivity?.events
+                .where(
+                  (event) =>
+                      (event.targetNeuronId == node.id ||
+                          event.sourceNeuronId == node.id) &&
+                      event.behaviorRevision != null,
+                )
+                .map((event) => event.behaviorRevision!)
+                .toSet() ??
+            <String>{})
+      _detail('Revision in this activity', revision),
     if (node.type == 'behavior')
       _detail(
         'Input policy',
@@ -647,6 +717,15 @@ final class _GraphHomeScreenState extends State<GraphHomeScreen> {
   Future<void> _studio([String? name]) async {
     final api = widget.behaviorStudio;
     if (api == null) return;
+    if (widget.surfaceRoot != null && name != null) {
+      setState(() {
+        if (!_openBehaviors.contains(name)) _openBehaviors.add(name);
+        _editingBehavior = name;
+        _selected = null;
+        _directory = false;
+      });
+      return;
+    }
     await showDialog<void>(
       context: context,
       builder: (_) => BehaviorLibrary(
@@ -667,20 +746,27 @@ final class _GraphHomeScreenState extends State<GraphHomeScreen> {
       style: const TextStyle(fontFamily: 'Georgia', fontSize: 24),
     ),
     _detail('Source', edge.sourceId),
-    _detail('Subscriber', edge.targetId),
+    _detail(
+      edge.kind == 'Observed' ? 'Recipient' : 'Subscriber',
+      edge.targetId,
+    ),
     _detail('Signal type', edge.signalType),
     _detail('Connection', edge.kind),
     _detail('Recorded deliveries', '${edge.fireCount}'),
     if (edge.lastFiredAt != null && edge.fireCount > 0)
       _detail('Last delivery', _time(edge.lastFiredAt!)),
-    _detail('Delivery', edge.isBlocking ? 'Blocking' : 'Non-blocking'),
-    _detail('Weight', edge.weight.toStringAsFixed(3)),
+    if (edge.kind != 'Observed')
+      _detail('Delivery', edge.isBlocking ? 'Blocking' : 'Non-blocking'),
+    if (edge.kind != 'Observed')
+      _detail('Weight', edge.weight.toStringAsFixed(3)),
     const SizedBox(height: 16),
     Text(
       edge.kind == 'Bound'
           ? 'An explicit subscription, owned by the source neuron. Unsubscribing removes this connection completely.'
           : edge.kind == 'Learned'
           ? 'Reinforced by handled direct delivery. This is not an explicit subscription.'
+          : edge.kind == 'Observed'
+          ? 'Observed execution evidence. This read-only link does not create a subscription.'
           : 'A kernel-defined connection.',
       style: const TextStyle(
         fontSize: 12,

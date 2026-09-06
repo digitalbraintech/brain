@@ -1,5 +1,6 @@
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
+using System.Text.Json;
 using Xunit;
 
 namespace DigitalBrain.E2E.Tests;
@@ -37,13 +38,15 @@ public sealed class McpSurfaceTests(AppHostFixture fixture)
         var tools = await client.ListToolsAsync(cancellationToken: cancellationToken);
         var toolNames = tools.Select(tool => tool.Name).ToHashSet(StringComparer.Ordinal);
         Assert.Contains(SendChatMessageTool, toolNames);
+        Assert.Contains("read_activities", toolNames);
 
+        var firstCommand = Guid.NewGuid().ToString("N");
         var result = await client.CallToolAsync(
             SendChatMessageTool,
             new Dictionary<string, object?>
             {
                 ["text"] = "MCP end-to-end check",
-                ["commandId"] = Guid.NewGuid().ToString("D"),
+                ["commandId"] = firstCommand,
                 ["chatName"] = "main",
                 ["timeoutSeconds"] = 30,
             },
@@ -52,5 +55,35 @@ public sealed class McpSurfaceTests(AppHostFixture fixture)
         var responseText = string.Join("\n", result.Content.OfType<TextContentBlock>().Select(static block => block.Text));
         Assert.False(result.IsError is true, $"send_chat_message returned an error: {responseText}");
         Assert.Equal("Test assistant reply.", responseText);
+
+        var secondCommand = Guid.NewGuid().ToString("N");
+        var second = await client.CallToolAsync(SendChatMessageTool, new Dictionary<string, object?>
+        {
+            ["text"] = "Second independent MCP activity",
+            ["commandId"] = secondCommand,
+            ["chatName"] = "main",
+            ["timeoutSeconds"] = 30,
+        }, cancellationToken: cancellationToken);
+        Assert.False(second.IsError is true);
+        // Activity facts are delivered through a durable outbox after business work returns.
+        JsonElement[] activities = [];
+        for (var attempt = 0; attempt < 60; attempt++)
+        {
+            var activitiesResult = await client.CallToolAsync("read_activities", cancellationToken: cancellationToken);
+            Assert.False(activitiesResult.IsError is true);
+            using var snapshot = JsonDocument.Parse(string.Join("\n", activitiesResult.Content.OfType<TextContentBlock>().Select(block => block.Text)));
+            activities = snapshot.RootElement.GetProperty("activities").EnumerateArray().Select(item => item.Clone()).ToArray();
+            if (new[] { firstCommand, secondCommand }.All(command => activities.Any(item =>
+                item.GetProperty("commandId").GetString() == command && item.GetProperty("status").GetString() == "completed")))
+            {
+                break;
+            }
+            await Task.Delay(250, cancellationToken);
+        }
+        var firstActivity = Assert.Single(activities, item => item.GetProperty("commandId").GetString() == firstCommand);
+        var secondActivity = Assert.Single(activities, item => item.GetProperty("commandId").GetString() == secondCommand);
+        Assert.Equal("completed", firstActivity.GetProperty("status").GetString());
+        Assert.Equal("completed", secondActivity.GetProperty("status").GetString());
+        Assert.NotEqual(firstActivity.GetProperty("correlationId").GetString(), secondActivity.GetProperty("correlationId").GetString());
     }
 }

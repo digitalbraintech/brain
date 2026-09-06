@@ -58,7 +58,10 @@ internal sealed class BrainGraphMetadata(IEnumerable<NeuronPresentation> present
                     ? assemblyName[modulePrefix.Length..].Split('.')[0] : "Kernel";
                 var label = grainType switch
                 {
-                    "chat" => "Conversation",
+                    "chat" => "Results",
+                    "activities" => "Activities",
+                    "activitysource" => "Execution events",
+                    "uirenderer" => "UI renderer",
                     "chat-turn-worker" => "Turn worker",
                     "assistant" => "Ino",
                     "sessionneuron" => "Owner session",

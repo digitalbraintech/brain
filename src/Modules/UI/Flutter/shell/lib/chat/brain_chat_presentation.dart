@@ -424,7 +424,9 @@ extension _BrainChatPresentation on _BrainChatScreenState {
           ),
   );
 
-  Widget _failureNotice() => _failure == null
+  Widget _failureNotice() =>
+      _failure == null ||
+          (_failedSend != null && !_pendingVisible(_failedSend!))
       ? const SizedBox.shrink()
       : Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),

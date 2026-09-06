@@ -27,6 +27,9 @@ final class BrainChatApp extends StatelessWidget {
     this.onReadSurface,
     this.onReadBrain,
     this.onWatchBrain,
+    this.onWatchActivities,
+    this.surfaceEvents,
+    this.client,
     this.behaviorStudio,
     this.onSetBrainSubscription,
     this.graphSceneFactory,
@@ -50,6 +53,9 @@ final class BrainChatApp extends StatelessWidget {
   final ReadSurface? onReadSurface;
   final ReadBrain? onReadBrain;
   final WatchBrain? onWatchBrain;
+  final WatchExecutionActivities? onWatchActivities;
+  final Stream<SceneOpenedEvent>? surfaceEvents;
+  final DigitalBrainUiClient? client;
   final BehaviorStudioApi? behaviorStudio;
   final SetBrainSubscription? onSetBrainSubscription;
   final GraphSceneFactory? graphSceneFactory;
@@ -80,6 +86,9 @@ final class BrainChatApp extends StatelessWidget {
         onReadSurface: onReadSurface,
         onReadBrain: onReadBrain,
         onWatchBrain: onWatchBrain,
+        onWatchActivities: onWatchActivities,
+        surfaceEvents: surfaceEvents,
+        client: client,
         behaviorStudio: behaviorStudio,
         onSetBrainSubscription: onSetBrainSubscription,
         graphSceneFactory: graphSceneFactory,

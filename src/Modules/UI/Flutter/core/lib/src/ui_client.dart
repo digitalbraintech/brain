@@ -13,6 +13,7 @@ import 'sse_frames.dart';
 import 'ui_models.dart';
 import 'models/brain_models.dart';
 import 'models/behavior_models.dart';
+import 'models/execution_activity.dart';
 
 final class DigitalBrainUiClient implements BehaviorStudioApi {
   /// Gated on the kernel; 404 when the kernel runs ungated.
@@ -146,6 +147,106 @@ final class DigitalBrainUiClient implements BehaviorStudioApi {
     'inputType': inputType,
     'input': input,
   });
+
+  Future<List<ChatTurnEvent>> readActivityResults({
+    required String surfaceName,
+    required String activityId,
+  }) async {
+    final response = await _request(
+      'GET',
+      '/surfaces/${Uri.encodeComponent(surfaceName)}/activities/${Uri.encodeComponent(activityId)}/results',
+      timeout: const Duration(seconds: 15),
+    );
+    final decoded = jsonDecode(response.body);
+    if (decoded is! List) {
+      throw StateError('Activity results have an unsupported response.');
+    }
+    return decoded
+        .whereType<Map>()
+        .map((turn) => ChatTurnEvent.fromJson(Map<String, Object?>.from(turn)))
+        .toList(growable: false);
+  }
+
+  Stream<List<ExecutionActivity>> watchActivities({String? surfaceName}) {
+    final abort = Completer<void>();
+    late StreamController<List<ExecutionActivity>> controller;
+    controller = StreamController<List<ExecutionActivity>>(
+      onListen: () async {
+        final items = <String, ExecutionActivity>{};
+        try {
+          final request = http.AbortableRequest(
+            'GET',
+            baseUri.replace(
+              path: surfaceName == null
+                  ? '/activities/events'
+                  : '/surfaces/${Uri.encodeComponent(surfaceName)}/activities/events',
+            ),
+            abortTrigger: abort.future,
+          )..headers['accept'] = 'text/event-stream';
+          final response = await _http.send(request);
+          if (response.statusCode != 200) {
+            throw StateError(
+              'Activity stream unavailable (${response.statusCode}).',
+            );
+          }
+          String? event;
+          final data = <String>[];
+          await for (final line
+              in response.stream
+                  .transform(utf8.decoder)
+                  .transform(const LineSplitter())) {
+            if (abort.isCompleted) break;
+            if (line.startsWith('event:')) event = line.substring(6).trim();
+            if (line.startsWith('data:')) {
+              data.add(line.substring(5).trimLeft());
+            }
+            if (line.isEmpty) {
+              if (data.isNotEmpty &&
+                  (event == 'snapshot' || event == 'activity')) {
+                final json =
+                    jsonDecode(data.join('\n')) as Map<String, dynamic>;
+                if (event == 'snapshot') {
+                  items.clear();
+                  for (final item
+                      in (json['activities'] as List? ?? const [])
+                          .whereType<Map>()) {
+                    final activity = ExecutionActivity.fromJson(
+                      Map<String, dynamic>.from(item),
+                    );
+                    items[activity.id] = activity;
+                  }
+                } else {
+                  final activity = ExecutionActivity.fromJson(json);
+                  final current = items[activity.id];
+                  if (current != null &&
+                      current.version > 0 &&
+                      activity.version <= current.version) {
+                    event = null;
+                    data.clear();
+                    continue;
+                  }
+                  items[activity.id] = activity;
+                }
+                final sorted = items.values.toList()
+                  ..sort((a, b) => b.startedAt.compareTo(a.startedAt));
+                controller.add(List.unmodifiable(sorted));
+              }
+              event = null;
+              data.clear();
+            }
+          }
+        } catch (error, stack) {
+          if (!abort.isCompleted) controller.addError(error, stack);
+        } finally {
+          if (!controller.isClosed) await controller.close();
+        }
+      },
+      onCancel: () {
+        if (!abort.isCompleted) abort.complete();
+      },
+    );
+    return controller.stream;
+  }
 
   Stream<BrainSnapshot> watchBrain({required String chatName}) {
     final abort = Completer<void>();
@@ -314,29 +415,109 @@ final class DigitalBrainUiClient implements BehaviorStudioApi {
   Stream<SceneOpenedEvent> watchShellEvents({
     required String shellName,
     int afterSequence = 0,
-  }) async* {
-    final uri = baseUri.replace(
-      path: '/surfaces/$shellName/events',
-      queryParameters: {'afterSequence': '$afterSequence'},
-    );
-    final response = await _http.send(http.Request('GET', uri));
-    if (response.statusCode != 200) {
-      throw StateError('shell events failed: ${response.statusCode}');
-    }
+  }) {
+    var cursor = afterSequence;
+    var cancelled = false;
+    var retryMilliseconds = 500;
+    Timer? retry;
+    Completer<void>? requestAbort;
+    StreamSubscription<String>? incoming;
+    DateTime? connectedAt;
+    late StreamController<SceneOpenedEvent> controller;
+    late Future<void> Function() connect;
 
-    final lines = response.stream
-        .transform(utf8.decoder)
-        .transform(const LineSplitter());
-
-    final parser = SseSceneOpenedParser();
-    await for (final line in lines) {
-      for (final event in parser.addLine(line)) {
-        yield event;
+    void emit(SceneOpenedEvent event) {
+      if (cancelled) return;
+      // Shared composition uses zero because its journal has a separate cursor.
+      // It must replay on reconnect even after principal events advanced ours.
+      if (event.sequence > 0) {
+        if (event.sequence <= cursor) return;
+        cursor = event.sequence;
       }
+      controller.add(event);
     }
-    for (final event in parser.flush()) {
-      yield event;
+
+    void reconnect() {
+      if (cancelled || retry != null) return;
+      if (requestAbort case final abort? when !abort.isCompleted) {
+        abort.complete();
+      }
+      if (connectedAt case final started?
+          when DateTime.now().difference(started) >=
+              const Duration(seconds: 30)) {
+        retryMilliseconds = 500;
+      }
+      connectedAt = null;
+      retry = Timer(Duration(milliseconds: retryMilliseconds), () {
+        retry = null;
+        unawaited(connect());
+      });
+      retryMilliseconds = (retryMilliseconds * 2).clamp(500, 8000);
     }
+
+    connect = () async {
+      if (cancelled) return;
+      final abort = Completer<void>();
+      requestAbort = abort;
+      try {
+        final request = http.AbortableRequest(
+          'GET',
+          baseUri.replace(
+            path: '/surfaces/${Uri.encodeComponent(shellName)}/events',
+            queryParameters: {'afterSequence': '$cursor'},
+          ),
+          abortTrigger: abort.future,
+        )..headers['accept'] = 'text/event-stream';
+        final response = await _http
+            .send(request)
+            .timeout(const Duration(seconds: 15));
+        if (cancelled || response.statusCode != 200) {
+          await response.stream.listen(null).cancel();
+          if (cancelled) return;
+          throw StateError('shell events failed: ${response.statusCode}');
+        }
+        connectedAt = DateTime.now();
+        final parser = SseSceneOpenedParser();
+        incoming = response.stream
+            .transform(utf8.decoder)
+            .transform(const LineSplitter())
+            .listen(
+              (line) {
+                for (final event in parser.addLine(line)) {
+                  emit(event);
+                }
+              },
+              onError: (Object error, StackTrace stack) {
+                if (cancelled) return;
+                controller.addError(error, stack);
+                reconnect();
+              },
+              onDone: () {
+                for (final event in parser.flush()) {
+                  emit(event);
+                }
+                reconnect();
+              },
+              cancelOnError: true,
+            );
+      } catch (error, stack) {
+        if (cancelled) return;
+        controller.addError(error, stack);
+        reconnect();
+      }
+    };
+    controller = StreamController<SceneOpenedEvent>(
+      onListen: () => unawaited(connect()),
+      onCancel: () async {
+        cancelled = true;
+        retry?.cancel();
+        if (requestAbort case final abort? when !abort.isCompleted) {
+          abort.complete();
+        }
+        await incoming?.cancel();
+      },
+    );
+    return controller.stream;
   }
 
   Stream<ChatDelta> streamMessage({

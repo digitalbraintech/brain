@@ -6,6 +6,78 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  testWidgets('embedded behavior draft survives returning to input', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final api = FakeStudio();
+    final graph = BrainSnapshot(
+      rootId: 'behavior:echo',
+      observedAt: DateTime.utc(2026),
+      nodes: const [
+        BrainNeuron(
+          id: 'behavior:echo',
+          type: 'behavior',
+          name: 'echo',
+          label: 'Echo',
+          module: 'Core',
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: KitTheme.light(),
+        home: KitThemeScope(
+          child: Scaffold(
+            body: GraphHomeScreen(
+              chatName: 'main',
+              turns: const [],
+              behaviorStudio: api,
+              onReadBrain: () async => graph,
+              surfaceRoot: const SurfaceComponent(
+                kind: 'split',
+                children: [
+                  SurfaceComponent(
+                    kind: 'brain-graph',
+                    properties: {'scope': 'system'},
+                  ),
+                  SurfaceComponent(kind: 'chat'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('neuron_behavior:echo')));
+    await tester.pump();
+    await tester.tap(find.text('Edit / run behavior'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('behavior_source')),
+      '// Unsaved revision',
+    );
+    await tester.tap(find.text('Back to input'));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('neuron_behavior:echo')));
+    await tester.pump();
+    await tester.tap(find.text('Edit / run behavior'));
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const Key('behavior_source')))
+          .controller!
+          .text,
+      '// Unsaved revision',
+    );
+    expect(api.savedSource, isNull);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(milliseconds: 400));
+  });
   testWidgets('new behavior starts with the standard SDK connection and input', (
     tester,
   ) async {
@@ -34,7 +106,7 @@ void main() {
     expect(
       api.savedSource,
       'await using IDigitalBrain digitalBrain = await DigitalBrainClient.ConnectAsync(args);\n'
-      'return digitalBrain.Input<Note>();',
+      'if (Signal is Note note)\n{\n    await digitalBrain.PublishAsync(note);\n}',
     );
     expect(api.current.draft!.inputSignalTypes, ['Note']);
     expect(api.current.draft!.outputSignalTypes, ['Note']);

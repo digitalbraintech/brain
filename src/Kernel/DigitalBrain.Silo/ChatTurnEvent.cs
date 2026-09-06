@@ -17,5 +17,7 @@ internal sealed record ChatTurnEvent(
     string? Status = null,
     KitCardOffer[]? Cards = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    UserActionRequest? UserAction = null);
+    UserActionRequest? UserAction = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    string? EventId = null);
 

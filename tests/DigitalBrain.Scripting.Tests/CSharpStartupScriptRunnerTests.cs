@@ -8,7 +8,7 @@ public sealed class CSharpStartupScriptRunnerTests
     private readonly CSharpStartupScriptRunner runner = new();
 
     [Fact]
-    public async Task Checked_in_github_review_handler_requires_a_typed_execution_input()
+    public async Task Checked_in_github_review_handler_ignores_unrelated_input()
     {
         var path = Path.Combine(AppContext.BaseDirectory, "examples", "github-pr-review.csx");
         var script = await StartupScript.ReadAsync(path, TestContext.Current.CancellationToken);
@@ -16,8 +16,10 @@ public sealed class CSharpStartupScriptRunnerTests
             DigitalBrain.Abstractions.Signals.BehaviorValidation.Pending, [], DateTimeOffset.UtcNow);
         var behaviorRunner = new BehaviorProgramRunner();
         Assert.Empty(behaviorRunner.Validate(program));
-        await Assert.ThrowsAsync<InvalidOperationException>(() => behaviorRunner.Run(program, new FakeDigitalBrain("alice"),
-            new DigitalBrain.Abstractions.Signals.NewPost("untyped trigger"), "review", TestContext.Current.CancellationToken));
+        // The checked-in handler deliberately returns for unrelated signals. Any attempt
+        // to resolve an API after that guard fails through FakeDigitalBrain.Get.
+        await behaviorRunner.Run(program, new FakeDigitalBrain("alice"),
+            new DigitalBrain.Abstractions.Signals.NewPost("untyped trigger"), "review", TestContext.Current.CancellationToken);
     }
 
     [Fact]

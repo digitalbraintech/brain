@@ -12,7 +12,7 @@ namespace DigitalBrain.Core;
 // The script is data. This activation accepts work and commits results; user C# runs
 // in the separate scripting host and cannot hold a subscription-delivery turn open.
 [GrainType("behavior")]
-internal sealed class BehaviorNeuron : Neuron, IBehavior, IBehaviorKernel
+internal sealed partial class BehaviorNeuron : Neuron, IBehavior, IBehaviorKernel
 {
     private const int PendingCapacity = 256;
     private const int ReceiptCapacity = 100000;
@@ -51,6 +51,7 @@ internal sealed class BehaviorNeuron : Neuron, IBehavior, IBehaviorKernel
             {
                 await WriteStateAsync().ConfigureAwait(true);
             }
+            await ReportBehaviorTransitions(previousState, state).ConfigureAwait(true);
         }
         catch
         {
@@ -736,7 +737,7 @@ internal sealed class BehaviorNeuron : Neuron, IBehavior, IBehaviorKernel
                 state.Subjects[outputSubject].Targets.UnionWith(recipients);
             }
 
-            state.Outbox.Add(new() { Epoch = state.Epoch, Delivery = delivery, Recipients = recipients, SubjectKey = work.SubjectKey, SubjectGeneration = work.SubjectGeneration, CompletionKey = work.CompletionKey, Input = work.Input });
+            state.Outbox.Add(new() { Epoch = state.Epoch, Delivery = delivery, Recipients = recipients, SubjectKey = work.SubjectKey, SubjectGeneration = work.SubjectGeneration, CompletionKey = work.CompletionKey, Input = work.Input, WorkId = work.Id, ProgramRevision = work.Program.Revision });
         }
 
         state.Work.Remove(work); // compact payloads; Accepted retains receipt tombstones

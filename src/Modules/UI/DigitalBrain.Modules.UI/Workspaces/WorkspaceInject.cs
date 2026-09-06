@@ -41,7 +41,7 @@ public sealed class WorkspaceInject(IDigitalBrain brain, IGrainFactory grains) :
 
         var command = commandId ?? CommandId.New();
         var inbox = brain.Get<IComposer>(IComposer.DefaultInstanceName);
-        var correlation = new CorrelationId(Guid.Parse(record.CorrelationId));
+        var correlation = CorrelationId.New();
         var session = grains.GetGrain<IBrainNeuron>(IBrainNeuron.ForOwner(brain.Owner).ToGrainId());
         await session.SendWithCorrelation(
                 inbox.Id,

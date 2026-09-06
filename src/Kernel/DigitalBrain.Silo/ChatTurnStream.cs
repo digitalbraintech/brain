@@ -79,6 +79,7 @@ internal static class ChatTurnStream
                 }
 
                 if (delivery.Signal is TurnLifecycle life
+                    && life.CommandId == command
                     && life.Status is ChatTurnStatus.Failed or ChatTurnStatus.Cancelled or ChatTurnStatus.Completed)
                 {
                     yield return Error(ForTerminal(life));

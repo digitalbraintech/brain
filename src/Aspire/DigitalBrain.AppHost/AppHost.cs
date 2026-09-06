@@ -69,7 +69,7 @@ var brain = builder.AddDigitalBrain(ProductSurfaceResources.Brain)
         // ai.WithEmbedding<OllamaModels.IEmbeddingGemma>();
         // ai.WithDefaultEmbedding<OllamaModels.IEmbeddingGemma>();
 
-        //ai.WithVoiceToText<IWhisperLargeV3Turbo>();
+        ai.WithVoiceToText<IWhisperTiny>();
     })
     .AddModule<MemoryModule>(memory => memory.WithQdrant())
     .AddModule<TimeModule>()

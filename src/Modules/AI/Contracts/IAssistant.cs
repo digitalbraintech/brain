@@ -11,6 +11,9 @@ public interface IAssistant : IAgent, IHandle<UserMessaged>, IAssistantTurn;
 [Alias("db.assistant-turn")]
 public interface IAssistantTurn : IGrainWithStringKey
 {
+    [Alias(nameof(ReportTurnActivity))]
+    Task ReportTurnActivity(SignalDelivery delivery, string phase, string? detail = null);
+
     [Alias(nameof(RecordTurnFact))]
     Task RecordTurnFact(Signal fact, CorrelationId correlation, CancellationToken cancellationToken = default);
 

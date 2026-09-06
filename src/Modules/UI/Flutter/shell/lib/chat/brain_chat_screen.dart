@@ -70,6 +70,13 @@ final class BrainChatScreen extends StatefulWidget {
     this.onReadGraph,
     this.presentation = BrainChatPresentation.full,
     this.compactReplyMaxHeight = 180,
+    this.activityMode = false,
+    this.activityCorrelationId,
+    this.activityCommandId,
+    this.activityLocalId,
+    this.onActivityStarted,
+    this.onActivityAccepted,
+    this.activityTurns = const [],
   });
 
   final String chatName;
@@ -87,6 +94,11 @@ final class BrainChatScreen extends StatefulWidget {
   final ReadGraph? onReadGraph;
   final BrainChatPresentation presentation;
   final double compactReplyMaxHeight;
+  final bool activityMode;
+  final String? activityCorrelationId, activityCommandId, activityLocalId;
+  final void Function(String id, String text)? onActivityStarted;
+  final void Function(String id, String commandId)? onActivityAccepted;
+  final List<ChatTurnEvent> activityTurns;
 
   @override
   State<BrainChatScreen> createState() => _BrainChatScreenState();
@@ -101,7 +113,8 @@ final class _BrainChatScreenState extends State<BrainChatScreen> {
   final _controller = InMemoryChatController();
   final _streamStates = StreamStateStore();
   final _voice = VoiceComposerController();
-  final _appliedSequences = <int>{};
+  final _appliedSequences = <String>{};
+  final _renderSequences = <String, int>{};
   final _recorder = AudioRecorder();
   Map<String, ChatLoginAction> _loginActions = const {};
   final _pendingSends = <_PendingChatSend>[];
@@ -124,8 +137,21 @@ final class _BrainChatScreenState extends State<BrainChatScreen> {
       _historyPortal.hide();
       _historyOpen = false;
     }
-    if (!_sameJournal(oldWidget.turns, widget.turns)) {
-      unawaited(_syncJournal(widget.turns));
+    final scopeChanged =
+        oldWidget.activityCorrelationId != widget.activityCorrelationId ||
+        oldWidget.activityCommandId != widget.activityCommandId ||
+        oldWidget.activityLocalId != widget.activityLocalId ||
+        oldWidget.activityMode != widget.activityMode;
+    final resultsChanged = !_sameJournal(
+      oldWidget.activityTurns,
+      widget.activityTurns,
+    );
+    if (scopeChanged ||
+        resultsChanged ||
+        !_sameJournal(oldWidget.turns, widget.turns)) {
+      unawaited(
+        _syncJournal(widget.turns, force: scopeChanged || resultsChanged),
+      );
     }
   }
 
@@ -133,7 +159,18 @@ final class _BrainChatScreenState extends State<BrainChatScreen> {
     List<ChatTurnEvent> turns, {
     bool force = false,
   }) async {
-    final sequences = {for (final turn in turns) turn.sequence};
+    final resultCommands = {
+      for (final turn in widget.activityTurns)
+        if (turn.signal == 'UserMessaged' || turn.signal == 'Responded')
+          '${turn.commandId}:${turn.signal}',
+    };
+    turns = {
+      for (final turn in turns)
+        if (!resultCommands.contains('${turn.commandId}:${turn.signal}'))
+          _turnIdentity(turn): turn,
+      for (final turn in widget.activityTurns) _turnIdentity(turn): turn,
+    }.values.toList()..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    final sequences = {for (final turn in turns) _turnIdentity(turn)};
     if (!force &&
         sequences.length == _appliedSequences.length &&
         sequences.every(_appliedSequences.contains)) {
@@ -141,7 +178,9 @@ final class _BrainChatScreenState extends State<BrainChatScreen> {
     }
 
     for (final turn in turns) {
-      if (!turn.fromUser || _appliedSequences.contains(turn.sequence)) continue;
+      if (!turn.fromUser || _appliedSequences.contains(_turnIdentity(turn))) {
+        continue;
+      }
       for (final pending in _pendingSends) {
         if (!pending.expectsAcceptance &&
             pending.commandId == null &&
@@ -178,7 +217,8 @@ final class _BrainChatScreenState extends State<BrainChatScreen> {
       }
     }
 
-    _loginActions = ChatLoginAction.project(turns);
+    final visibleTurns = turns.where(_turnVisible).toList();
+    _loginActions = ChatLoginAction.project(visibleTurns);
     final actionCommands = {
       for (final login in _loginActions.values) login.offer.commandId,
     };
@@ -186,13 +226,18 @@ final class _BrainChatScreenState extends State<BrainChatScreen> {
       for (final login in _loginActions.values) login.offer.sequence: login,
     };
     final messages = <Message>[
-      for (final turn in turns) ...[
+      for (final turn in visibleTurns) ...[
         // The inline action card presents this command's lifecycle state.
         if (turn.signal != 'TurnLifecycle' ||
             (!actionCommands.contains(turn.commandId) &&
                 (turn.status == 'Failed' || turn.status == 'Cancelled')))
           ...KitMessageFactory.messagesForTurn(
-            sequence: turn.sequence,
+            sequence: widget.activityMode
+                ? _renderSequences.putIfAbsent(
+                    _turnIdentity(turn),
+                    () => -_renderSequences.length - 1,
+                  )
+                : turn.sequence,
             fromUser: turn.fromUser,
             text: turn.signal == 'TurnLifecycle'
                 ? (turn.status == 'Cancelled'
@@ -218,6 +263,7 @@ final class _BrainChatScreenState extends State<BrainChatScreen> {
     ];
 
     for (final pending in _pendingSends) {
+      if (!_pendingVisible(pending)) continue;
       if (!turns.any(
         (turn) => turn.fromUser && turn.commandId == pending.commandId,
       )) {
@@ -294,6 +340,10 @@ final class _BrainChatScreenState extends State<BrainChatScreen> {
       ),
     );
     _pendingSends.add(pending);
+    widget.onActivityStarted?.call(
+      pending.id,
+      text == _voicePlaceholder ? 'Voice message' : text,
+    );
     return pending;
   }
 
@@ -328,6 +378,9 @@ final class _BrainChatScreenState extends State<BrainChatScreen> {
         if (!mounted) return;
         if (iterator.current.isAcceptance) {
           pending.commandId = iterator.current.commandId;
+          if (pending.commandId != null) {
+            widget.onActivityAccepted?.call(pending.id, pending.commandId!);
+          }
           await _syncJournal(widget.turns, force: true);
           continue;
         }
@@ -496,6 +549,7 @@ final class _BrainChatScreenState extends State<BrainChatScreen> {
     }
     for (var i = 0; i < a.length; i++) {
       if (a[i].sequence != b[i].sequence ||
+          a[i].eventId != b[i].eventId ||
           a[i].text != b[i].text ||
           a[i].buttons.length != b[i].buttons.length ||
           a[i].charts.length != b[i].charts.length ||
@@ -507,4 +561,24 @@ final class _BrainChatScreenState extends State<BrainChatScreen> {
     }
     return true;
   }
+
+  String _turnIdentity(ChatTurnEvent turn) =>
+      turn.eventId ??
+      '${turn.correlationId}:${turn.neuronId}:${turn.sequence}:${turn.signal}';
+
+  bool _turnVisible(ChatTurnEvent turn) =>
+      !widget.activityMode ||
+      (widget.activityCorrelationId != null &&
+          turn.correlationId == widget.activityCorrelationId) ||
+      (widget.activityCommandId != null &&
+          turn.commandId == widget.activityCommandId);
+
+  bool _pendingVisible(_PendingChatSend pending) =>
+      !widget.activityMode ||
+      pending.id == widget.activityLocalId ||
+      (pending.commandId != null &&
+          pending.commandId == widget.activityCommandId) ||
+      widget.turns.any(
+        (turn) => turn.commandId == pending.commandId && _turnVisible(turn),
+      );
 }

@@ -123,6 +123,26 @@ internal static class KitEntitiesHttpMaps
                 }
 
                 var state = await brain.GetEntity<ISurface>(instance).Read().ConfigureAwait(false);
+                if (surfaceName == ISurface.DefaultInstanceName)
+                {
+                    var shared = await brain.GetEntity<ISurface>(surfaceName).Read().ConfigureAwait(false);
+                    if (shared is not null)
+                    {
+                        var sharedKeys = shared.Scenes.Select(scene => scene.SurfaceKey).ToHashSet(StringComparer.Ordinal);
+                        state = shared with
+                        {
+                            Scenes = [.. shared.Scenes, .. (state?.Scenes ?? []).Where(scene => !sharedKeys.Contains(scene.SurfaceKey))],
+                        };
+                    }
+                }
+                if (state is not null)
+                {
+                    state = state with
+                    {
+                        Activities = state.Activities?.Where(activity => activity.Principal is null
+                            || activity.Principal == HttpActor.Current.PrincipalId).ToArray(),
+                    };
+                }
                 return state is null ? Results.NotFound() : Results.Ok(state);
             });
 

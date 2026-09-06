@@ -24,7 +24,7 @@
     <InternalsVisibleTo Include="DigitalBrain.Simulation.Tests" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Remove="scripts/start.cs" />
-    <Content Include="scripts/start.cs" CopyToOutputDirectory="PreserveNewest" />
+    <Compile Remove="scripts/**/*.cs" />
+    <Content Include="scripts/**/*.cs" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

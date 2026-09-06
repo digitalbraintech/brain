@@ -3,6 +3,27 @@ import 'package:test/test.dart';
 
 void main() {
   test(
+    'scripted surface-opened wire frame reloads Home at shared cursor zero',
+    () {
+      const frames = '''
+event: surface-opened
+data: {"sequence":0,"surfaceKey":"home","title":"One brain","commandId":"746efc777e5c446e93d5f4ded819a333","surface":"surface:dev/desk"}
+
+''';
+      final parser = SseSceneOpenedParser();
+      final events = <SceneOpenedEvent>[
+        for (final line in frames.split('\n')) ...parser.addLine(line),
+        ...parser.flush(),
+      ];
+
+      expect(events, hasLength(1));
+      expect(events.single.sequence, 0);
+      expect(events.single.sceneKey, 'home');
+      expect(events.single.shell, 'surface:dev/desk');
+    },
+  );
+
+  test(
     'ShellSurfaceController projects SceneOpened without dropping prior scenes',
     () {
       final surface = ShellSurfaceController();

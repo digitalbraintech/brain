@@ -11,6 +11,7 @@ import 'support/shell_test_support.dart';
 
 void main() {
   Future<void> openConversation(WidgetTester tester) async {
+    await enterOldUi(tester);
     await tester.tap(find.byKey(const Key('destination_chat')));
     await tester.pump();
   }

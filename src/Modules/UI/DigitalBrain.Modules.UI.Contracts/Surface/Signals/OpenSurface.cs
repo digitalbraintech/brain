@@ -10,17 +10,18 @@ namespace DigitalBrain.UI;
 public sealed record OpenSurface : Signal
 {
     // Overrides IUIRenderer's own default ("default"): an untargeted fire must still reach the
-    // "desk" surface SurfaceBoot opens and the shell watches, even though the renderer serves
+    // "desk" surface the startup script opens and the shell watches, even though the renderer serves
     // other capabilities (ChartPoint) that keep the neuron-level default.
     public const string DefaultInstanceName = ISurface.DefaultInstanceName;
 
-    public OpenSurface(CommandId commandId, string surfaceKey, string title)
+    public OpenSurface(CommandId commandId, string surfaceKey, string title, SurfaceComponent? root = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(surfaceKey);
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
         CommandId = commandId;
         SurfaceKey = surfaceKey;
         Title = title;
+        Root = root;
     }
 
     [Id(0)]
@@ -31,4 +32,7 @@ public sealed record OpenSurface : Signal
 
     [Id(2)]
     public string Title { get; init; }
+
+    [Id(3)]
+    public SurfaceComponent? Root { get; init; }
 }

@@ -67,8 +67,8 @@ internal sealed class CSharpStartupScriptRunner : IStartupScriptRunner
         {
             var state = await CSharpScript.RunAsync(
                 script.Source,
-                Options,
-                new StartupScriptContext(brain, cancellationToken, script.Behavior),
+                script.SourceResolver is null ? Options : Options.WithFilePath(script.Path).WithSourceResolver(script.SourceResolver),
+                new StartupScriptContext(brain, cancellationToken, script.Behavior, script.Input),
                 typeof(StartupScriptContext),
                 cancellationToken);
 

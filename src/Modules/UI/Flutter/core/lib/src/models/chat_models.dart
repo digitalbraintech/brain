@@ -344,6 +344,7 @@ final class ChatTurnEvent {
     this.turnId,
     this.status,
     this.userAction,
+    this.eventId,
   });
 
   final int sequence;
@@ -362,6 +363,7 @@ final class ChatTurnEvent {
   final String? turnId;
   final String? status;
   final ChatUserAction? userAction;
+  final String? eventId;
 
   factory ChatTurnEvent.fromJson(Map<String, Object?> json) {
     final rawButtons = json['buttons'];
@@ -412,6 +414,7 @@ final class ChatTurnEvent {
       turnId: json['turnId'] as String?,
       status: json['status'] as String?,
       userAction: ChatUserAction.tryParse(json['userAction']),
+      eventId: json['eventId'] as String?,
     );
   }
 }
@@ -455,13 +458,54 @@ final class KitSurfaceState {
 }
 
 final class KitSurfaceScene {
-  const KitSurfaceScene({required this.surfaceKey, required this.title});
+  const KitSurfaceScene({
+    required this.surfaceKey,
+    required this.title,
+    this.root,
+  });
 
   final String surfaceKey;
   final String title;
+  final SurfaceComponent? root;
 
-  factory KitSurfaceScene.fromJson(Map<String, Object?> json) => KitSurfaceScene(
-    surfaceKey: json['surfaceKey'] as String? ?? '',
-    title: json['title'] as String? ?? '',
-  );
+  factory KitSurfaceScene.fromJson(Map<String, Object?> json) =>
+      KitSurfaceScene(
+        surfaceKey: json['surfaceKey'] as String? ?? '',
+        title: json['title'] as String? ?? '',
+        root: json['root'] is Map
+            ? SurfaceComponent.fromJson(
+                Map<String, Object?>.from(json['root'] as Map),
+              )
+            : null,
+      );
+}
+
+/// A persistent component tree authored by a UI script, never a client route.
+final class SurfaceComponent {
+  const SurfaceComponent({
+    required this.kind,
+    this.key,
+    this.properties = const {},
+    this.children = const [],
+  });
+  final String kind;
+  final String? key;
+  final Map<String, String> properties;
+  final List<SurfaceComponent> children;
+
+  factory SurfaceComponent.fromJson(Map<String, Object?> json) =>
+      SurfaceComponent(
+        kind: json['kind'] as String? ?? '',
+        key: json['key'] as String?,
+        properties: json['properties'] is Map
+            ? Map<String, String>.from(json['properties'] as Map)
+            : const {},
+        children: (json['children'] as List? ?? const [])
+            .whereType<Map>()
+            .map(
+              (child) =>
+                  SurfaceComponent.fromJson(Map<String, Object?>.from(child)),
+            )
+            .toList(growable: false),
+      );
 }

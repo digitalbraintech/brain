@@ -102,7 +102,8 @@ internal static class ChatStreamsHttpMaps
                 turnId,
                 status,
                 cards,
-                userAction);
+                userAction,
+                delivery.SignalId.ToString());
 
         return delivery.Signal switch
         {

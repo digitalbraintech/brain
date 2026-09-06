@@ -20,8 +20,11 @@ void main() {
     );
 
     turns.add(shellTurn(1, true, 'private customer message'));
+    await enterOldUi(tester);
     await tester.pumpAndSettle();
+    await enterOldUi(tester);
     await tester.tap(find.byKey(const Key('destination_activity')));
+    await enterOldUi(tester);
     await tester.pumpAndSettle();
 
     expect(find.text('UserMessaged'), findsOneWidget);
@@ -42,8 +45,11 @@ void main() {
     turns.add(
       shellTurn(2, true, 'private payload', signal: 'ObservedCustomSynapse'),
     );
+    await enterOldUi(tester);
     await tester.pumpAndSettle();
+    await enterOldUi(tester);
     await tester.tap(find.byKey(const Key('destination_activity')));
+    await enterOldUi(tester);
     await tester.pumpAndSettle();
 
     expect(find.text('ObservedCustomSynapse'), findsOneWidget);
@@ -63,14 +69,19 @@ void main() {
       BrainChatApp(chatName: 'main', turns: turns.stream, onSend: (_) async {}),
     );
 
+    await enterOldUi(tester);
     await tester.tap(find.byKey(const Key('destination_activity')));
+    await enterOldUi(tester);
     await tester.pumpAndSettle();
     turns.add(shellTurn(9, false, 'arrived while activity was open'));
+    await enterOldUi(tester);
     await tester.pumpAndSettle();
 
     expect(find.text('Responded'), findsOneWidget);
 
+    await enterOldUi(tester);
     await tester.tap(find.byKey(const Key('destination_chat')));
+    await enterOldUi(tester);
     await tester.pumpAndSettle();
     expect(find.text('arrived while activity was open'), findsOneWidget);
     await drainShellTimers(tester);

@@ -220,7 +220,7 @@ class _BehaviorEditorState extends State<BehaviorEditor> {
   final _source = TextEditingController(
     text:
         'await using IDigitalBrain digitalBrain = await DigitalBrainClient.ConnectAsync(args);\n'
-        'return digitalBrain.Input<Note>();',
+        'if (Signal is Note note)\n{\n    await digitalBrain.PublishAsync(note);\n}',
   );
   final _inputs = TextEditingController(text: 'Note');
   final _outputs = TextEditingController(text: 'Note');
@@ -517,7 +517,7 @@ class _BehaviorEditorState extends State<BehaviorEditor> {
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const Text(
-            'C# handler · ConnectAsync(args), Input<T>(), CancellationToken. Return a signal to publish to subscribers.',
+            'C# handler · Read the accepted Signal. Use PublishAsync to send an output to subscribers.',
             style: TextStyle(fontSize: 11),
           ),
           const SizedBox(height: 6),

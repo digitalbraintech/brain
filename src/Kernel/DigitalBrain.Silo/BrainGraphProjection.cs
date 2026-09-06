@@ -17,7 +17,7 @@ internal sealed class BrainGraphProjection(IBrainGraphSource source, BrainGraphM
     private readonly BrainGraphMetadata _metadata = presentationMetadata ?? new([]);
     internal const int MaxActivity = 64;
     private static readonly TimeSpan ReadTimeout = TimeSpan.FromSeconds(5);
-    internal const string SnapshotScope = "Current conversation, saved behaviors, involved neurons, and their source-owned subscriptions. Activity groups recent deliveries by conversation correlation.";
+    internal const string SnapshotScope = "One brain, saved behaviors, involved neurons, and their source-owned subscriptions. Select an activity to follow its causal execution.";
 
     public async Task<BrainGraphSnapshot> ReadAsync(
         string chatName, ActorContext actor, CancellationToken cancellationToken)
@@ -34,6 +34,9 @@ internal sealed class BrainGraphProjection(IBrainGraphSource source, BrainGraphM
         var pending = new Queue<NeuronId>();
         Discover(inbox);
         Discover(session);
+        Discover(NeuronId.For<IActivitySource>(source.Owner, IActivitySource.DefaultInstanceName));
+        Discover(NeuronId.For<IActivities>(source.Owner, IActivities.DefaultInstanceName));
+        Discover(NeuronId.For<IUIRenderer>(source.Owner, ISurface.DefaultInstanceName));
         // Saved behaviors are real, durable participants. Their state is read below;
         // untouched drafts stay in the library until enabled or invoked.
         try
@@ -276,11 +279,12 @@ internal sealed class BrainGraphProjection(IBrainGraphSource source, BrainGraphM
             or "usermessages" or "surface-boot" or "uirenderer" or "chat";
 
     private static bool ObservesSharedComposition(NeuronId neuron)
-        => neuron.Type is "usermessages" or "sessionneuron";
+        => neuron.Type is "usermessages" or "sessionneuron" or "activities" or "activitysource" or "uirenderer";
 
     private static bool VisibleDelivery(
         SignalDelivery delivery, bool privateNeuron, PrincipalId principal, bool observeShared = false)
-        => delivery.Principal == principal || ((privateNeuron || observeShared) && delivery.Principal is null);
+        => !delivery.IsActivityTelemetry
+            && (delivery.Principal == principal || ((privateNeuron || observeShared) && delivery.Principal is null));
 
     private bool VisibleCaller(NeuronId caller, PrincipalId principal) => CanSee(caller, principal);
 

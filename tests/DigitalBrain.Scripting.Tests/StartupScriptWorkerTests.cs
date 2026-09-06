@@ -32,6 +32,7 @@ public sealed class StartupScriptWorkerTests
                 TestContext.Current.CancellationToken);
 
             Assert.Equal(1, runner.InvocationCount);
+            Assert.Equal("alice", Assert.IsType<DigitalBrain.Abstractions.Signals.DigitalBrainActivated>(runner.LastScript!.Input).Owner.Value);
             Assert.True(execution?.IsSuccess);
         }
         finally
@@ -244,6 +245,7 @@ public sealed class StartupScriptWorkerTests
     private sealed class TestRunner(StartupScriptRunResult result) : IStartupScriptRunner
     {
         public int InvocationCount { get; private set; }
+        public StartupScript? LastScript { get; private set; }
 
         public Task<StartupScriptRunResult> RunAsync(
             StartupScript script,
@@ -251,6 +253,7 @@ public sealed class StartupScriptWorkerTests
             CancellationToken cancellationToken)
         {
             InvocationCount++;
+            LastScript = script;
             return Task.FromResult(result);
         }
     }

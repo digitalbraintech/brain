@@ -1,5 +1,6 @@
 using DigitalBrain.Abstractions;
 using DigitalBrain.Core;
+using DigitalBrain.Abstractions.Signals;
 using Orleans.Runtime;
 
 namespace DigitalBrain.UI;
@@ -23,6 +24,20 @@ internal sealed class SurfaceEntity(
             scenes.RemoveAt(0);
         }
 
-        await SaveAsync(new SurfaceState(scenes));
+        await SaveAsync(new SurfaceState(scenes, State?.Activities));
+    }
+
+    public Task ApplyActivity(ActivityView activity, int cap)
+    {
+        ArgumentNullException.ThrowIfNull(activity);
+        var previous = State?.Activities?.FirstOrDefault(existing => existing.Id == activity.Id && existing.Principal == activity.Principal);
+        if (previous is not null && activity.Version > 0 && previous.Version >= activity.Version)
+        {
+            return Task.CompletedTask;
+        }
+        var activities = (State?.Activities ?? [])
+            .Where(existing => existing.Id != activity.Id || existing.Principal != activity.Principal)
+            .Append(activity).OrderByDescending(item => item.UpdatedAt).Take(Math.Clamp(cap, 1, 500)).ToArray();
+        return SaveAsync(new SurfaceState(State?.Scenes ?? [], activities));
     }
 }

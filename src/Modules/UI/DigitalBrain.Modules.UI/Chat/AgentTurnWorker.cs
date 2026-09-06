@@ -1,9 +1,10 @@
 using DigitalBrain.Abstractions.Identity;
+using DigitalBrain.Abstractions.Neurons;
+using DigitalBrain.Abstractions.Signals;
 using DigitalBrain.AI;
 using DigitalBrain.Core;
 using DigitalBrain.Product.Interactions;
 using DigitalBrain.Chat;
-using DigitalBrain.Product.Identity;
 using Microsoft.Extensions.AI;
 
 namespace DigitalBrain.UI;
@@ -12,15 +13,25 @@ namespace DigitalBrain.UI;
 internal sealed class AgentTurnWorker(IGrainFactory grains) : Grain, IAgentTurnWorker
 {
     public async Task Enqueue(
-        CorrelationId correlation,
-        CommandId command,
-        string text,
-        ActorContext? actor,
+        SignalDelivery delivery,
         CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(text);
+        ArgumentNullException.ThrowIfNull(delivery);
+        if (delivery.Signal is not UserMessaged input)
+        {
+            throw new ArgumentException("Assistant work requires a user message.", nameof(delivery));
+        }
+        ArgumentException.ThrowIfNullOrWhiteSpace(input.Text);
         cancellationToken.ThrowIfCancellationRequested();
         var owner = ParseOwner();
+        if (delivery.Caller.Owner != owner)
+        {
+            throw new NeuronAuthorizationException("Assistant work must retain its input owner.");
+        }
+        var correlation = delivery.CorrelationId;
+        var command = input.CommandId;
+        var text = input.Text;
+        var actor = input.Actor;
         var assistant = new NeuronId("assistant", owner, "assistant");
         var turn = grains.GetGrain<IAssistantTurn>(assistant.ToGrainId());
         var kernel = grains.GetGrain<IAgentKernel>(IAgentKernel.IdFor(owner));
@@ -28,38 +39,55 @@ internal sealed class AgentTurnWorker(IGrainFactory grains) : Grain, IAgentTurnW
             EntityIdFor(owner, actor));
 
         var actorContext = actor ?? new ActorContext(PrincipalId.New(), "owner");
-        await transcript.Append(
-                new TranscriptEntry(true, text, command.ToString(), DateTimeOffset.UtcNow),
-                ITranscript.DefaultCap)
-            .ConfigureAwait(true);
-
-        var history = await transcript.Read().ConfigureAwait(true);
-        var messages = (history?.Entries ?? [])
-            .Select(entry => new ChatMessage(entry.FromUser ? ChatRole.User : ChatRole.Assistant, entry.Text))
-            .ToList();
-        if (messages.Count == 0 || messages[^1].Text != text)
+        using var activityActor = VerifiedActor.Enter(delivery.Principal is { } principal
+            ? new ActorContext(principal, actorContext.Username) : null);
+        await turn.ReportTurnActivity(delivery, "running").ConfigureAwait(true);
+        try
         {
-            messages.Add(new ChatMessage(ChatRole.User, text));
-        }
+            await transcript.Append(
+                    new TranscriptEntry(true, text, command.ToString(), DateTimeOffset.UtcNow),
+                    ITranscript.DefaultCap)
+                .ConfigureAwait(true);
 
-        var answer = new System.Text.StringBuilder();
-        using (VerifiedActor.Enter(actorContext))
-        using (AgentTurnContext.Enter(new AgentTurnContext(assistant, command, actorContext)))
-        {
-            await foreach (var chunk in kernel.AskStreaming(messages, correlation, cancellationToken)
-                .ConfigureAwait(true))
+            var history = await transcript.Read().ConfigureAwait(true);
+            var messages = (history?.Entries ?? [])
+                .Select(entry => new ChatMessage(entry.FromUser ? ChatRole.User : ChatRole.Assistant, entry.Text))
+                .ToList();
+            if (messages.Count == 0 || messages[^1].Text != text)
             {
-                answer.Append(chunk.Text);
+                messages.Add(new ChatMessage(ChatRole.User, text));
             }
-        }
 
-        var reply = answer.ToString();
-        await transcript.Append(
-                new TranscriptEntry(false, reply, command.ToString(), DateTimeOffset.UtcNow),
-                ITranscript.DefaultCap)
-            .ConfigureAwait(true);
-        await turn.RecordTurnFact(new Responded(command, assistant, reply), correlation, cancellationToken)
-            .ConfigureAwait(true);
+            var answer = new System.Text.StringBuilder();
+            using (VerifiedActor.Enter(actorContext))
+            using (AgentTurnContext.Enter(new AgentTurnContext(assistant, command, actorContext)))
+            {
+                await foreach (var chunk in kernel.AskStreaming(messages, correlation, cancellationToken)
+                    .ConfigureAwait(true))
+                {
+                    answer.Append(chunk.Text);
+                }
+            }
+
+            var reply = answer.ToString();
+            await transcript.Append(
+                    new TranscriptEntry(false, reply, command.ToString(), DateTimeOffset.UtcNow),
+                    ITranscript.DefaultCap)
+                .ConfigureAwait(true);
+            await turn.RecordTurnFact(new Responded(command, assistant, reply), correlation, cancellationToken)
+                .ConfigureAwait(true);
+            await turn.ReportTurnActivity(delivery, "completed").ConfigureAwait(true);
+        }
+        catch (OperationCanceledException)
+        {
+            await turn.ReportTurnActivity(delivery, "cancelled", "Assistant turn cancelled.").ConfigureAwait(true);
+            throw;
+        }
+        catch (Exception)
+        {
+            await turn.ReportTurnActivity(delivery, "failed", "Assistant turn failed.").ConfigureAwait(true);
+            throw;
+        }
     }
 
     private OwnerId ParseOwner()

@@ -271,7 +271,8 @@ data: {"sequence":5,"sceneKey":"countdown","title":"Countdown","commandId":"d","
 
       final surface = ShellSurfaceController();
       final projected = <SceneViewModel>[];
-      await for (final event in client.watchShellEvents(shellName: 'desk')) {
+      await for (final event
+          in client.watchShellEvents(shellName: 'desk').take(2)) {
         projected.add(surface.apply(event));
       }
 
@@ -320,7 +321,8 @@ data: {"sequence":3,"sceneKey":"home","title":"Home refreshed","commandId":"c","
       final surfaceIdentity = identityHashCode(surface);
       final intermediate = <List<String>>[];
 
-      await for (final event in client.watchShellEvents(shellName: 'desk')) {
+      await for (final event
+          in client.watchShellEvents(shellName: 'desk').take(3)) {
         surface.apply(event);
         intermediate.add(
           surface.scenes.map((s) => '${s.sceneKey}:${s.title}').toList(),
@@ -549,10 +551,7 @@ data: {"role":"assistant","contents":[{"\$type":"text","text":"ignore"}]}
 
     expect(seen, isNotNull);
     expect(seen!.method, 'GET');
-    expect(
-      seen!.url.toString(),
-      'http://ui.example:5080/kit/surfaces/desk',
-    );
+    expect(seen!.url.toString(), 'http://ui.example:5080/kit/surfaces/desk');
     expect(surface, isNotNull);
     expect(surface!.scenes, hasLength(1));
     expect(surface.scenes.single.surfaceKey, 'chart:ino-replies');

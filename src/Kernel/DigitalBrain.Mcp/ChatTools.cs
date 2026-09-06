@@ -81,29 +81,9 @@ internal sealed class ChatTools(IDigitalBrain brain, IGrainFactory grains)
         CommandId command,
         CancellationToken cancellationToken)
     {
-        var index = brain.GetEntity<IWorkspaceIndex>(IWorkspaceIndex.DefaultInstanceName);
-        var record = await index.Find(workspaceName).ConfigureAwait(false);
-        if (record is null)
-        {
-            if (!string.Equals(workspaceName, "main", StringComparison.Ordinal))
-            {
-                throw new NeuronAuthorizationException($"Unknown workspace '{workspaceName}'.");
-            }
-
-            await index.Ensure("main", "Main").ConfigureAwait(false);
-            record = await index.Find("main").ConfigureAwait(false)
-                ?? throw new InvalidOperationException("Workspace 'main' could not be created.");
-        }
-
-        var inbox = brain.Get<IComposer>(IComposer.DefaultInstanceName);
-        var correlation = new CorrelationId(Guid.Parse(record.CorrelationId));
-        var session = grains.GetGrain<IBrainNeuron>(IBrainNeuron.ForOwner(brain.Owner).ToGrainId());
-        await session.SendWithCorrelation(
-                inbox.Id,
-                new UserMessaged(command, inbox.Id, text, OwnerActor),
-                correlation,
-                cancellationToken)
-            .ConfigureAwait(false);
+        // MCP and native input must share the same root-activity and principal policy.
+        await new WorkspaceInject(brain, grains).InjectUserMessage(
+            workspaceName, text, OwnerActor, cancellationToken, command).ConfigureAwait(false);
     }
 
     private static async Task<CallToolResult> WaitForResponseAsync(

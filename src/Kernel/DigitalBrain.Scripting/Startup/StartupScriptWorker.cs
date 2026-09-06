@@ -1,4 +1,6 @@
 using DigitalBrain.Abstractions;
+using DigitalBrain.Abstractions.Identity;
+using DigitalBrain.Abstractions.Signals;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -24,6 +26,7 @@ internal sealed class StartupScriptWorker(
             try
             {
                 script = await StartupScript.ReadAsync(options.Value.ScriptPath, stoppingToken);
+                script = script with { Input = new DigitalBrainActivated(new OwnerId(activation.Owner)) };
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {

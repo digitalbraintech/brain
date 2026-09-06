@@ -29,6 +29,7 @@ Widget buildShell({
   String? statusMessage,
 }) {
   return BrainChatApp(
+    client: edge,
     chatName: chat,
     statusMessage: statusMessage,
     turns: edge?.watchChatTurns(chatName: chat),
@@ -56,6 +57,10 @@ Widget buildShell({
     onReadSpreadsheet: edge?.readSpreadsheet,
     onReadGraph: edge?.readGraph,
     onReadSurface: edge?.readSurface,
+    surfaceEvents: edge?.watchShellEvents(shellName: 'desk'),
+    onWatchActivities: edge == null
+        ? null
+        : () => edge.watchActivities(surfaceName: 'desk'),
     onReadBrain: edge == null ? null : () => edge.readBrain(chatName: chat),
     onWatchBrain: edge == null ? null : () => edge.watchBrain(chatName: chat),
     behaviorStudio: edge,

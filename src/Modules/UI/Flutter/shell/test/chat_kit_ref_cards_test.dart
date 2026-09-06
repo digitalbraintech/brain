@@ -57,10 +57,12 @@ void main() {
         ],
       ),
     );
+    await enterOldUi(tester);
     await tester.pumpAndSettle();
 
     expect(requestedNames, isEmpty);
     await tester.tap(find.text('Open attachment'));
+    await enterOldUi(tester);
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('kit_chart_Test chart')), findsOneWidget);
     expect(requestedNames, ['daily-sales']);
@@ -92,6 +94,7 @@ void main() {
         },
       ),
     );
+    await enterOldUi(tester);
     await tester.tap(find.byKey(const Key('destination_chat')));
     await tester.pump();
 
@@ -109,6 +112,7 @@ void main() {
         ],
       ),
     );
+    await enterOldUi(tester);
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('kit_sheet_Yesterday')), findsOneWidget);
@@ -135,6 +139,7 @@ void main() {
         },
       ),
     );
+    await enterOldUi(tester);
     await tester.tap(find.byKey(const Key('destination_chat')));
     await tester.pump();
 
@@ -169,6 +174,7 @@ void main() {
           onSend: (_) async {},
         ),
       );
+      await enterOldUi(tester);
       await tester.tap(find.byKey(const Key('destination_chat')));
       await tester.pump();
 
@@ -187,6 +193,7 @@ void main() {
           ],
         ),
       );
+      await enterOldUi(tester);
       await tester.pumpAndSettle();
 
       expect(

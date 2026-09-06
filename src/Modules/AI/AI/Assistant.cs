@@ -16,15 +16,41 @@ internal sealed partial class Assistant(NeuronRuntime runtime, IChatClient chatC
 {
     protected override string DisplayName => "Ino";
 
-    public Task HandleAsync(UserMessaged signal, CancellationToken cancellationToken)
+    public async Task HandleAsync(UserMessaged signal, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(signal);
         cancellationToken.ThrowIfCancellationRequested();
-        var correlation = CurrentDelivery?.CorrelationId ?? CorrelationId.New();
+        var delivery = CurrentDelivery ?? throw new InvalidOperationException("Assistant input requires a delivery.");
+        var correlation = delivery.CorrelationId;
         var worker = GrainFactory.GetGrain<IAgentTurnWorker>(
             GrainId.Create(IAgentTurnWorker.GrainTypeName, IAgentTurnWorker.KeyFor(Id.Owner, correlation)));
-        _ = worker.Enqueue(correlation, signal.CommandId, signal.Text, signal.Actor, CancellationToken.None);
-        return Task.CompletedTask;
+        await ReportActivityAsync(delivery, $"assistant-turn:{correlation}", "waiting").ConfigureAwait(true);
+        _ = ObserveWorkerAsync(worker, delivery);
+    }
+
+    private async Task ObserveWorkerAsync(IAgentTurnWorker worker, SignalDelivery delivery)
+    {
+        try
+        {
+            await worker.Enqueue(delivery, CancellationToken.None).ConfigureAwait(true);
+        }
+        catch (Exception error)
+        {
+            await ReportActivityAsync(delivery, $"assistant-turn:{delivery.CorrelationId}",
+                error is OperationCanceledException ? "cancelled" : "failed",
+                "Assistant worker did not finish.").ConfigureAwait(true);
+        }
+    }
+
+    public Task ReportTurnActivity(SignalDelivery delivery, string phase, string? detail = null)
+    {
+        ArgumentNullException.ThrowIfNull(delivery);
+        if (delivery.Caller.Owner != Id.Owner || delivery.Signal is not UserMessaged
+            || delivery.Principal != VerifiedActor.Current?.PrincipalId)
+        {
+            throw new NeuronAuthorizationException("Assistant activity must retain its input owner and principal.");
+        }
+        return ReportActivityAsync(delivery, $"assistant-turn:{delivery.CorrelationId}", phase, detail);
     }
 
     public Task RecordTurnFact(Signal fact, CorrelationId correlation, CancellationToken cancellationToken = default)

@@ -41,7 +41,9 @@ public sealed class FacadeTests
         var synapses = await announcerReference.GetSynapsesAsync(cancellationToken);
 
         Assert.Contains(rootJournal.Delta, delivery => delivery.Signal is DigitalBrainActivated);
-        Assert.Empty(announcerJournal.Delta);
+        var announced = Assert.IsType<Announced>(Assert.Single(announcerJournal.Delta).Signal);
+        Assert.Equal("hello", announced.Text);
+        Assert.DoesNotContain(announcerJournal.Delta, delivery => delivery.Signal is DigitalBrainActivated);
         Assert.Empty(synapses);
         Assert.Empty(await brain.Brain.GetSynapsesAsync(cancellationToken));
     }

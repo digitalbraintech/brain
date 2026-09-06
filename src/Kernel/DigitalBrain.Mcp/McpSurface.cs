@@ -7,6 +7,7 @@ internal static class McpSurface
     public const string SendChatMessage = "send_chat_message";
     public const string ReadSynapses = "read_synapses";
     public const string ReadJournal = "read_journal";
+    public const string ReadActivities = "read_activities";
     public const string Subscribe = "subscribe";
     public const string Unsubscribe = "unsubscribe";
     public const string PublishPost = "publish_post";
