@@ -47,9 +47,6 @@ public sealed class BrainGraphHttpTests(AppHostFixture fixture)
         Assert.Equal("Compiled revision ready.", ready?.Detail);
         var compiledSequence = compiled.Nodes.Single(node => node.Id == draft.Id).OutgoingSequence;
 
-        using var bound = await http.PostAsJsonAsync($"/chats/{name}/brain/subscriptions",
-            new BrainGraphSubscriptionRequest(draft.Id, initial.RootId, "Note", true), cancellationToken);
-        bound.EnsureSuccessStatusCode();
         using var enabled = await http.PostAsJsonAsync($"/behaviors/{name}/enable",
             new { expectedDraftRevision = draft.Draft!.Revision }, cancellationToken);
         enabled.EnsureSuccessStatusCode();
@@ -123,38 +120,13 @@ public sealed class BrainGraphHttpTests(AppHostFixture fixture)
         var path = $"/chats/{chatName}/brain";
         var initial = await http.GetFromJsonAsync<BrainGraphSnapshot>(path, cancellationToken);
         Assert.NotNull(initial);
-        Assert.Contains(initial.Nodes, node => node.Id == "assistant:assistant");
+        Assert.DoesNotContain(initial.Nodes, node => node.Type == "chat");
+        Assert.DoesNotContain(initial.Nodes, node => node.Id == "assistant:assistant");
+        Assert.Contains(initial.Nodes, node => node.Type == "usermessages" && node.IsInfrastructure);
+        Assert.Contains(initial.Nodes, node => node.Type == "sessionneuron" && node.IsInfrastructure);
+
         var request = new BrainGraphSubscriptionRequest("assistant:assistant", initial.RootId, "Note", true);
-
         using var subscribed = await http.PostAsJsonAsync(path + "/subscriptions", request, cancellationToken);
-        Assert.Equal(HttpStatusCode.OK, subscribed.StatusCode);
-        try
-        {
-            var bound = await http.GetFromJsonAsync<BrainGraphSnapshot>(path, cancellationToken);
-            Assert.NotNull(bound);
-            var edge = Assert.Single(bound.Synapses, edge => edge.SourceId == request.SourceId
-                && edge.TargetId == request.TargetId && edge.SignalType == request.SignalType);
-            Assert.Equal("Bound", edge.Kind);
-            Assert.True(edge.CanUnsubscribe);
-        }
-        finally
-        {
-            using var removed = await http.PostAsJsonAsync(path + "/subscriptions",
-                request with { Subscribed = false }, cancellationToken);
-            Assert.Equal(HttpStatusCode.OK, removed.StatusCode);
-        }
-
-        var after = await http.GetFromJsonAsync<BrainGraphSnapshot>(path, cancellationToken);
-        Assert.NotNull(after);
-        Assert.DoesNotContain(after.Synapses, edge => edge.SourceId == request.SourceId
-            && edge.TargetId == request.TargetId && edge.SignalType == request.SignalType);
-        Assert.Contains(after.Activity, item => item.SignalType == "Unsubscribe");
-
-        var foreign = request with
-        {
-            TargetId = "chat:" + PrincipalPartition.InstanceName(PrincipalId.New(), chatName),
-        };
-        using var refused = await http.PostAsJsonAsync(path + "/subscriptions", foreign, cancellationToken);
-        Assert.Equal(HttpStatusCode.Forbidden, refused.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, subscribed.StatusCode);
     }
 }

@@ -401,12 +401,13 @@ Rejected: `IAssistantConversation` in the UI module — `SubscribeToAsync` on `N
 
 ### 7. Graph is a debugger
 
-Seed set:
+Seed set (owner 2026-09-06):
 
-- **Always:** `IAssistant` `"assistant"` (owner-global).
-- **Discover:** saved `IBehavior` ids (library until enabled/invoked), then BFS.
-- **Also discover from seeded Ino even when `privateNeuron` is false:** incoming Bound synapses (`ReadSynapses` is source-owned — **read inbox only after discovering it**) and incoming `Subscribe` / `Unsubscribe` journal entries with `CanSee` on the source. Implementation: from Ino **incoming** journal + Ino is the **target** of Bound edges, the projection must either (a) query composer synapses once composer is known, or (b) treat Ino incoming `Subscribe(source=inbox, UserMessaged)` as permission to `Discover(inbox)` regardless of `privateNeuron` / null principal. **Choose (b)** plus: once discovered, keep composer as an **observed `isInfrastructure` participant** (not seeded, not default-canvas).
-- **Never seed / never `ReadActiveExecutionAsync(chat)`:** `IChat`. Dropping that call is what stops activating chat. **Replacement for “Running”:** Ino outgoing `AgentActivity` (already in `Status()`). Execution grains remain discoverable from Ino outgoing `AgentActivity` delegation if still used; no chat-keyed read.
+- **Never seed** `IChat`, Ino, or session as canvas citizens. Opening Studio does **not** `ReadActiveExecutionAsync(chat)`.
+- **Peek (hidden infra):** `IComposer` `"inbox"` and the owner session. Walk Bound targets from the inbox even when source/target are not principal-private. Session outgoing `DigitalBrainActivated` (null principal) is visible activity; Flutter default canvas keeps that event when the session node is hidden.
+- **Discover:** saved `IBehavior` ids (library until enabled/invoked), then BFS from peeked inbox/session and those behaviors.
+- **Ino appears only after composition** (inbox Bound edge, typically `start.cs` at cutover or a test bind). Empty inbox → empty default canvas.
+- **Replacement for “Running”:** Ino outgoing `AgentActivity` once Ino is discovered. Execution grains remain discoverable from that delegation; no chat-keyed read.
 
 **Exact `isInfrastructure` types after PR-2:**
 
@@ -422,9 +423,9 @@ Seed set:
 | `assistant` | no | no (default canvas) |
 | `chat` | no | n/a (not seeded; if leftover, treat as infra until deleted) |
 
-`RootId` = `assistant:assistant`.
+`RootId` = `assistant:assistant` (logical; the node is absent until composition).
 
-**Default canvas (`studioCanvas`, technical false):** Ino + non-infra, non-library nodes. **Hiding composer means the Bound inbox→Ino edge is not on the default canvas** (`studioCanvas` drops edges whose source id is absent). Technical canvas shows composer + the edge. Worked example 3: default canvas shows Ino **and** an enabled behavior; the inbox edge is technical-only. Do not invent a presentation-only fake edge.
+**Default canvas (`studioCanvas`, technical false):** non-infra, non-library nodes (Ino once bound; enabled behaviors). Empty after a clean boot. **Hiding composer means the Bound inbox→Ino edge is not on the default canvas**. Technical canvas shows composer, session, leftover chat, and those edges. Do not invent a presentation-only fake edge.
 
 PR-2 tests must update `behavior_studio_test.dart` node id lists (today expects `assistant:assistant` on default canvas from a fixture that still includes `chat:main` and `sessionneuron:session`) **and** C# `BrainGraphProjectionTests`.
 
@@ -738,10 +739,10 @@ Independently reviewable. Tests in the **same** PR. Production dual-path is forb
   - `GraphTools.Resolve` for `composer`/`usermessages`/`assistant` without `Instance()`
   - `IWorkspaceIndex` + `IWorkspaceInject` (Deliver with stored Guid). HTTP **not** flipped yet; tests call the helper
   - **First-class workspace Subscribe:** `Subscribe`/`Unsubscribe` optional `CorrelationId`; `Synapse` stores it; `SignalRouter.BroadcastRecipientsFor` matches envelope correlation or `null` (any). `SubscribeToAsync(..., CorrelationId?)`. Tests: Ino subscribed to `"main"` does not receive `"review"`; a `null` subscription receives both.
-  - `BrainGraphProjection`: seed assistant only; discover inbox from Ino incoming Subscribe even if not private; `isInfrastructure` list in §7; drop `ReadActiveExecutionAsync(chat)`; `RootId` = assistant; filter activity by `Find(chatName).CorrelationId`
+  - `BrainGraphProjection`: **do not seed** chat/Ino/session; peek inbox+session as infra; walk inbox Bound targets even when not private; leftover `chat` is infra; drop `ReadActiveExecutionAsync(chat)`; `RootId` = assistant (logical); workspace activity filter stays with inject/index when that lands
   - Tests: `NeuronId.For<IComposer>(owner,"inbox").Type == "usermessages"` and that id == inject target == behavior Get; unknown workspace → topology (`Subscribe`/`Unsubscribe`) without foreign `UserMessaged`/`AgentActivity`; `BrainGraphProjectionTests`; Flutter `behavior_studio_test.dart` (and any `studioCanvas` fixtures)
 - **Depends on:** PR-1 (Ino can `IHandle` so a test may bind; production `start.cs` still no-op)
-- **Description:** Default canvas is Ino **whether or not** `start.cs` ran. Technical canvas shows inbox once a test (or later cutover) writes the Bound edge.
+- **Description:** Default canvas is empty until composition (inbox Bound → Ino, or an enabled behavior). Technical canvas shows inbox/session. Production `start.cs` still no-op Subscribe until cutover.
 
 ### PR-3 — Extract streaming + cut Chat + `start.cs` Subscribe (one switch)
 

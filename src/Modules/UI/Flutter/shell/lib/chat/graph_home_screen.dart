@@ -46,7 +46,11 @@ BrainSnapshot studioCanvas(BrainSnapshot snapshot, {bool technical = false}) {
         )
         .toList(),
     activity: snapshot.activity
-        .where((event) => ids.contains(event.neuronId))
+        .where(
+          (event) =>
+              ids.contains(event.neuronId) ||
+              event.signalType == 'DigitalBrainActivated',
+        )
         .toList(),
     correlations: snapshot.correlations,
   );

@@ -8,6 +8,7 @@ using DigitalBrain.Abstractions.Synapses;
 using DigitalBrain.AI;
 using DigitalBrain.Chat;
 using DigitalBrain.Core;
+using DigitalBrain.UI;
 
 namespace DigitalBrain.Kernel;
 
@@ -22,32 +23,17 @@ internal sealed class BrainGraphProjection(IBrainGraphSource source, BrainGraphM
         string chatName, ActorContext actor, CancellationToken cancellationToken)
     {
         using var verifiedActor = VerifiedActor.Enter(actor);
-        var chat = NeuronId.For<IChat>(source.Owner, PrincipalScoped.InstanceName(actor.PrincipalId, chatName));
-        var ownerRoot = IBrainNeuron.ForOwner(source.Owner);
+        _ = chatName;
+        var inbox = NeuronId.For<IComposer>(source.Owner, IComposer.DefaultInstanceName);
+        var session = IBrainNeuron.ForOwner(source.Owner);
+        var assistant = new NeuronId("assistant", source.Owner, "assistant");
         var unavailable = new HashSet<NeuronId>();
         NeuronId? activeExecution = null;
-        try
-        {
-            activeExecution = await source.ReadActiveExecutionAsync(chat, cancellationToken)
-                .WaitAsync(ReadTimeout, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception) when (!cancellationToken.IsCancellationRequested)
-        {
-            unavailable.Add(chat);
-        }
-        var participants = new HashSet<NeuronId>
-        {
-            chat,
-            new("assistant", source.Owner, "assistant"),
-            ownerRoot,
-        };
-        if (activeExecution is { } execution && execution.Owner == source.Owner)
-        {
-            participants.Add(execution);
-        }
-
-        var known = new HashSet<NeuronId>(participants);
-        var pending = new Queue<NeuronId>(participants);
+        var participants = new HashSet<NeuronId>();
+        var known = new HashSet<NeuronId>();
+        var pending = new Queue<NeuronId>();
+        Discover(inbox);
+        Discover(session);
         // Saved behaviors are real, durable participants. Their state is read below;
         // untouched drafts stay in the library until enabled or invoked.
         try
@@ -83,12 +69,15 @@ internal sealed class BrainGraphProjection(IBrainGraphSource source, BrainGraphM
             }
             reads.Add(neuron, read);
             var privateNeuron = IsPrivate(neuron, actor.PrincipalId, activeExecution);
+            var observeShared = ObservesSharedComposition(neuron);
             foreach (var edge in read.Synapses)
             {
                 // A shared participant (assistant, owner root) can be used by multiple
-                // principal partitions. Never walk its unrelated outgoing graph.
+                // principal partitions. Never walk its unrelated outgoing graph —
+                // except the composer peek, whose Bound targets are the owner's wiring.
                 if (edge.Source == neuron
-                    && (privateNeuron || IsPrivate(edge.Target, actor.PrincipalId, activeExecution)))
+                    && (privateNeuron || observeShared
+                        || IsPrivate(edge.Target, actor.PrincipalId, activeExecution)))
                 {
                     Discover(edge.Target);
                 }
@@ -96,7 +85,7 @@ internal sealed class BrainGraphProjection(IBrainGraphSource source, BrainGraphM
 
             foreach (var delivery in read.Incoming.Delta.Concat(read.Outgoing.Delta))
             {
-                if (!VisibleDelivery(delivery, privateNeuron, actor.PrincipalId))
+                if (!VisibleDelivery(delivery, privateNeuron, actor.PrincipalId, observeShared))
                 {
                     continue;
                 }
@@ -104,7 +93,7 @@ internal sealed class BrainGraphProjection(IBrainGraphSource source, BrainGraphM
                 Discover(delivery.Caller);
                 // A removed subscription must remain restorable while its actual
                 // subscription event is retained; no separate edge tombstone store.
-                if (privateNeuron)
+                if (privateNeuron || observeShared)
                 {
                     if (delivery.Signal is Subscribe subscribed)
                     {
@@ -121,7 +110,7 @@ internal sealed class BrainGraphProjection(IBrainGraphSource source, BrainGraphM
             // participant before handling completes and reinforces a Learned edge.
             foreach (var delivery in read.Outgoing.Delta)
             {
-                if (VisibleDelivery(delivery, privateNeuron, actor.PrincipalId)
+                if (VisibleDelivery(delivery, privateNeuron, actor.PrincipalId, observeShared)
                     && delivery.Signal is AgentActivity { Kind: "delegation", Target: { } target })
                 {
                     Discover(target);
@@ -135,8 +124,9 @@ internal sealed class BrainGraphProjection(IBrainGraphSource source, BrainGraphM
         foreach (var (neuron, read) in reads)
         {
             var privateNeuron = IsPrivate(neuron, actor.PrincipalId, activeExecution);
-            var neuronActivity = ProjectActivity(neuron, read.Incoming, JournalKind.Incoming, privateNeuron, actor.PrincipalId)
-                .Concat(ProjectActivity(neuron, read.Outgoing, JournalKind.Outgoing, privateNeuron, actor.PrincipalId))
+            var observeShared = ObservesSharedComposition(neuron);
+            var neuronActivity = ProjectActivity(neuron, read.Incoming, JournalKind.Incoming, privateNeuron, actor.PrincipalId, observeShared)
+                .Concat(ProjectActivity(neuron, read.Outgoing, JournalKind.Outgoing, privateNeuron, actor.PrincipalId, observeShared))
                 .OrderBy(item => item.Timestamp).ToArray();
             activity.AddRange(neuronActivity);
             var metadata = _metadata.For(neuron.Type);
@@ -157,14 +147,15 @@ internal sealed class BrainGraphProjection(IBrainGraphSource source, BrainGraphM
                 read.Incoming.ResumeSequence, read.Outgoing.ResumeSequence,
                 neuronActivity.LastOrDefault()?.Timestamp, metadata.IconKey,
                 program?.OutputSignalTypes, read.Behavior?.Active?.Revision, read.Behavior?.Draft?.Revision,
-                neuron.Type is "chat-turn-worker" or "sessionneuron" or "behaviors" or "execution",
+                IsInfrastructureType(neuron.Type),
                 (int)(program?.InputPolicy ?? BehaviorInputPolicy.EveryEvent)));
 
             foreach (var edge in read.Synapses)
             {
                 if (edge.Source != neuron || !reads.ContainsKey(edge.Target)
                     || !CanSee(edge.Target, actor.PrincipalId)
-                    || (!privateNeuron && !IsPrivate(edge.Target, actor.PrincipalId, activeExecution)))
+                    || (!privateNeuron && !observeShared
+                        && !IsPrivate(edge.Target, actor.PrincipalId, activeExecution)))
                 {
                     continue;
                 }
@@ -198,10 +189,12 @@ internal sealed class BrainGraphProjection(IBrainGraphSource source, BrainGraphM
         var selected = correlations.Take(MaxActivity).ToArray();
         var selectedIds = selected.Select(item => item.CorrelationId).ToHashSet(StringComparer.Ordinal);
         var selectedActivity = activity
-            .Where(item => selectedIds.Contains(item.CorrelationId))
+            .Where(item => selectedIds.Contains(item.CorrelationId)
+                || item.Kind == "historical"
+                || item.SignalType is "Subscribe" or "Unsubscribe" or "DigitalBrainActivated")
             .OrderByDescending(item => item.Timestamp)
             .ToArray();
-        return new(InstanceId(chat), DateTimeOffset.UtcNow, truncated, SnapshotScope,
+        return new(InstanceId(assistant), DateTimeOffset.UtcNow, truncated, SnapshotScope,
             nodes, synapses, selectedActivity, selected);
 
         void Discover(NeuronId candidate)
@@ -278,18 +271,27 @@ internal sealed class BrainGraphProjection(IBrainGraphSource source, BrainGraphM
     private static bool IsPrivate(NeuronId neuron, PrincipalId principal, NeuronId? execution)
         => PrincipalPartition.OwnsInstance(principal, neuron.Name) || neuron == execution;
 
-    private static bool VisibleDelivery(SignalDelivery delivery, bool privateNeuron, PrincipalId principal)
-        => delivery.Principal == principal || (privateNeuron && delivery.Principal is null);
+    private static bool IsInfrastructureType(string type)
+        => type is "chat-turn-worker" or "sessionneuron" or "behaviors" or "execution"
+            or "usermessages" or "surface-boot" or "uirenderer" or "chat";
+
+    private static bool ObservesSharedComposition(NeuronId neuron)
+        => neuron.Type is "usermessages" or "sessionneuron";
+
+    private static bool VisibleDelivery(
+        SignalDelivery delivery, bool privateNeuron, PrincipalId principal, bool observeShared = false)
+        => delivery.Principal == principal || ((privateNeuron || observeShared) && delivery.Principal is null);
 
     private bool VisibleCaller(NeuronId caller, PrincipalId principal) => CanSee(caller, principal);
 
     private IEnumerable<BrainGraphActivity> ProjectActivity(
-        NeuronId neuron, JournalRead journal, JournalKind direction, bool privateNeuron, PrincipalId principal)
+        NeuronId neuron, JournalRead journal, JournalKind direction, bool privateNeuron, PrincipalId principal,
+        bool observeShared = false)
     {
         for (var index = 0; index < journal.Delta.Count; index++)
         {
             var delivery = journal.Delta[index];
-            if (!VisibleDelivery(delivery, privateNeuron, principal))
+            if (!VisibleDelivery(delivery, privateNeuron, principal, observeShared))
             {
                 continue;
             }
@@ -354,6 +356,7 @@ internal sealed class BrainGraphProjection(IBrainGraphSource source, BrainGraphM
                 { ["signalType"] = subscription.SignalType }),
             Unsubscribe subscription => ("Subscription removed", new Dictionary<string, string>
                 { ["signalType"] = subscription.SignalType }),
+            DigitalBrainActivated => ("DigitalBrain activated", null),
             _ => ($"{signal.GetType().Name} observed · payload omitted", null),
         };
 

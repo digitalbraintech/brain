@@ -125,6 +125,41 @@ void main() {
       'assistant:assistant',
     ]);
     expect(studioCanvas(initial, technical: true).nodes, hasLength(4));
+    expect(
+      studioCanvas(
+        BrainSnapshot(
+          rootId: 'assistant:assistant',
+          observedAt: DateTime.utc(2026),
+          nodes: const [
+            BrainNeuron(
+              id: 'usermessages:inbox',
+              type: 'usermessages',
+              name: 'inbox',
+              label: 'Inbox',
+              module: 'UI',
+              isInfrastructure: true,
+            ),
+            BrainNeuron(
+              id: 'sessionneuron:session',
+              type: 'sessionneuron',
+              name: 'session',
+              label: 'Session',
+              module: 'Kernel',
+              isInfrastructure: true,
+            ),
+            BrainNeuron(
+              id: 'chat:main',
+              type: 'chat',
+              name: 'main',
+              label: 'Conversation',
+              module: 'UI',
+              isInfrastructure: true,
+            ),
+          ],
+        ),
+      ).nodes,
+      isEmpty,
+    );
     final involved = BrainSnapshot(
       rootId: initial.rootId,
       observedAt: initial.observedAt,
@@ -143,7 +178,7 @@ void main() {
         BrainSynapse(
           id: 'real',
           sourceId: 'behavior:echo',
-          targetId: 'chat:main',
+          targetId: 'assistant:assistant',
           signalType: 'Note',
           kind: 'Bound',
         ),
@@ -152,8 +187,9 @@ void main() {
     final canvas = studioCanvas(involved);
     expect(
       canvas.nodes.map((node) => node.id),
-      containsAll(['assistant:assistant', 'behavior:echo', 'chat:main']),
+      containsAll(['assistant:assistant', 'behavior:echo']),
     );
+    expect(canvas.nodes.map((node) => node.id), isNot(contains('chat:main')));
     expect(canvas.synapses.single.id, 'real');
   });
 

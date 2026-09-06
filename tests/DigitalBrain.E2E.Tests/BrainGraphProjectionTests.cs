@@ -9,6 +9,7 @@ using DigitalBrain.Abstractions.Synapses;
 using DigitalBrain.AI;
 using DigitalBrain.Chat;
 using DigitalBrain.Core;
+using DigitalBrain.UI;
 using DigitalBrain.Kernel;
 using DigitalBrain.Product.Identity;
 using DigitalBrain.Product.Presentation;
@@ -21,6 +22,46 @@ public sealed class BrainGraphProjectionTests
     private static readonly OwnerId Owner = new("graph-owner");
     private static readonly ActorContext Actor = HttpActor.Current;
     private static readonly NeuronId Chat = ChatNamed("main");
+    private static readonly NeuronId Inbox =
+        NeuronId.For<IComposer>(Owner, IComposer.DefaultInstanceName);
+    private static readonly NeuronId Ino = new("assistant", Owner, "assistant");
+    private static readonly NeuronId Session = IBrainNeuron.ForOwner(Owner);
+
+    [Fact]
+    public async Task Empty_graph_peeks_composer_and_session_without_seeding_chat_or_ino()
+    {
+        var source = new TestSource();
+
+        var snapshot = await new BrainGraphProjection(source)
+            .ReadAsync("main", Actor, TestContext.Current.CancellationToken);
+
+        Assert.Equal("assistant:assistant", snapshot.RootId);
+        Assert.DoesNotContain(snapshot.Nodes, node => node.Type == "chat");
+        Assert.DoesNotContain(snapshot.Nodes, node => node.Id == "assistant:assistant");
+        Assert.DoesNotContain(Chat, source.Queried);
+        Assert.DoesNotContain(Ino, source.Queried);
+        Assert.Contains(snapshot.Nodes, node => node.Id == BrainGraphProjection.InstanceId(Inbox) && node.IsInfrastructure);
+        Assert.Contains(snapshot.Nodes, node => node.Id == BrainGraphProjection.InstanceId(Session) && node.IsInfrastructure);
+    }
+
+    [Fact]
+    public async Task Composer_bound_edge_discovers_ino_without_activating_chat()
+    {
+        var source = new TestSource();
+        WireInbox(source, Ino);
+
+        var snapshot = await new BrainGraphProjection(source)
+            .ReadAsync("main", Actor, TestContext.Current.CancellationToken);
+
+        Assert.Contains(snapshot.Nodes, node => node.Id == "assistant:assistant" && !node.IsInfrastructure);
+        Assert.Contains(snapshot.Nodes, node => node.Id == BrainGraphProjection.InstanceId(Inbox) && node.IsInfrastructure);
+        Assert.DoesNotContain(snapshot.Nodes, node => node.Type == "chat");
+        Assert.DoesNotContain(Chat, source.Queried);
+        Assert.Contains(snapshot.Synapses, edge =>
+            edge.SourceId == BrainGraphProjection.InstanceId(Inbox)
+            && edge.TargetId == "assistant:assistant"
+            && edge.SignalType == nameof(UserMessaged));
+    }
 
     [Theory]
     [InlineData("gmail", "Gmail", "Google", "gmail")]
@@ -36,6 +77,7 @@ public sealed class BrainGraphProjectionTests
             new(neuronType, label, module, iconKey),
             new("unobserved-specialist", "Unobserved", "Other", "document"),
         ]);
+        WireInbox(source, assistant);
         source.Set(assistant, [], outgoing: new(1,
             [Observed(new AgentActivity(Guid.NewGuid(), "delegation", "started", label, target), assistant)], null));
 
@@ -47,7 +89,7 @@ public sealed class BrainGraphProjectionTests
         Assert.Equal(module, node.Module);
         Assert.Equal(iconKey, node.IconKey);
         Assert.DoesNotContain(snapshot.Nodes, node => node.Type == "unobserved-specialist");
-        Assert.Empty(snapshot.Synapses);
+        Assert.DoesNotContain(snapshot.Synapses, edge => edge.TargetId == BrainGraphProjection.InstanceId(target));
         var json = JsonSerializer.SerializeToElement(node, new JsonSerializerOptions(JsonSerializerDefaults.Web));
         Assert.Equal(iconKey, json.GetProperty("iconKey").GetString());
     }
@@ -70,11 +112,12 @@ public sealed class BrainGraphProjectionTests
     {
         var source = new TestSource();
         const string privateDetail = "private connection and credential details";
-        source.Set(Chat, [], outgoing: new(2,
+        WireInbox(source, Ino);
+        source.Set(Ino, [], outgoing: new(2,
             [Observed(new AgentActivity(Guid.NewGuid(), "tool", "failed", "search",
-                FailureCode: "authentication_required"), Chat),
+                FailureCode: "authentication_required"), Ino),
              Observed(new AgentActivity(Guid.NewGuid(), "tool", "failed", "search",
-                FailureCode: privateDetail), Chat)], null));
+                FailureCode: privateDetail), Ino)], null));
 
         var snapshot = await new BrainGraphProjection(source).ReadAsync("main", Actor, TestContext.Current.CancellationToken);
 
@@ -89,15 +132,16 @@ public sealed class BrainGraphProjectionTests
         var source = new TestSource();
         var aspire = new NeuronId("aspire", Owner, PrincipalScoped.InstanceName(Actor.PrincipalId, "local"));
         const string privateFailure = "AspireConnection missing with private host configuration";
-        source.Set(Chat, [Edge(Chat, aspire)]);
+        WireInbox(source, Ino);
+        source.Set(Ino, [Edge(Ino, aspire)]);
         source.Failures[aspire] = new InvalidOperationException(privateFailure);
         var projection = new BrainGraphProjection(source);
 
         var partial = await projection.ReadAsync("main", Actor, TestContext.Current.CancellationToken);
 
-        Assert.Contains(partial.Nodes, node => node.Id == "assistant:assistant" && node.Status == "Idle");
+        Assert.Contains(partial.Nodes, node => node.Id == "assistant:assistant");
         Assert.Contains(partial.Nodes, node => node.Id == BrainGraphProjection.InstanceId(aspire) && node.Status == "Unavailable");
-        Assert.Equal(BrainGraphProjection.InstanceId(aspire), Assert.Single(partial.Synapses).TargetId);
+        Assert.Contains(partial.Synapses, edge => edge.TargetId == BrainGraphProjection.InstanceId(aspire));
         Assert.DoesNotContain(privateFailure, JsonSerializer.Serialize(partial), StringComparison.Ordinal);
 
         source.Failures.Remove(aspire);
@@ -107,7 +151,7 @@ public sealed class BrainGraphProjectionTests
 
         Assert.Contains(recovered.Nodes, node => node.Id == BrainGraphProjection.InstanceId(aspire) && node.Status == "Idle");
         Assert.Contains(recovered.Nodes, node => node.Id == BrainGraphProjection.InstanceId(related));
-        Assert.Equal(2, recovered.Synapses.Count);
+        Assert.Contains(recovered.Synapses, edge => edge.TargetId == BrainGraphProjection.InstanceId(related));
     }
 
     [Theory]
@@ -118,7 +162,7 @@ public sealed class BrainGraphProjectionTests
         var source = new TestSource();
         var missing = ChatNamed("missing-module");
         var disconnected = ChatNamed("disconnected");
-        source.Set(Chat, [Edge(Chat, missing), Edge(Chat, disconnected)]);
+        WireInbox(source, missing, disconnected);
         source.Failures[missing] = new InvalidOperationException("missing module");
         var observers = new TestObservers();
         observers.Failures.Add(disconnected);
@@ -131,7 +175,7 @@ public sealed class BrainGraphProjectionTests
             var partial = Assert.IsType<BrainGraphSnapshot>(events.Current.Data);
             Assert.Equal("brain-snapshot", events.Current.EventType);
             Assert.Equal(2, partial.Nodes.Count(node => node.Status == "Unavailable"));
-            Assert.Contains(Chat, observers.Watched);
+            Assert.Contains(Inbox, observers.Watched);
             Assert.DoesNotContain(missing, observers.Watched);
 
             source.Failures.Clear();
@@ -186,16 +230,18 @@ public sealed class BrainGraphProjectionTests
         var foreignPrincipal = NeuronId.For<IChat>(Owner,
             PrincipalPartition.InstanceName(PrincipalId.New(), "private"));
         var foreignOwner = new NeuronId("chat", new OwnerId("another-owner"), Chat.Name);
+        WireInbox(source, Chat);
         source.Set(Chat, [Edge(Chat, related), Edge(Chat, foreignPrincipal), Edge(Chat, foreignOwner)]);
-        source.Set(IBrainNeuron.ForOwner(Owner), [Edge(IBrainNeuron.ForOwner(Owner), foreignPrincipal)]);
+        source.Set(Session, [Edge(Session, foreignPrincipal)]);
 
         var snapshot = await new BrainGraphProjection(source).ReadAsync("main", Actor, TestContext.Current.CancellationToken);
 
-        var edge = Assert.Single(snapshot.Synapses);
-        Assert.Equal(BrainGraphProjection.InstanceId(related), edge.TargetId);
-        Assert.Equal("Bound", edge.Kind);
-        Assert.True(edge.CanUnsubscribe);
-        Assert.Contains(snapshot.Nodes, node => node.Id == "assistant:assistant" && node.Role == "participant");
+        Assert.Contains(snapshot.Synapses, item =>
+            item.TargetId == BrainGraphProjection.InstanceId(related) && item.Kind == "Bound" && item.CanUnsubscribe);
+        Assert.DoesNotContain(snapshot.Synapses, item =>
+            item.TargetId.Contains("private", StringComparison.Ordinal)
+            || item.TargetId.Contains("another-owner", StringComparison.Ordinal));
+        Assert.DoesNotContain(snapshot.Nodes, node => node.Id == "assistant:assistant");
         Assert.DoesNotContain(snapshot.Synapses, item => item.SourceId == "assistant:assistant" || item.TargetId == "assistant:assistant");
         Assert.DoesNotContain(foreignPrincipal, source.Queried);
         Assert.DoesNotContain(foreignOwner, source.Queried);
@@ -211,6 +257,7 @@ public sealed class BrainGraphProjectionTests
         var own = SignalDelivery.Create(lifecycle, Chat, 7, TimeProvider.System);
         var message = SignalDelivery.Create(new Note(secret), Chat, 8, TimeProvider.System);
         var foreign = SignalDelivery.Create(new Note(secret), Chat, 9, TimeProvider.System, principal: PrincipalId.New());
+        WireInbox(source, Chat);
         source.Set(Chat, [], outgoing: new(200, [own, message, foreign], null));
 
         var snapshot = await new BrainGraphProjection(source).ReadAsync("main", Actor, TestContext.Current.CancellationToken);
@@ -228,10 +275,10 @@ public sealed class BrainGraphProjectionTests
         var source = new TestSource();
         var first = Observed(new Note("private content"), Chat);
         var last = Observed(new Note("private content"), Chat);
+        WireInbox(source, Chat, Ino);
         source.Set(Chat, [], outgoing: new(105, [first, last], null,
             [new(101, 37), new(103, 41), new(105, 99)]));
-        var assistant = new NeuronId("assistant", Owner, "assistant");
-        source.Set(assistant, [], outgoing: new(9, [Observed(new Note("private content"), Chat)], null,
+        source.Set(Ino, [], outgoing: new(9, [Observed(new Note("private content"), Chat)], null,
             [new(8, 73)]));
 
         var snapshot = await new BrainGraphProjection(source).ReadAsync("main", Actor, TestContext.Current.CancellationToken);
@@ -248,7 +295,7 @@ public sealed class BrainGraphProjectionTests
             Assert.Empty(item.CorrelationId);
             Assert.Equal("unavailable", item.State);
         });
-        var shared = Assert.Single(snapshot.Activity, item => item.NeuronId == BrainGraphProjection.InstanceId(assistant));
+        var shared = Assert.Single(snapshot.Activity, item => item.NeuronId == BrainGraphProjection.InstanceId(Ino));
         Assert.Equal(9, shared.Sequence);
         Assert.Equal(nameof(Note), shared.SignalType);
         var node = Assert.Single(snapshot.Nodes, node => node.Id == BrainGraphProjection.InstanceId(Chat));
@@ -256,7 +303,6 @@ public sealed class BrainGraphProjectionTests
         Assert.Equal("Idle", node.Status);
         Assert.Equal(105, node.OutgoingSequence);
         Assert.DoesNotContain("private content", JsonSerializer.Serialize(snapshot), StringComparison.Ordinal);
-        Assert.Empty(snapshot.Synapses);
     }
 
     [Fact]
@@ -265,6 +311,7 @@ public sealed class BrainGraphProjectionTests
         _ = Assembly.Load("DigitalBrain.Modules.UI");
         var source = new TestSource();
         var target = ChatNamed("review");
+        WireInbox(source, Chat, target);
         source.Set(Chat, [Edge(Chat, target)]);
         var projection = new BrainGraphProjection(source);
         var request = new BrainGraphSubscriptionRequest(
@@ -289,6 +336,7 @@ public sealed class BrainGraphProjectionTests
         _ = Assembly.Load("DigitalBrain.Modules.UI");
         var source = new TestSource();
         var target = ChatNamed("review");
+        WireInbox(source, Chat, target);
         source.Set(Chat, [Edge(Chat, target, SynapseKind.Learned)]);
         var projection = new BrainGraphProjection(source);
         var request = new BrainGraphSubscriptionRequest(
@@ -316,14 +364,15 @@ public sealed class BrainGraphProjectionTests
     {
         var source = new TestSource();
         var timer = new NeuronId("timer", Owner, "clock");
+        WireInbox(source, Chat);
         source.Set(Chat, [], incoming: new(1,
-            [SignalDelivery.Create(new Unsubscribe(timer, "Tick"), IBrainNeuron.ForOwner(Owner), 1,
+            [SignalDelivery.Create(new Unsubscribe(timer, "Tick"), Session, 1,
                 TimeProvider.System, principal: Actor.PrincipalId)], null));
 
         var snapshot = await new BrainGraphProjection(source).ReadAsync("main", Actor, TestContext.Current.CancellationToken);
 
         Assert.Contains(snapshot.Nodes, node => node.Id == "timer:clock");
-        Assert.Empty(snapshot.Synapses);
+        Assert.DoesNotContain(snapshot.Synapses, edge => edge.TargetId == "timer:clock");
         Assert.Contains(snapshot.Activity, item => item.Summary == "Subscription removed");
     }
 
@@ -333,6 +382,7 @@ public sealed class BrainGraphProjectionTests
         _ = Assembly.Load("DigitalBrain.Modules.UI");
         var source = new TestSource();
         var target = ChatNamed("review");
+        WireInbox(source, Chat, target);
         source.Set(Chat, [Edge(Chat, target, SynapseKind.Innate)]);
         var request = new BrainGraphSubscriptionRequest(
             BrainGraphProjection.InstanceId(Chat), BrainGraphProjection.InstanceId(target), nameof(Note), true);
@@ -347,13 +397,14 @@ public sealed class BrainGraphProjectionTests
     public async Task Snapshot_includes_all_authorized_connected_neurons_beyond_the_old_sixteen_node_limit()
     {
         var source = new TestSource();
-        source.Set(Chat, [.. Enumerable.Range(0, 30).Select(index => Edge(Chat, ChatNamed($"related-{index}")))]);
+        source.Set(Inbox, [.. Enumerable.Range(0, 30).Select(index =>
+            Edge(Inbox, ChatNamed($"related-{index}"), nameof(UserMessaged)))]);
 
         var snapshot = await new BrainGraphProjection(source).ReadAsync("main", Actor, TestContext.Current.CancellationToken);
 
         Assert.False(snapshot.Truncated);
-        Assert.Equal(35, snapshot.Nodes.Count);
-        Assert.Equal(35, source.Queried.Count);
+        Assert.Equal(32, snapshot.Nodes.Count);
+        Assert.Equal(32, source.Queried.Count);
         Assert.Equal(30, snapshot.Synapses.Count);
         Assert.All(snapshot.Synapses, edge => Assert.Contains(snapshot.Nodes, node => node.Id == edge.TargetId));
     }
@@ -387,6 +438,7 @@ public sealed class BrainGraphProjectionTests
         var assistant = new NeuronId("assistant", Owner, "assistant");
         var aspire = new NeuronId("aspire", Owner, PrincipalScoped.InstanceName(Actor.PrincipalId, "digitalbrain-local"));
         var operation = Guid.NewGuid();
+        WireInbox(source, assistant);
         source.Set(assistant, [], outgoing: new(1,
             [Observed(new AgentActivity(operation, "delegation", "started", "Aspire", aspire), assistant)], null));
 
@@ -394,7 +446,7 @@ public sealed class BrainGraphProjectionTests
 
         var node = Assert.Single(snapshot.Nodes, node => node.Id == BrainGraphProjection.InstanceId(aspire));
         Assert.Equal("Running", node.Status);
-        Assert.Empty(snapshot.Synapses);
+        Assert.DoesNotContain(snapshot.Synapses, edge => edge.TargetId == node.Id);
         var observed = Assert.Single(snapshot.Activity);
         Assert.Equal(operation, observed.OperationId);
         Assert.Equal("started", observed.State);
@@ -408,6 +460,7 @@ public sealed class BrainGraphProjectionTests
         var assistant = new NeuronId("assistant", Owner, "assistant");
         var foreignPrincipal = new NeuronId("aspire", Owner, PrincipalScoped.InstanceName(PrincipalId.New(), "secret"));
         var foreignOwner = new NeuronId("aspire", new OwnerId("different"), "private");
+        WireInbox(source, assistant);
         source.Set(assistant, [], outgoing: new(3,
             [Observed(new AgentActivity(Guid.NewGuid(), "delegation", "started", "Aspire", foreignPrincipal), assistant),
              Observed(new AgentActivity(Guid.NewGuid(), "delegation", "started", "Aspire", foreignOwner), assistant),
@@ -434,6 +487,7 @@ public sealed class BrainGraphProjectionTests
             Observed(new AgentActivity(toolOperation, "tool", "started", "list_resources"), Chat),
             Observed(new AgentActivity(toolOperation, "tool", "completed", "list_resources", DurationMs: 40), Chat),
         };
+        WireInbox(source, Chat);
         source.Set(Chat, [], outgoing: new(3, entries, null));
         var projection = new BrainGraphProjection(source);
         var running = await projection.ReadAsync("main", Actor, TestContext.Current.CancellationToken);
@@ -451,6 +505,7 @@ public sealed class BrainGraphProjectionTests
     {
         var source = new TestSource();
         const string secret = "unfiltered private prompt";
+        WireInbox(source, Chat);
         source.Set(Chat, [], outgoing: new(4,
             [Observed(new AgentActivity(Guid.NewGuid(), "tool", "completed", "list_resources", Server: "Aspire",
                 DurationMs: 23.5, Preview: new string('a', 5000)), Chat),
@@ -474,8 +529,15 @@ public sealed class BrainGraphProjectionTests
     private static NeuronId ChatNamed(string name)
         => NeuronId.For<IChat>(Owner, PrincipalScoped.InstanceName(Actor.PrincipalId, name));
 
-    private static Synapse Edge(NeuronId from, NeuronId to, SynapseKind kind = SynapseKind.Bound)
-        => new(from, to, nameof(Note), 1, DateTimeOffset.UtcNow, kind, 3);
+    private static Synapse Edge(
+        NeuronId from, NeuronId to, SynapseKind kind = SynapseKind.Bound, string? signalType = null)
+        => new(from, to, signalType ?? nameof(Note), 1, DateTimeOffset.UtcNow, kind, 3);
+
+    private static Synapse Edge(NeuronId from, NeuronId to, string signalType)
+        => Edge(from, to, SynapseKind.Bound, signalType);
+
+    private static void WireInbox(TestSource source, params NeuronId[] targets)
+        => source.Set(Inbox, [.. targets.Select(target => Edge(Inbox, target, nameof(UserMessaged)))]);
 
     private sealed class TestSource : IBrainGraphSource
     {
