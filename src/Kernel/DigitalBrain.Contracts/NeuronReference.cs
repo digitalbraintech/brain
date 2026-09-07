@@ -19,8 +19,6 @@ public readonly struct NeuronReference<TNeuron> : IEquatable<NeuronReference<TNe
     }
 
     public NeuronId Id => NeuronId.For<TNeuron>(_client.Owner, _name);
-    internal string ApplicationScopeId => $"{_client.Owner}/{_client.Principal
-        ?? throw new InvalidOperationException("Typed event ports require an authenticated principal.")}";
 
     public Task<IReadOnlyList<string>> PublishedSignalTypesAsync(CancellationToken cancellationToken = default)
     {

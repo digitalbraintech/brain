@@ -3,12 +3,10 @@ using DigitalBrain.Abstractions;
 
 using DigitalBrain.Abstractions.Signals;
 using DigitalBrain.Abstractions.Identity;
-using DigitalBrain.Abstractions.Scripting;
 namespace DigitalBrain.UI;
 
 [GenerateSerializer]
 [Alias("ui.surface-opened")]
-[ApplicationJsonContract("ui.surface-opened", 1)]
 public sealed record SurfaceOpened(
     [property: Id(0)] CommandId CommandId,
     [property: Id(1)] NeuronId Surface,

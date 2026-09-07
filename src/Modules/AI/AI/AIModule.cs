@@ -1,5 +1,4 @@
 using DigitalBrain.Abstractions;
-using DigitalBrain.Abstractions.Scripting;
 using DigitalBrain.Core;
 using DigitalBrain.Chat;
 using DigitalBrain.AI.WebSearch;
@@ -13,14 +12,6 @@ public sealed class AIModule : Core.IModule
     public void Configure(ISiloBuilder builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
-
-        builder.Services.AddSingleton(new ApplicationNeuronCapabilityRegistration(
-            "agent", typeof(IAgent), "agent", "default",
-            "src/Modules/AI/Sdk/DigitalBrain.Modules.AI.Sdk.csproj"));
-        builder.Services.AddSingleton(new ApplicationNeuronInputRegistration(
-            "agent", "db.agent-request/v1", typeof(AgentRequest), "request", typeof(AgentReply), IsPublic: true));
-        builder.Services.AddSingleton(new ApplicationNeuronInputRegistration(
-            "assistant", "chat.user-messaged/v1", typeof(UserMessaged)));
 
         if (builder.Configuration["DigitalBrain:Mcp:Endpoint"] is { Length: > 0 } mcpEndpoint)
         {

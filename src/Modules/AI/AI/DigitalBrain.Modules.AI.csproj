@@ -33,9 +33,5 @@
     <ProjectReference Include="../../../Kernel/DigitalBrain.Sdk/DigitalBrain.Sdk.csproj" />
     <ProjectReference Include="../../Memory/Contracts/DigitalBrain.Modules.Memory.Contracts.csproj" />
   </ItemGroup>
-  <ItemGroup>
-    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
-      <_Parameter1>DigitalBrain.AI.Tests</_Parameter1>
-    </AssemblyAttribute>
-  </ItemGroup>
+
 </Project>

@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using DigitalBrain.Abstractions;
-using DigitalBrain.Abstractions.Scripting;
 using DigitalBrain.Core;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -146,33 +145,6 @@ public sealed class BrainSimulation : IAsyncDisposable
     }
 
     public T GetSiloService<T>() where T : notnull => SiloServices.GetRequiredService<T>();
-
-    public Task ServeApplicationAsync(ApplicationDefinition application, string revision,
-        CancellationToken cancellationToken = default)
-        => RunApplicationAsync(application, revision, serve: true, cancellationToken);
-
-    public Task ApplyApplicationAsync(ApplicationDefinition application, string revision,
-        CancellationToken cancellationToken = default)
-        => RunApplicationAsync(application, revision, serve: false, cancellationToken);
-
-    private async Task RunApplicationAsync(ApplicationDefinition application, string revision, bool serve,
-        CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(application);
-        var authority = GetSiloService<ApplicationWorkerCapabilityAuthority>();
-        var capability = authority.Issue(application.Owner.Value, application.Actor.PrincipalId.Value,
-            application.KernelKey, revision, DateTimeOffset.MaxValue);
-        try
-        {
-            using var scope = ApplicationWorkerCapabilityContext.Enter(capability);
-            if (serve) { await application.ServeAsync(revision, cancellationToken).ConfigureAwait(false); }
-            else { await application.ApplyAsync(revision, cancellationToken).ConfigureAwait(false); }
-        }
-        finally
-        {
-            authority.Revoke(capability);
-        }
-    }
 
     public async Task RestartSiloAsync(CancellationToken cancellationToken = default)
     {

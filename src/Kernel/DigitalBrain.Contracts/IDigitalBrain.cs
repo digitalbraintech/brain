@@ -4,7 +4,6 @@ using DigitalBrain.Abstractions.Journals;
 using DigitalBrain.Abstractions.Neurons;
 using DigitalBrain.Abstractions.Synapses;
 using DigitalBrain.Abstractions.Signals;
-using DigitalBrain.Abstractions.Scripting;
 
 namespace DigitalBrain.Abstractions;
 

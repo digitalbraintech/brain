@@ -30,7 +30,6 @@ public sealed record ActivitiesSnapshot(
     [property: Id(1)] ActivityView[] Activities) : Signal, IActivityTelemetry;
 
 [GenerateSerializer, Alias("db.activity-changed")]
-[DigitalBrain.Abstractions.Scripting.ApplicationJsonContract("activity.changed", 1)]
 public sealed record ActivityChanged([property: Id(0)] ActivityView Activity) : Signal, IActivityTelemetry;
 
 [GenerateSerializer, Alias("db.activity-view")]

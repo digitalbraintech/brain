@@ -6,12 +6,8 @@
   <ItemGroup>
     <ProjectReference Include="../DigitalBrain.Contracts/DigitalBrain.Contracts.csproj" />
     <ProjectReference Include="../DigitalBrain.Sdk/DigitalBrain.Sdk.csproj" />
+    <ProjectReference Include="../../Modules/UI/DigitalBrain.Modules.UI.Contracts/DigitalBrain.Modules.UI.Contracts.csproj" />
+    <ProjectReference Include="../../Modules/AI/Contracts/DigitalBrain.Modules.AI.Contracts.csproj" />
   </ItemGroup>
-  <ItemGroup>
-    <InternalsVisibleTo Include="DigitalBrain.Simulation.Tests" />
-  </ItemGroup>
-  <ItemGroup>
-    <Compile Remove="scripts/**/*.cs" />
-    <Content Include="scripts/**/*.cs" CopyToOutputDirectory="PreserveNewest" />
-  </ItemGroup>
+
 </Project>

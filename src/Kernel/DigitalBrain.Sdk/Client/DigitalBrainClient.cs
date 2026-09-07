@@ -4,7 +4,6 @@ using DigitalBrain.Abstractions.Identity;
 using DigitalBrain.Abstractions.Journals;
 using DigitalBrain.Abstractions.Neurons;
 using DigitalBrain.Abstractions.Signals;
-using DigitalBrain.Abstractions.Scripting;
 using DigitalBrain.Abstractions.Synapses;
 
 namespace DigitalBrain.Abstractions;
@@ -22,6 +21,8 @@ public sealed partial class DigitalBrainClient : IDigitalBrain, INeuronClient
         ?? throw new InvalidOperationException("Root event ports require an authenticated principal."));
 
     internal ActorContext? ConnectionActor => _transport.ConnectionActor;
+
+    internal IGrainFactory Grains => _transport.Grains;
 
     internal DigitalBrainClient CreateSibling(OwnerId owner, ActorContext actor)
         => new(_transport.CreateSibling(owner, actor));
@@ -66,7 +67,6 @@ public sealed partial class DigitalBrainClient : IDigitalBrain, INeuronClient
 
     public async ValueTask DisposeAsync()
     {
-        Interlocked.Exchange(ref _workerScope, null)?.Dispose();
         if (Interlocked.Exchange(ref _host, null) is not { } host)
         {
             return;

@@ -29,6 +29,8 @@ internal sealed partial class DigitalBrainClientTransport
 
     internal OwnerId Owner { get; }
 
+    internal IGrainFactory Grains => _grains;
+
     internal ActorContext? ConnectionActor => _connectionActor;
 
     internal PrincipalId? CurrentPrincipal
@@ -47,7 +49,6 @@ internal sealed partial class DigitalBrainClientTransport
 
     internal Task ActivateAsync(CancellationToken cancellationToken)
     {
-        Scripting.ApplicationRunScope.ThrowIfDefinitionEffect("activate");
         cancellationToken.ThrowIfCancellationRequested();
         return Brain().Activate().WaitAsync(cancellationToken);
     }
@@ -71,7 +72,6 @@ internal sealed partial class DigitalBrainClientTransport
     internal TEntity GetEntity<TEntity>(string name)
         where TEntity : class, IEntity
     {
-        Scripting.ApplicationRunScope.ThrowIfDefinitionEffect("get entity");
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         RequireDomainEntityContract(typeof(TEntity));
         return _grains.GetGrain<TEntity>(EntityId.For<TEntity>(Owner,
@@ -221,7 +221,6 @@ internal sealed partial class DigitalBrainClientTransport
         Signal signal,
         CancellationToken cancellationToken)
     {
-        Scripting.ApplicationRunScope.ThrowIfDefinitionEffect("send");
         using var actor = EnterConnectionActor();
         RequireOwnedSubject(receiver);
         ArgumentNullException.ThrowIfNull(signal);
@@ -238,7 +237,6 @@ internal sealed partial class DigitalBrainClientTransport
         Type responseType,
         CancellationToken cancellationToken)
     {
-        Scripting.ApplicationRunScope.ThrowIfDefinitionEffect("request");
         using var actor = EnterConnectionActor();
         using var budget = SignalRequestPolicy.CreateBudget(cancellationToken);
         try

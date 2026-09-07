@@ -7,17 +7,6 @@
     <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == '' and '$(CI)' != 'true' and $([MSBuild]::IsOSPlatform('Windows'))">win-x64</RuntimeIdentifier>
   </PropertyGroup>
   <ItemGroup>
-    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
-      <_Parameter1>DigitalBrain.Authoring.Tests</_Parameter1>
-    </AssemblyAttribute>
-  </ItemGroup>
-  <ItemGroup>
-    <Content Include="../DigitalBrain.Scripting/scripts/**/*.cs"
-             Link="scripts/%(RecursiveDir)%(Filename)%(Extension)"
-             CopyToOutputDirectory="PreserveNewest"
-             CopyToPublishDirectory="PreserveNewest" />
-  </ItemGroup>
-  <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.AI" />
     <!-- Native Foundry assets for the host process; STT code lives in AI module. -->
     <PackageReference Include="Microsoft.AI.Foundry.Local" />
