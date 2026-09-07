@@ -45,7 +45,6 @@ public static class DigitalBrainRuntimeHostingExtensions
                 options.HistoryLength = 200;
             });
         });
-        builder.AddDigitalBrainOwner(activateOnStart: false);
         return builder;
     }
 }

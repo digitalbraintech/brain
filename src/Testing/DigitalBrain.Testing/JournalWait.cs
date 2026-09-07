@@ -2,7 +2,6 @@ using DigitalBrain.Abstractions.Identity;
 using DigitalBrain.Abstractions.Journals;
 using DigitalBrain.Abstractions.Neurons;
 using DigitalBrain.Abstractions.Signals;
-using DigitalBrain.Abstractions;
 
 namespace DigitalBrain.Testing;
 
@@ -20,43 +19,6 @@ public static class JournalWait
 {
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(200);
-
-    public static Task<SignalDelivery> ForAsync<TNeuron>(
-        NeuronReference<TNeuron> neuron,
-        JournalKind kind,
-        Func<SignalDelivery, bool> match,
-        TimeSpan? timeout = null,
-        long afterSequence = 0,
-        CancellationToken cancellationToken = default)
-        where TNeuron : INeuron
-        => ForAsync(
-            neuron.Id,
-            kind,
-            (cursor, token) => neuron.ReadJournalAsync(kind, cursor, token),
-            match,
-            timeout,
-            afterSequence,
-            cancellationToken);
-
-    public static Task<SignalDelivery> ForAsync(
-        IDigitalBrain brain,
-        JournalKind kind,
-        Func<SignalDelivery, bool> match,
-        TimeSpan? timeout = null,
-        long afterSequence = 0,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(brain);
-
-        return ForAsync(
-            IBrainNeuron.ForOwner(brain.Owner),
-            kind,
-            (cursor, token) => brain.ReadJournalAsync(kind, cursor, token),
-            match,
-            timeout,
-            afterSequence,
-            cancellationToken);
-    }
 
     public static Task<SignalDelivery> ForAsync(
         INeuronQuery neuron,
@@ -136,7 +98,7 @@ public static class JournalWait
             {
                 foreach (var delivery in page.Delta)
                 {
-                    var typeName = delivery.Signal.GetType().Name;
+                    var typeName = delivery.Signal.Type;
                     if (!seenTypes.Contains(typeName, StringComparer.Ordinal))
                     {
                         seenTypes.Add(typeName);

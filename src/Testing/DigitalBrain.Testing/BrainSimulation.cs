@@ -32,7 +32,6 @@ public sealed class BrainSimulation : IAsyncDisposable
     {
         inProcess = cluster;
         Grains = cluster.Client;
-        Brain = DigitalBrainClient.Connect(cluster.Client, DigitalBrainNames.DefaultOwner);
     }
 
     private BrainSimulation(TestCluster cluster, string token)
@@ -40,11 +39,9 @@ public sealed class BrainSimulation : IAsyncDisposable
         socketCluster = cluster;
         configurationToken = token;
         Grains = cluster.Client;
-        Brain = DigitalBrainClient.Connect(cluster.Client, DigitalBrainNames.DefaultOwner);
     }
 
     public IGrainFactory Grains { get; }
-    public IDigitalBrain Brain { get; }
 
     public static async Task<BrainSimulation> StartAsync(BrainSimulationOptions options)
     {
@@ -116,12 +113,6 @@ public sealed class BrainSimulation : IAsyncDisposable
         }
         silo.UseInMemoryReminderService();
         options.ConfigureSilo?.Invoke(silo);
-    }
-
-    public IDigitalBrain BrainFor(string owner)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(owner);
-        return DigitalBrainClient.Connect(Grains, owner);
     }
 
     public string UniqueId(string prefix)

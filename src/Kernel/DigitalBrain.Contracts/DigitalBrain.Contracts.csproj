@@ -1,15 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <IsPackable>true</IsPackable>
-    <Description>The DigitalBrain programming model: signals, synapses, neurons, entities, and owner-bound IDigitalBrain access.</Description>
+    <Description>The DigitalBrain programming model: signals, synapses, and neurons.</Description>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Orleans.Sdk" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="DigitalBrain" />
-    <InternalsVisibleTo Include="DigitalBrain.Sdk" />
-    <InternalsVisibleTo Include="DigitalBrain.Substrate.Tests" />
+    <InternalsVisibleTo Include="DigitalBrain.Mcp" />
     <InternalsVisibleTo Include="DigitalBrain.Testing" />
+    <InternalsVisibleTo Include="DigitalBrain.Tests" />
   </ItemGroup>
 </Project>

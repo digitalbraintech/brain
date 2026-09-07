@@ -5,7 +5,6 @@
     <Project Path="src/Aspire/DigitalBrain.Aspire/DigitalBrain.Aspire.csproj" />
     <Project Path="src/Aspire/DigitalBrain.ServiceDefaults/DigitalBrain.ServiceDefaults.csproj" />
     <Project Path="src/Kernel/DigitalBrain.Contracts/DigitalBrain.Contracts.csproj" />
-    <Project Path="src/Kernel/DigitalBrain.Sdk/DigitalBrain.Sdk.csproj" />
     <Project Path="src/Kernel/DigitalBrain/DigitalBrain.csproj" />
   </Folder>
   <Folder Name="/Solution Items/">
@@ -16,7 +15,7 @@
     <Project Path="src/Testing/DigitalBrain.Testing/DigitalBrain.Testing.csproj" />
   </Folder>
   <Folder Name="/Tests/">
-    <Project Path="tests/DigitalBrain.Substrate.Tests/DigitalBrain.Substrate.Tests.csproj" />
+    <Project Path="tests/DigitalBrain.Tests/DigitalBrain.Tests.csproj" />
   </Folder>
   <Project Path="src/Aspire/DigitalBrain.AppHost/DigitalBrain.AppHost.csproj" />
   <Project Path="src/Kernel/DigitalBrain.Silo/DigitalBrain.Silo.csproj" />

@@ -1,4 +1,4 @@
-namespace DigitalBrain.Kernel.Auth;
+namespace DigitalBrain.Kernel;
 
 /// <summary>
 /// Cross-origin access for the deployed shell, which is served from a Static Web App

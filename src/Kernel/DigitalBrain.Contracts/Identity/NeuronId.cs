@@ -1,60 +1,46 @@
 using System.Text.Json.Serialization;
 
-using DigitalBrain.Abstractions.Neurons;
 namespace DigitalBrain.Abstractions.Identity;
 
 [GenerateSerializer]
 [Alias("db.neuron-id")]
 public readonly record struct NeuronId
 {
+    public const string PlainType = "neuron";
+
     [JsonConstructor]
-    public NeuronId(string type, OwnerId owner, string name)
+    public NeuronId(string type, string name)
     {
         Type = IdentityPart.Validated(type, nameof(type)).ToLowerInvariant();
-        Owner = owner;
         Name = IdentityPart.Validated(name, nameof(name));
     }
 
-    [Id(0)]
-    public string Type { get; }
+    [Id(0)] public string Type { get; }
 
-    [Id(1)]
-    public OwnerId Owner { get; }
+    [Id(1)] public string Name { get; }
 
-    [Id(2)]
-    public string Name { get; }
+    public GrainId ToGrainId() => GrainId.Create(Type, Name);
 
-    // Hosting key (Orleans). Scripts address neurons with For<TNeuron>, not grain ids.
-    public string GrainKey => $"{Owner.Value}{IdentityPart.OwnerNameSeparator}{Name}";
+    public static NeuronId Plain(string name) => new(PlainType, name);
 
-    public GrainId ToGrainId() => GrainId.Create(Type, GrainKey);
+    public static NeuronId FromGrainId(GrainId id) => new(id.Type.ToString()!, id.Key.ToString()!);
 
-    public static NeuronId For<TNeuron>(OwnerId owner, string name)
-        where TNeuron : INeuron
-        => new(GrainTypeNameOf(typeof(TNeuron)), owner, name);
-
-    public static string GrainTypeNameOf(Type neuronType) => GrainTypeNames.Of(neuronType);
-
-    // The "type:name" instance shape tool surfaces accept. A "type:owner/name" form is
-    // refused rather than silently re-owned: the owner always comes from the calling surface.
-    public static bool TryParseInstance(string? instance, OwnerId owner, out NeuronId id)
+    // "type:name" or bare "name" (a plain neuron).
+    public static bool TryParse(string? text, out NeuronId id)
     {
         id = default;
-        if (string.IsNullOrWhiteSpace(instance))
+        if (string.IsNullOrWhiteSpace(text))
         {
             return false;
         }
 
-        var trimmed = instance.Trim();
+        var trimmed = text.Trim();
         var separator = trimmed.IndexOf(':', StringComparison.Ordinal);
-        if (separator <= 0 || separator == trimmed.Length - 1)
-        {
-            return false;
-        }
-
         try
         {
-            id = new NeuronId(trimmed[..separator], owner, trimmed[(separator + 1)..]);
+            id = separator < 0
+                ? Plain(trimmed)
+                : new NeuronId(trimmed[..separator], trimmed[(separator + 1)..]);
             return true;
         }
         catch (ArgumentException)
@@ -63,19 +49,5 @@ public readonly record struct NeuronId
         }
     }
 
-    public static NeuronId FromGrainKey(string type, string grainKey)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(grainKey);
-
-        var separator = grainKey.IndexOf(IdentityPart.OwnerNameSeparator, StringComparison.Ordinal);
-
-        if (separator <= 0 || separator == grainKey.Length - 1)
-        {
-            throw new ArgumentException($"Grain key '{grainKey}' is not in owner/name form.", nameof(grainKey));
-        }
-
-        return new NeuronId(type, new OwnerId(grainKey[..separator]), grainKey[(separator + 1)..]);
-    }
-
-    public override string ToString() => $"{Type}:{GrainKey}";
+    public override string ToString() => $"{Type}:{Name}";
 }

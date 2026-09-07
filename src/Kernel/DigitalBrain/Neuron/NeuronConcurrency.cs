@@ -1,5 +1,4 @@
 using System.Reflection;
-using DigitalBrain.Abstractions;
 using Orleans.Concurrency;
 
 using DigitalBrain.Abstractions.Neurons;
@@ -45,7 +44,6 @@ internal static class NeuronConcurrency
 
     // Kernel reads do not create traffic and only observe durable state. The behaviors
     // snapshot is also needed while an assistant turn is awaiting a behavior command.
-    // Watch and Unwatch carry no interleaving attribute and therefore remain serialized.
     private static bool IsKernelFreeRead(MethodInfo method)
         => method.DeclaringType == typeof(INeuronQuery);
 

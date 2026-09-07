@@ -1,7 +1,4 @@
 using System.ComponentModel;
-using DigitalBrain.Abstractions;
-using DigitalBrain.Abstractions.Neurons;
-using DigitalBrain.Abstractions.Signals;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Orleans.Journaling;
@@ -18,17 +15,11 @@ public static class DigitalBrainRuntime
         ArgumentNullException.ThrowIfNull(modules);
 
         builder.AddJournalStorage();
+        builder.AddActivityPropagation();
         builder.UseJsonJournalFormat(DurableStateJson.TypeInfoResolver);
-        // Awaited publish: a subscriber's failure surfaces to the publisher, matching the
-        // direct-call delivery semantics of Send.
-        builder.AddBroadcastChannel(
-            DigitalBrainNames.BroadcastChannelProvider,
-            options => options.FireAndForgetDelivery = false);
         ModelPayloadSerialization.AddModelPayloadSerialization(builder.Services);
         builder.Services.TryAddSingleton<TimeProvider>(TimeProvider.System);
-        builder.Services.TryAddSingleton<SignalRouter>();
         builder.Services.TryAddSingleton<NeuronRuntime>();
-        builder.AddIncomingGrainCallFilter<NeuronMembraneFilter>();
 
         foreach (var hook in ModuleHooksOf(modules))
         {

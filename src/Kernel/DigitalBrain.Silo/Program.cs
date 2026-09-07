@@ -1,6 +1,5 @@
 using DigitalBrain.Aspire;
 using DigitalBrain.Kernel;
-using DigitalBrain.Kernel.Auth;
 using DigitalBrain.ServiceDefaults;
 using Orleans.Dashboard;
 

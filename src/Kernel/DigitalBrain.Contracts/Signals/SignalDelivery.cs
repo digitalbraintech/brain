@@ -1,98 +1,37 @@
 using DigitalBrain.Abstractions.Identity;
+
 namespace DigitalBrain.Abstractions.Signals;
 
+// The envelope around a Signal. Identity, causation, correlation and source ride here.
 [GenerateSerializer]
 [Alias("db.signal-delivery")]
-public sealed class SignalDelivery
+public sealed record SignalDelivery(
+    [property: Id(0)] Signal Signal,
+    [property: Id(1)] SignalId SignalId,
+    [property: Id(2)] CorrelationId CorrelationId,
+    [property: Id(3)] SignalId? CausationId,
+    [property: Id(4)] NeuronId Source,
+    [property: Id(5)] long Sequence,
+    [property: Id(6)] DateTimeOffset Timestamp)
 {
-    internal SignalDelivery(
-        Signal signal,
-        SignalId signalId,
-        CorrelationId correlationId,
-        SignalId? causationId,
-        NeuronId caller,
-        long sequence,
-        DateTimeOffset timestamp,
-        PrincipalId? principal = null,
-        long? sourceEpoch = null,
-        string? sourceStream = null,
-        long? streamGeneration = null)
-    {
-        Signal = signal;
-        SignalId = signalId;
-        CorrelationId = correlationId;
-        CausationId = causationId;
-        Caller = caller;
-        Sequence = sequence;
-        Timestamp = timestamp;
-        Principal = principal;
-        SourceEpoch = sourceEpoch;
-        SourceStream = sourceStream;
-        StreamGeneration = streamGeneration;
-    }
-
-    [Id(0)]
-    public Signal Signal { get; }
-
-    [Id(1)]
-    public SignalId SignalId { get; }
-
-    [Id(2)]
-    public CorrelationId CorrelationId { get; }
-
-    [Id(3)]
-    public SignalId? CausationId { get; }
-
-    [Id(4)]
-    public NeuronId Caller { get; }
-
-    [Id(5)]
-    public long Sequence { get; }
-
-    [Id(6)]
-    public DateTimeOffset Timestamp { get; }
-
-    // Trailing: rides the delivery so Neuron.DispatchDeliveryAsync can re-enter VerifiedActor.
-    // Null = system/unattributed (timer ticks, bootstrap). Append-only — never renumber.
-    [Id(7)]
-    public PrincipalId? Principal { get; }
-
-    [Id(8)]
-    public long? SourceEpoch { get; }
-
-    [Id(9)]
-    public string? SourceStream { get; }
-
-    [Id(10)]
-    public long? StreamGeneration { get; }
-
     public static SignalDelivery Create(
         Signal signal,
-        NeuronId caller,
+        NeuronId source,
         long sequence,
-        TimeProvider timeProvider,
+        TimeProvider clock,
         SignalDelivery? cause = null,
-        CorrelationId? correlation = null,
-        PrincipalId? principal = null,
-        SignalId? signalId = null,
-        long? sourceEpoch = null,
-        string? sourceStream = null,
-        long? streamGeneration = null)
+        CorrelationId? correlation = null)
     {
-        ArgumentNullException.ThrowIfNull(timeProvider);
+        ArgumentNullException.ThrowIfNull(signal);
+        ArgumentNullException.ThrowIfNull(clock);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(sequence);
-
         return new(
             signal,
-            signalId ?? SignalId.New(),
+            SignalId.New(),
             correlation ?? cause?.CorrelationId ?? CorrelationId.New(),
             cause?.SignalId,
-            caller,
+            source,
             sequence,
-            timeProvider.GetUtcNow(),
-            principal ?? cause?.Principal,
-            sourceEpoch,
-            sourceStream,
-            streamGeneration);
+            clock.GetUtcNow());
     }
 }
