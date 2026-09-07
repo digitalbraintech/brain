@@ -3,9 +3,6 @@
     <Project Path="src/Product/DigitalBrain.Product.Contracts/DigitalBrain.Product.Contracts.csproj" />
   </Folder>
   <Folder Name="/Modules/" />
-  <Folder Name="/Modules/Behaviors/">
-    <Project Path="src/Kernel/DigitalBrain.Scripting/DigitalBrain.Scripting.csproj" />
-  </Folder>
   <Folder Name="/Modules/AI/">
     <Project Path="src/Modules/AI/AI/DigitalBrain.Modules.AI.csproj" />
     <Project Path="src/Modules/AI/Aspire.Hosting/DigitalBrain.Modules.AI.Aspire.Hosting.csproj" />

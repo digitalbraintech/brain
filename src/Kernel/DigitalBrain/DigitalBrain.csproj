@@ -18,7 +18,6 @@
   <ItemGroup>
     <InternalsVisibleTo Include="DigitalBrain.Substrate.Tests" />
     <InternalsVisibleTo Include="DigitalBrain.Sdk" />
-    <InternalsVisibleTo Include="DigitalBrain.Scripting" />
     <InternalsVisibleTo Include="DigitalBrain.Testing" />
     <InternalsVisibleTo Include="DigitalBrain.Modules.UI" />
     <InternalsVisibleTo Include="DigitalBrain.Modules.AI" />

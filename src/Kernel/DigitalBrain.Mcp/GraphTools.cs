@@ -5,8 +5,6 @@ using DigitalBrain.Abstractions.Identity;
 using DigitalBrain.Abstractions.Journals;
 using DigitalBrain.Abstractions.Neurons;
 using DigitalBrain.Abstractions.Signals;
-using DigitalBrain.Abstractions.Definitions;
-using DigitalBrain.Abstractions.Execution;
 using DigitalBrain.AI;
 using DigitalBrain.Chat;
 using DigitalBrain.Core;
@@ -16,7 +14,7 @@ using ModelContextProtocol.Server;
 namespace DigitalBrain.Mcp;
 
 [McpServerToolType]
-internal sealed class GraphTools(IDigitalBrain brain, IDefinitionAuthoring? definitions = null)
+internal sealed class GraphTools(IDigitalBrain brain)
 {
     private static readonly ActorContext OwnerActor = new(
         new PrincipalId(Guid.Parse("0000dead-0000-0000-0000-000000000001")),
@@ -155,101 +153,6 @@ internal sealed class GraphTools(IDigitalBrain brain, IDefinitionAuthoring? defi
             chat = chat.Id.ToString(),
         }, JsonSerializerOptions.Web);
     }
-
-    [McpServerTool(Name = McpSurface.DefinitionCatalog)]
-    [Description("Discover supported handler/context signatures, required module references, and compile-tested examples. Use this before authoring.")]
-    public async Task<string> DefinitionCatalogAsync(CancellationToken cancellationToken = default)
-        => JsonSerializer.Serialize(await Definitions.CatalogAsync(brain, cancellationToken).ConfigureAwait(false),
-            JsonSerializerOptions.Web);
-
-    [McpServerTool(Name = McpSurface.DefinitionTemplate)]
-    [Description("Get a compilable handler or agent template. Select kind script, handler, or agent, and optional capability such as search_web.")]
-    public async Task<string> DefinitionTemplateAsync(string key, string kind = "script", string? capability = null,
-        CancellationToken cancellationToken = default)
-        => JsonSerializer.Serialize(await Definitions.TemplateAsync(brain, key, kind, capability, cancellationToken)
-            .ConfigureAwait(false), JsonSerializerOptions.Web);
-
-    [McpServerTool(Name = McpSurface.ReadDefinition)]
-    [Description("Read a saved definition's exact source revision before editing.")]
-    public async Task<string> ReadDefinitionAsync(string key, CancellationToken cancellationToken = default)
-        => JsonSerializer.Serialize(await Definitions.ReadAsync(brain, key, cancellationToken).ConfigureAwait(false),
-            JsonSerializerOptions.Web);
-
-    [McpServerTool(Name = McpSurface.SaveDefinition)]
-    [Description("Save a definition source or agent configuration. Saving does not activate it.")]
-    public async Task<string> SaveDefinitionAsync(
-        string key, string source, string? expectedRevision, string? kind = null, string? inputContract = null,
-        string? outputContract = null, string? neuronContract = null, string? instanceName = null,
-        string? instructions = null, string[]? capabilities = null, string[]? moduleReferences = null,
-        CancellationToken cancellationToken = default)
-        => JsonSerializer.Serialize(await Definitions.SaveAsync(brain, key, source, expectedRevision,
-            new DefinitionSaveOptions(kind, inputContract, outputContract, neuronContract, instanceName, instructions,
-                capabilities, moduleReferences), cancellationToken).ConfigureAwait(false), JsonSerializerOptions.Web);
-
-    [McpServerTool(Name = McpSurface.SetDefinitionExpectations)]
-    [Description("Record the original instruction and independent acceptance examples before implementation. Source edits cannot silently change them.")]
-    public async Task<string> SetDefinitionExpectationsAsync(string key, string documentJson, Guid operationId,
-        string? expectedExpectationRevision, CancellationToken cancellationToken = default)
-        => JsonSerializer.Serialize(await Definitions.SetExpectationsAsync(brain, key, documentJson, operationId,
-            expectedExpectationRevision, cancellationToken).ConfigureAwait(false), JsonSerializerOptions.Web);
-
-    [McpServerTool(Name = McpSurface.ValidateActivation)]
-    [Description("Compile and validate an exact saved definition revision without activating it.")]
-    public async Task<string> ValidateActivationAsync(string key, string expectedSourceRevision,
-        CancellationToken cancellationToken = default)
-        => JsonSerializer.Serialize(await Definitions.ValidateAsync(brain, key, expectedSourceRevision, cancellationToken)
-            .ConfigureAwait(false), JsonSerializerOptions.Web);
-
-    [McpServerTool(Name = McpSurface.RunDefinitionScenarios)]
-    [Description("Run independent acceptance examples for an exact saved revision.")]
-    public async Task<string> RunDefinitionScenariosAsync(string key, string expectedSourceRevision,
-        CancellationToken cancellationToken = default)
-        => JsonSerializer.Serialize(await Definitions.RunScenariosAsync(brain, key, expectedSourceRevision,
-            cancellationToken).ConfigureAwait(false), JsonSerializerOptions.Web);
-
-    [McpServerTool(Name = McpSurface.ActivateDefinitions)]
-    [Description("Atomically activate a validated set of definitions and subscriptions. Requires passing acceptance for that exact set.")]
-    public async Task<string> ActivateDefinitionsAsync(string setRevision, string definitionsJson,
-        string subscriptionsJson, CancellationToken cancellationToken = default)
-    {
-        var pins = JsonSerializer.Deserialize<DefinitionPin[]>(definitionsJson, JsonSerializerOptions.Web)
-            ?? throw new ArgumentException("definitionsJson must be an array of definition pins.");
-        var subscriptions = JsonSerializer.Deserialize<SubscriptionPin[]>(subscriptionsJson, JsonSerializerOptions.Web)
-            ?? [];
-        return JsonSerializer.Serialize(await Definitions.ActivateAsync(brain,
-            new ActivationSet(setRevision, pins, subscriptions), cancellationToken).ConfigureAwait(false),
-            JsonSerializerOptions.Web);
-    }
-
-    [McpServerTool(Name = McpSurface.ReadExecution)]
-    [Description("Read an execution's identity, status, children and recorded steps.")]
-    public async Task<string> ReadExecutionAsync(string executionId, CancellationToken cancellationToken = default)
-        => JsonSerializer.Serialize(await Definitions.ReadExecutionAsync(brain, ExecutionId.Parse(executionId),
-            cancellationToken).ConfigureAwait(false), JsonSerializerOptions.Web);
-
-    [McpServerTool(Name = McpSurface.CancelExecution)]
-    [Description("Cancel an unfinished execution. Completed effects remain recorded.")]
-    public async Task<string> CancelExecutionAsync(string executionId, CancellationToken cancellationToken = default)
-        => JsonSerializer.Serialize(await Definitions.CancelExecutionAsync(brain, ExecutionId.Parse(executionId),
-            cancellationToken).ConfigureAwait(false), JsonSerializerOptions.Web);
-
-    [McpServerTool(Name = McpSurface.RetryExecution)]
-    [Description("Retry a recoverable failed execution, retaining its identity, revision closure and completed steps.")]
-    public async Task<string> RetryExecutionAsync(string executionId, CancellationToken cancellationToken = default)
-        => JsonSerializer.Serialize(await Definitions.RetryExecutionAsync(brain, ExecutionId.Parse(executionId),
-            cancellationToken).ConfigureAwait(false), JsonSerializerOptions.Web);
-
-    [McpServerTool(Name = McpSurface.RunAgain)]
-    [Description("Start a new execution from an existing one with fresh external observations.")]
-    public async Task<string> RunAgainAsync(string executionId, CancellationToken cancellationToken = default)
-        => JsonSerializer.Serialize(new
-        {
-            executionId = (await Definitions.RunAgainAsync(brain, ExecutionId.Parse(executionId), cancellationToken)
-                .ConfigureAwait(false)).ToString(),
-        }, JsonSerializerOptions.Web);
-
-    private IDefinitionAuthoring Definitions => definitions
-        ?? throw new InvalidOperationException("Definition authoring is not configured.");
 
     private IDisposable Enter() => VerifiedActor.Enter(OwnerActor);
 

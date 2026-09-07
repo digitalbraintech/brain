@@ -20,6 +20,5 @@
     <ProjectReference Include="../../Aspire/DigitalBrain.Aspire/DigitalBrain.Aspire.csproj" />
     <ProjectReference Include="../DigitalBrain/DigitalBrain.csproj" />
     <ProjectReference Include="../DigitalBrain.Sdk/DigitalBrain.Sdk.csproj" />
-    <ProjectReference Include="../DigitalBrain.Scripting/DigitalBrain.Scripting.csproj" />
   </ItemGroup>
 </Project>
