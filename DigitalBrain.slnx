@@ -5,6 +5,7 @@
     <Project Path="src/Aspire/DigitalBrain.Aspire/DigitalBrain.Aspire.csproj" />
     <Project Path="src/Aspire/DigitalBrain.ServiceDefaults/DigitalBrain.ServiceDefaults.csproj" />
     <Project Path="src/Kernel/DigitalBrain.Contracts/DigitalBrain.Contracts.csproj" />
+    <Project Path="src/Kernel/DigitalBrain.Mcp/DigitalBrain.Mcp.csproj" />
     <Project Path="src/Kernel/DigitalBrain/DigitalBrain.csproj" />
   </Folder>
   <Folder Name="/Solution Items/">
