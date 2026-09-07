@@ -19,7 +19,5 @@
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="DigitalBrain.Testing" />
-    <InternalsVisibleTo Include="DigitalBrain.Modules.AI" />
-    <InternalsVisibleTo Include="DigitalBrain.Modules.AI.Sdk" />
   </ItemGroup>
 </Project>

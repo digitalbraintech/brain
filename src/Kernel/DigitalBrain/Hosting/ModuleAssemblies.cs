@@ -16,12 +16,6 @@ public sealed record ModuleManifest(IReadOnlyList<Type> Types)
             .Select(static entry => Resolve(entry.Value))
             .ToArray();
 
-        if (types.Length == 0)
-        {
-            throw new InvalidOperationException(
-                $"No modules are configured at '{DigitalBrainNames.Modules}'. AppHost must declare each module with AddModule<TModule>().");
-        }
-
         return new ModuleManifest(types);
     }
 

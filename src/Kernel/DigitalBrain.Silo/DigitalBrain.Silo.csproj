@@ -1,19 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
-    <!-- Saved programs are runtime data, compiled separately by the application host. -->
     <DefaultItemExcludes>$(DefaultItemExcludes);applications/**;.digitalbrain/**</DefaultItemExcludes>
     <NoWarn>$(NoWarn);CA2007;CA1812</NoWarn>
-    <!-- Host pin for Foundry Local native assets on Windows desktop runs only. -->
-    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == '' and '$(CI)' != 'true' and $([MSBuild]::IsOSPlatform('Windows'))">win-x64</RuntimeIdentifier>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.AI" />
-    <!-- Native Foundry assets for the host process; STT code lives in AI module. -->
-    <PackageReference Include="Microsoft.AI.Foundry.Local" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="../../Product/DigitalBrain.Product.Contracts/DigitalBrain.Product.Contracts.csproj" />
-    <ProjectReference Include="../../Modules/UI/DigitalBrain.Modules.UI/DigitalBrain.Modules.UI.csproj" />
     <ProjectReference Include="../../Aspire/DigitalBrain.Aspire/DigitalBrain.Aspire.csproj" />
     <ProjectReference Include="../DigitalBrain/DigitalBrain.csproj" />
     <ProjectReference Include="../DigitalBrain.Sdk/DigitalBrain.Sdk.csproj" />
