@@ -16,8 +16,7 @@ public sealed class SignalDelivery
         PrincipalId? principal = null,
         long? sourceEpoch = null,
         string? sourceStream = null,
-        long? streamGeneration = null,
-        bool isActivityTelemetry = false)
+        long? streamGeneration = null)
     {
         Signal = signal;
         SignalId = signalId;
@@ -30,7 +29,6 @@ public sealed class SignalDelivery
         SourceEpoch = sourceEpoch;
         SourceStream = sourceStream;
         StreamGeneration = streamGeneration;
-        IsActivityTelemetry = isActivityTelemetry;
     }
 
     [Id(0)]
@@ -68,9 +66,6 @@ public sealed class SignalDelivery
     [Id(10)]
     public long? StreamGeneration { get; }
 
-    [Id(11)]
-    public bool IsActivityTelemetry { get; }
-
     public static SignalDelivery Create(
         Signal signal,
         NeuronId caller,
@@ -98,7 +93,6 @@ public sealed class SignalDelivery
             principal ?? cause?.Principal,
             sourceEpoch,
             sourceStream,
-            streamGeneration,
-            signal is IActivityTelemetry || cause?.IsActivityTelemetry == true);
+            streamGeneration);
     }
 }

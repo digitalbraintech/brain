@@ -18,7 +18,6 @@ public abstract class Neuron :
 {
     private readonly NeuronActivationComponents _components;
     private readonly SignalSender _sender;
-    private readonly ActivityReporter _activities;
     private SignalDelivery? _handling;
     private readonly IDurableDictionary<string, long> _sourceEpochs;
 
@@ -26,7 +25,6 @@ public abstract class Neuron :
     {
         ArgumentNullException.ThrowIfNull(runtime);
         _components = runtime.Bind(ServiceProvider, Id);
-        _activities = new ActivityReporter(Id, GrainFactory, runtime.Clock);
         _sourceEpochs = ServiceProvider.GetRequiredKeyedService<IDurableDictionary<string, long>>("neuron.source-epochs");
         _sender = new SignalSender(
             Id,
@@ -47,11 +45,6 @@ public abstract class Neuron :
     protected TimeProvider TimeProvider => _components.Clock;
 
     protected SignalDelivery? CurrentDelivery => _handling;
-
-    /// <summary>Registers and settles durable work which continues after its input handler returns.</summary>
-    protected Task ReportActivityAsync(
-        SignalDelivery delivery, string operationId, string phase, string? detail = null)
-        => _activities.ReportAsync(delivery, operationId, phase, Id, detail);
 
     public sealed override async Task OnActivateAsync(CancellationToken cancellationToken)
     {
@@ -328,7 +321,6 @@ public abstract class Neuron :
 
         try
         {
-            await ReportActivityAsync(delivery, $"{Id}/{delivery.SignalId}/handle", "running").ConfigureAwait(true);
             var outcome = await _components.Dispatcher.DispatchAsync(
                     this,
                     delivery.Signal,
@@ -345,16 +337,11 @@ public abstract class Neuron :
             await _components.Journals.NotifyWatchersAsync()
                 .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
 
-            await ReportActivityAsync(delivery, $"{Id}/{delivery.SignalId}/handle", "completed",
-                outcome == DeliveryOutcome.Handled ? null : $"Delivery {outcome.ToString().ToLowerInvariant()}.").ConfigureAwait(true);
-
             return outcome;
         }
         catch (Exception failure)
         {
             handling?.SetStatus(ActivityStatusCode.Error, failure.Message);
-            await ReportActivityAsync(delivery, $"{Id}/{delivery.SignalId}/handle",
-                failure is OperationCanceledException ? "cancelled" : "failed", failure.Message).ConfigureAwait(true);
             throw;
         }
         finally
