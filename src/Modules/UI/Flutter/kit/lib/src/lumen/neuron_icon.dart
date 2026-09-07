@@ -80,9 +80,6 @@ final class NeuronIcon extends StatelessWidget {
   }
 
   static const _brandAssets = <NeuronIconKind, String>{
-    NeuronIconKind.gmail: 'assets/brands/gmail.svg',
-    NeuronIconKind.salesforce: 'assets/brands/salesforce.svg',
     NeuronIconKind.aspire: 'assets/brands/aspire-icon-32.svg',
-    NeuronIconKind.github: 'assets/brands/github.svg',
   };
 }

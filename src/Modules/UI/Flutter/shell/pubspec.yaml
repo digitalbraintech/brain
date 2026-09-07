@@ -40,5 +40,4 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/salesforce.svg
     - assets/google-signin-light-2x.png

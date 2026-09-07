@@ -118,34 +118,7 @@ extension _BrainChatPresentation on _BrainChatScreenState {
         },
   );
 
-  Widget _loginCard(ChatLoginAction login) => switch (login.action.provider) {
-    'github' => ProviderLoginCard(
-      key: ValueKey(login.key),
-      login: login,
-      provider: 'github',
-      displayName: 'GitHub',
-      actionLabel: 'Connect GitHub',
-      kernelBaseUri: widget.kernelBaseUri,
-      onOpenSignIn: widget.onOpenSignIn,
-      onCancelTurn: widget.onCancelTurn,
-      leading: const Icon(Icons.code),
-    ),
-    'salesforce' => SalesforceLoginCard(
-      key: ValueKey(login.key),
-      login: login,
-      kernelBaseUri: widget.kernelBaseUri,
-      onOpenSignIn: widget.onOpenSignIn,
-      onCancelTurn: widget.onCancelTurn,
-    ),
-    'gmail' => GmailLoginCard(
-      key: ValueKey(login.key),
-      login: login,
-      kernelBaseUri: widget.kernelBaseUri,
-      onOpenSignIn: widget.onOpenSignIn,
-      onCancelTurn: widget.onCancelTurn,
-    ),
-    _ => const SizedBox.shrink(),
-  };
+  Widget _loginCard(ChatLoginAction _) => const SizedBox.shrink();
 
   Widget _buildCompactChat() => StreamBuilder<ChatOperation>(
     stream: _controller.operationsStream,

@@ -5,15 +5,8 @@ using DigitalBrain.AI.Aspire.Hosting;
 using DigitalBrain.AI.FoundryLocal;
 using DigitalBrain.Aspire.Hosting;
 using DigitalBrain.Execution;
-using DigitalBrain.Google;
-using DigitalBrain.Google.Aspire.Hosting;
 using DigitalBrain.Memory;
 using DigitalBrain.Memory.Aspire.Hosting;
-using DigitalBrain.Microsoft;
-using DigitalBrain.Microsoft.Hosting;
-using DigitalBrain.Salesforce;
-using DigitalBrain.Salesforce.Aspire.Hosting;
-using DigitalBrain.Excel;
 using DigitalBrain.Time;
 using DigitalBrain.UI;
 using DigitalBrain.UI.Aspire.Hosting;
@@ -80,13 +73,7 @@ var brain = builder.AddDigitalBrain(ProductSurfaceResources.Brain)
     })
     .AddModule<MemoryModule>(memory => memory.WithQdrant())
     .AddModule<TimeModule>()
-    .AddModule<ExcelModule>()
     .AddModule<ExecutionModule>()
-    .AddModule<GoogleModule>(google => google.WithGmail())
-    .AddModule<SalesforceModule>(salesforce => salesforce.WithHostedMcp())
-    .AddModule<MicrosoftModule>(microsoft => microsoft.WithAspire(
-        Path.Combine(builder.AppHostDirectory, "DigitalBrain.AppHost.csproj"), ShellHostingExtensions.DefaultOwner)
-        .WithConfiguredGitHubRepositories(builder.Configuration))
     .AddModule<UIModule>(ui =>
     {
         ui.WithWindowHost();

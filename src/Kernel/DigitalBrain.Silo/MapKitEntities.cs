@@ -1,6 +1,5 @@
 using DigitalBrain.Abstractions.Identity;
 using DigitalBrain.Abstractions;
-using DigitalBrain.Excel;
 using DigitalBrain.UI;
 
 namespace DigitalBrain.Kernel;
@@ -73,23 +72,6 @@ internal static class KitEntitiesHttpMaps
 
                 var blob = await imageStore.ReadAsync(state.BlobName, cancellationToken).ConfigureAwait(false);
                 return blob is null ? Results.NotFound() : Results.File(blob.Value.Content, blob.Value.MediaType);
-            });
-
-        endpoints.MapGet(
-            HttpSurfacePaths.KitSpreadsheetPath,
-            static async Task<IResult> (string spreadsheetName, IDigitalBrain brain, CancellationToken cancellationToken) =>
-            {
-                ArgumentNullException.ThrowIfNull(brain);
-                cancellationToken.ThrowIfCancellationRequested();
-
-                if (string.IsNullOrWhiteSpace(spreadsheetName)
-                    || !TryPrincipalResource(HttpActor.Current.PrincipalId, spreadsheetName, out var instance))
-                {
-                    return Results.BadRequest();
-                }
-
-                var state = await brain.GetEntity<IExcel>(instance).Read().ConfigureAwait(false);
-                return state is null ? Results.NotFound() : Results.Ok(state);
             });
 
         endpoints.MapGet(
