@@ -45,6 +45,11 @@ Not brought back in this phase: Scripting, AI, Memory, Time, SmartPrompt, Integr
 UI/Flutter. Each returns later as a package of reactive neuron types that plug into the
 same four operations. Scripting first.
 
+## Storage compatibility
+
+Journal tally keys and grain interface aliases changed to `db.v3.*`. A pre-existing development
+store cannot be read by this build and must be wiped; there is no migration.
+
 ## Order of work
 
 1. Cut Contracts and the runtime down to the model. `fire`, `connect`, `journal` green.

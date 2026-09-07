@@ -13,6 +13,7 @@ public sealed class OperationSteps(BrainSteps brain)
     private JournalView? _timed;
     private Exception? _error;
     private List<string> _walk = [];
+    private int _types;
 
     private BrainOperations Ops => new(brain.Brain.Grains);
 
@@ -40,6 +41,23 @@ public sealed class OperationSteps(BrainSteps brain)
             await Try(() => Ops.FireAsync(session, new(type, body, to)));
         }
     }
+
+    // Type names are letters only, so the distinct types are a base-26 encoding of the index.
+    [When(@"session ""(.*)"" fires (\d+) distinct types at ""(.*)""")]
+    public async Task SessionFiresManyTypes(string session, int count, string to)
+    {
+        for (var i = 0; i < count; i++)
+        {
+            await Try(() => Ops.FireAsync(session, new(TypeName(i), "{}", to)));
+            Assert.Null(_error);
+        }
+
+        _types = count;
+    }
+
+    [When(@"session ""(.*)"" fires one more distinct type at ""(.*)""")]
+    public Task SessionFiresOneMoreType(string session, string to)
+        => Try(() => Ops.FireAsync(session, new(TypeName(_types++), "{}", to)));
 
     [When(@"""(.*)"" is read$")]
     public async Task Read(string neuron) => _read = await Ops.ReadAsync(new(neuron));
@@ -89,7 +107,7 @@ public sealed class OperationSteps(BrainSteps brain)
     public void ThenFailed(string fragment)
     {
         Assert.NotNull(_error);
-        Assert.Contains(fragment, _error.Message, StringComparison.Ordinal);
+        Assert.Contains(fragment, Flatten(_error).Message, StringComparison.Ordinal);
     }
 
     [Then(@"the fire result reports (\d+) delivered")]
@@ -137,6 +155,15 @@ public sealed class OperationSteps(BrainSteps brain)
 
     [Then(@"the timed read returned (\d+) entries")]
     public void ThenTimed(int count) => Assert.Equal(count, _timed!.Entries.Count);
+
+    private static string TypeName(int index)
+    {
+        Span<char> letters = ['T', (char)('a' + (index / 676 % 26)), (char)('a' + (index / 26 % 26)), (char)('a' + (index % 26))];
+        return new(letters);
+    }
+
+    private static Exception Flatten(Exception error)
+        => error is AggregateException aggregate ? aggregate.Flatten().InnerExceptions[0] : error;
 
     private async Task Try(Func<Task<FireResult>> action)
     {

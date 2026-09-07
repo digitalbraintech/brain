@@ -23,3 +23,9 @@ Feature: MCP surface
     And an MCP client for principal "claude"
     When the tool "fire" is called with {"type":"note 1","body":"{}","to":"x"}
     Then the last tool call failed with a message containing "letters only"
+
+  Scenario: The fire tool returns the signal id, correlation and delivered count
+    Given a running brain
+    And an MCP client for principal "claude"
+    When the tool "fire" is called with {"type":"Note","body":"{\"text\":\"x\"}","to":"run-tests"}
+    Then the last tool result is JSON with "signalId, correlation, delivered"

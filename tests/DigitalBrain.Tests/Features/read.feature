@@ -61,3 +61,11 @@ Feature: Read
     And session "claude" fires "Note" {"text":"b"} at "two"
     Then "claude" outgoing journal has 2 entries
     And "claude" has 2 synapses
+
+  Scenario: Two principals fire from their own Session neurons
+    Given a running brain
+    When session "alice" fires "Note" {} at "one"
+    And session "bob" fires "Note" {} at "two"
+    Then "alice" has 1 synapses
+    And "bob" has 1 synapses
+    And "alice" outgoing journal has 1 entries

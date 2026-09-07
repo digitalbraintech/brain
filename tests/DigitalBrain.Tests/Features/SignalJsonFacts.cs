@@ -1,6 +1,7 @@
 using System.Text.Json;
 using DigitalBrain.Abstractions.Identity;
 using DigitalBrain.Abstractions.Signals;
+using DigitalBrain.Abstractions.Synapses;
 using Xunit;
 
 namespace DigitalBrain.Tests;
@@ -22,5 +23,21 @@ public sealed class SignalJsonFacts
         var restored = JsonSerializer.Deserialize<SignalDelivery>(json);
 
         Assert.Equal(delivery, restored);
+    }
+
+    [Fact]
+    public void SynapseSurvivesJsonRoundTrip()
+    {
+        Synapse synapse = new(NeuronId.Plain("git"), NeuronId.Plain("run-tests"), "Note", DateTimeOffset.UnixEpoch);
+
+        Assert.Equal(synapse, JsonSerializer.Deserialize<Synapse>(JsonSerializer.Serialize(synapse)));
+    }
+
+    [Fact]
+    public void FireOutcomeSurvivesJsonRoundTrip()
+    {
+        FireOutcome outcome = new(SignalId.New(), CorrelationId.New(), 2);
+
+        Assert.Equal(outcome, JsonSerializer.Deserialize<FireOutcome>(JsonSerializer.Serialize(outcome)));
     }
 }

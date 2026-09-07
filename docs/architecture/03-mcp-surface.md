@@ -14,7 +14,7 @@ use any of it. Every tool acts as, or reads through, the caller's Session neuron
 | `fire` | `type`, `body`, optional `to`, optional `correlation` | Emits the signal from the Session. Without `to`: along every Session synapse of that type. With `to`: along exactly that one synapse, creating it first if missing. Returns signal id and correlation. |
 | `connect` | `from`, `to`, `type` | Creates the synapse. Idempotent. Neurons that do not exist yet come into being by being named. |
 | `disconnect` | `from`, `to`, `type` | Removes the synapse. No-op if absent. |
-| `read` | `neuron`, optional `what`, optional `after`, optional `timeout` | Returns a view of the neuron. `what` is one of `state`, `synapses`, `incoming`, `outgoing`; omitted means all four. `after` is a journal sequence. `timeout` makes an `incoming`/`outgoing` read block until a new entry appears or the timeout elapses. |
+| `read` | `neuron`, optional `what`, optional `after`, optional `timeoutSeconds` | Returns a view of the neuron. `what` is one of `state`, `synapses`, `incoming`, `outgoing`; omitted means all four. `after` is a journal sequence. `timeoutSeconds` makes an `incoming`/`outgoing` read block until a new entry appears or the timeout elapses; it is clamped to 60 seconds. A default read (no `what`) spends one deadline across both journals, not one each. |
 
 ## Decisions
 
@@ -27,8 +27,9 @@ does not exist.
 and a neuron with no traffic and no synapses costs nothing. The graph is whatever has been
 named.
 
-**There is no `wait`.** Waiting is `read` with `timeout`: poll the journal after a sequence,
-return the next entry or time out. In the memory flow it is never needed. It exists for
+**There is no `wait`.** Waiting is `read` with `timeoutSeconds`: poll the journal after a sequence,
+return the next entry or time out. The ceiling is 60 seconds, because a read is a query and not a
+subscription; a client that wants to wait longer reads again. In the memory flow it is never needed. It exists for
 future reactive neurons and for two Sessions talking.
 
 **`read` defaults to everything.** The recall pattern is: read a topic, follow its synapses,
@@ -71,6 +72,6 @@ it. Tool descriptions and error messages are tuned until it can.
 2. `fire` without `to` delivers to every Session synapse of that type and nothing else.
 3. `connect` twice is one synapse; `disconnect` of nothing succeeds.
 4. `read` never changes any journal, tally, or synapse on any neuron.
-5. `read` with `timeout` returns as soon as a matching entry arrives, and returns empty at the deadline.
+5. `read` with `timeoutSeconds` returns as soon as a matching entry arrives, and returns empty at the deadline.
 6. A rejected fire (payload cap, bad type name) produces no delivery and no journal entry on either end.
 7. Two connections with the same principal fire from the same Session neuron.

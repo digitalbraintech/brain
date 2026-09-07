@@ -11,7 +11,6 @@ namespace DigitalBrain.Abstractions.Signals;
 public sealed partial record Signal
 {
     public const int MaxBodyBytes = 65_536;
-    public const int MaxTypeLength = 64;
 
     // Rehydration path for the JSON journal format, which persists durable state (including
     // each neuron's latest-per-type map). Create is still the only validating entry point.
@@ -39,7 +38,7 @@ public sealed partial record Signal
         if (bytes > MaxBodyBytes)
         {
             throw new SignalRejectedException(
-                $"Signal body is {bytes / 1024} KB; the limit is {MaxBodyBytes / 1024} KB. "
+                $"Signal body is {(bytes + 1023) / 1024} KB; the limit is {MaxBodyBytes / 1024} KB. "
                 + "Split the content across neurons or store it externally and fire a reference.");
         }
 

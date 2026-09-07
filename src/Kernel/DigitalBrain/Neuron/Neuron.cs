@@ -11,6 +11,10 @@ namespace DigitalBrain.Core;
 // latest signal of each type it received. Fire travels along synapses; nothing else routes.
 public abstract class Neuron : DurableGrain, INeuron, INeuronQuery
 {
+    // Latest-per-type is keyed by type name, so a caller putting identity in the type would
+    // grow it without bound. The cap turns that mistake into one sentence of advice.
+    public const int MaxSignalTypesPerNeuron = 256;
+
     private readonly NeuronActivationComponents _components;
     private SignalDelivery? _handling;
 
@@ -66,6 +70,13 @@ public abstract class Neuron : DurableGrain, INeuron, INeuronQuery
     {
         ArgumentNullException.ThrowIfNull(delivery);
         cancellationToken.ThrowIfCancellationRequested();
+
+        if (_components.Latest.Count >= MaxSignalTypesPerNeuron && !_components.Latest.ContainsKey(delivery.Signal.Type))
+        {
+            throw new SignalRejectedException(
+                $"Neuron '{Id}' already remembers {MaxSignalTypesPerNeuron} signal types. "
+                + "Type names are vocabulary such as 'Note'; put identity in the neuron name.");
+        }
 
         _components.Journals.AppendIncoming(delivery);
         _components.Latest[delivery.Signal.Type] = delivery;

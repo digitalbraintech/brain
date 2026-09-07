@@ -27,3 +27,12 @@ Feature: Connect
     Then "never-touched" has 0 synapses
     And "never-touched" incoming journal is empty
     And "never-touched" state is empty
+
+  Scenario: A synapse survives a restart
+    Given a running brain with durable storage
+    And "git" is connected to "run-tests" for "Note"
+    When the silo restarts
+    Then "git" has 1 synapses
+    When "git" fires "Note" {"text":"still wired"}
+    Then the fire reached 1 neurons
+    And "run-tests" incoming journal contains "Note" {"text":"still wired"}

@@ -15,7 +15,9 @@ moves, nothing is journaled, no synapse is involved.
 
 **Membrane.** A signal payload is capped at 64 KB. Larger signals are rejected before
 delivery with no journal entry on either end. Latest-per-type is unbounded in count, so the
-cap is what keeps any neuron's durable footprint in the low megabytes.
+cap is what keeps any neuron's durable footprint in the low megabytes. A neuron remembers at
+most 256 distinct signal types; the 257th is rejected with the vocabulary message, because a
+type name carrying identity would grow latest-per-type without bound.
 
 **Synapse.** A directed edge `A -> B` for one signal type `T`, stored on `A`. It is the
 only routing fact in the system. Whether `B` receives `T` from `A` is decided entirely by
@@ -40,6 +42,11 @@ neurons that Fire too.
 carries correlation. "Ask and wait" is a client convenience (`read` with a timeout): poll the caller's incoming
 journal for the next signal with that correlation, with a timeout. A conversation
 therefore needs synapses in both directions, created explicitly.
+
+`Deliver` is an awaited, non-reentrant grain call, so a neuron must never Fire back at the
+neuron that is currently delivering to it from inside `ReceiveAsync`; the cycle guard rejects it.
+A reply is fired from a later turn: a timer, a reminder, or the next incoming signal. Making
+`Deliver` one-way and queued, so a reply can be immediate, is the next phase.
 
 ## What was deleted, and why
 

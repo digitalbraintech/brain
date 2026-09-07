@@ -8,12 +8,15 @@ namespace DigitalBrain.Mcp;
 // The client. Four operations; the MCP tools are thin wrappers over these.
 public sealed class BrainOperations(IGrainFactory grains)
 {
+    // A read is a query, not a subscription: a client that wants to wait longer polls again.
+    public const int MaxTimeoutSeconds = 60;
+
     private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(100);
 
     public async Task<FireResult> FireAsync(string session, FireRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var from = Parse(session, nameof(session));
+        var from = Session(session);
         var signal = Signal.Create(request.Type, request.Body);
         NeuronId? to = request.To is null ? null : Parse(request.To, nameof(request));
         var correlation = ParseCorrelation(request.Correlation);
@@ -50,7 +53,7 @@ public sealed class BrainOperations(IGrainFactory grains)
         }
 
         // One budget for the whole read: a default read must not wait it out twice.
-        var deadline = DateTimeOffset.UtcNow.AddSeconds(Math.Max(0, request.TimeoutSeconds));
+        var deadline = DateTimeOffset.UtcNow.AddSeconds(Math.Clamp(request.TimeoutSeconds, 0, MaxTimeoutSeconds));
         var all = string.IsNullOrEmpty(what);
         IReadOnlyList<StateEntry>? state = null;
         IReadOnlyList<SynapseEntry>? synapses = null;
@@ -134,6 +137,19 @@ public sealed class BrainOperations(IGrainFactory grains)
         return Guid.TryParse(text, out var value)
             ? new CorrelationId(value)
             : throw new ArgumentException($"'{text}' is not a correlation id. Pass the GUID returned by an earlier fire, or omit it.", nameof(text));
+    }
+
+    // A principal names a plain neuron, never a typed one: the Session is an ordinary neuron.
+    private static NeuronId Session(string principal)
+    {
+        try
+        {
+            return NeuronId.Plain(principal);
+        }
+        catch (Exception error) when (error is ArgumentException or FormatException)
+        {
+            throw new ArgumentException("A principal is a bare name such as 'claude'; it names your Session neuron.", nameof(principal), error);
+        }
     }
 
     private static NeuronId Parse(string text, string parameter)

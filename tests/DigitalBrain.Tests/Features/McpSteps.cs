@@ -56,6 +56,17 @@ public sealed class McpSteps(BrainSteps brain)
         Assert.Contains(fragment, Text(_last), StringComparison.Ordinal);
     }
 
+    [Then(@"the last tool result is JSON with ""(.*)""")]
+    public void ThenResultShape(string properties)
+    {
+        Assert.False(_last!.IsError ?? false, Text(_last));
+        using var document = JsonDocument.Parse(Text(_last));
+        foreach (var property in properties.Split(", ", StringSplitOptions.TrimEntries))
+        {
+            Assert.True(document.RootElement.TryGetProperty(property, out _), property);
+        }
+    }
+
     [Then(@"the last tool call failed with a message containing ""(.*)""")]
     public void ThenFailed(string fragment)
     {

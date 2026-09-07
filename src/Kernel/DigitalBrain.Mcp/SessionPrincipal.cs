@@ -13,7 +13,13 @@ public sealed class SessionPrincipal
     public SessionPrincipal(string name)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
-        Name = name.Trim();
+        name = name.Trim();
+        if (name.Contains(':', StringComparison.Ordinal) || name.Any(char.IsWhiteSpace))
+        {
+            throw new ArgumentException("A principal is a bare name such as 'claude'; it names your Session neuron.", nameof(name));
+        }
+
+        Name = name;
     }
 
     public string Name { get; }

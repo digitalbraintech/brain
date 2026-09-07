@@ -13,8 +13,6 @@ internal sealed class NeuronSynapses(IDurableDictionary<string, Synapse> synapse
     internal IReadOnlyList<Synapse> ForType(string signalType)
         => [.. synapses.Values.Where(s => string.Equals(s.SignalType, signalType, StringComparison.Ordinal))];
 
-    internal bool Has(NeuronId target, string signalType) => synapses.ContainsKey(KeyFor(target, signalType));
-
     // Idempotent: connecting twice is one synapse.
     internal bool Connect(NeuronId target, string signalType)
     {

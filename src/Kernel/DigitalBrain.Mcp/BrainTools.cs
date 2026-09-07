@@ -60,7 +60,7 @@ public sealed class BrainTools(BrainOperations operations, SessionPrincipal sess
         [Description("Neuron name, e.g. git or run-tests-before-commit")] string neuron,
         [Description("state | synapses | incoming | outgoing; omit for all four")] string? what = null,
         [Description("Journal sequence to read after; 0 for the retained window")] long after = 0,
-        [Description("Seconds to wait for a new journal entry; 0 returns immediately")] int timeoutSeconds = 0,
+        [Description("Seconds to wait for a new journal entry, at most 60; 0 returns immediately")] int timeoutSeconds = 0,
         CancellationToken cancellationToken = default)
         => Guard(async () => JsonSerializer.Serialize(
             await operations.ReadAsync(new(neuron, what, after, timeoutSeconds), cancellationToken).ConfigureAwait(false), Json));

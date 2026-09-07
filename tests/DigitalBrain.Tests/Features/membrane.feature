@@ -24,3 +24,10 @@ Feature: Membrane
     Given a running brain
     When session "claude" fires "Confirmed" with an empty body at "run-tests"
     Then "run-tests" latest "Confirmed" is {}
+
+  Scenario: A neuron remembers at most 256 signal types
+    Given a running brain
+    When session "claude" fires 256 distinct types at "vocab"
+    And session "claude" fires one more distinct type at "vocab"
+    Then the operation failed with a message containing "vocabulary"
+    And "vocab" state has 256 entries
