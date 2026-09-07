@@ -9,22 +9,18 @@ namespace DigitalBrain.Core;
 
 public sealed class NeuronRuntime
 {
-    public NeuronRuntime(TimeProvider clock, SignalRouter router, SynapseOptions options)
+    public NeuronRuntime(TimeProvider clock, SignalRouter router)
     {
         ArgumentNullException.ThrowIfNull(clock);
         ArgumentNullException.ThrowIfNull(router);
-        ArgumentNullException.ThrowIfNull(options);
 
         Clock = clock;
         Router = router;
-        Options = options;
     }
 
     internal TimeProvider Clock { get; }
 
     internal SignalRouter Router { get; }
-
-    internal SynapseOptions Options { get; }
 
     internal SignalDispatcher Dispatcher { get; } = new();
 
@@ -40,7 +36,6 @@ public sealed class NeuronRuntime
         var journals = new NeuronJournals(neuronId, incoming, outgoing);
         var synapses = new NeuronSynapses(
             activationServices.GetRequiredKeyedService<IDurableDictionary<string, Synapse>>("synapses"),
-            Options,
             neuronId,
             Clock);
 

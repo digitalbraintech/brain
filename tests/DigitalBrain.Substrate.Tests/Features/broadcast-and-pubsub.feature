@@ -1,7 +1,7 @@
 Feature: Broadcast versus named-instance pub/sub
   Broadcast fires only along synapses on the source. IHandle<T> is the capability
   to receive T; it does not subscribe every instance of a type. SubscribeTo writes
-  a Bound synapse (does not decay). A handled directed Send writes a Learned synapse
+  a Bound synapse. A handled directed Send writes a Learned synapse
   as a causal observation, but only Bound or Innate synapses participate in broadcast.
 
   Broadcast receiver set:

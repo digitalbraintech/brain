@@ -26,7 +26,6 @@ public static class DigitalBrainRuntime
             options => options.FireAndForgetDelivery = false);
         ModelPayloadSerialization.AddModelPayloadSerialization(builder.Services);
         builder.Services.TryAddSingleton<TimeProvider>(TimeProvider.System);
-        builder.Services.TryAddSingleton<SynapseOptions>();
         builder.Services.TryAddSingleton<SignalRouter>();
         builder.Services.TryAddSingleton<NeuronRuntime>();
         builder.AddIncomingGrainCallFilter<NeuronMembraneFilter>();

@@ -5,7 +5,7 @@ Feature: Journal versus snapshot versus durable anatomy
   * Traffic journal (neuron only): bounded SignalDelivery window — who fired what,
     when, with which correlation. Compacted to 512 entries / 512 KB.
   * Synapses (on the source neuron, IDurableDictionary): durable routing anatomy,
-    not a log. Weight, fire count, last fired. Not sequence-numbered.
+    not a log. Kind, fire count, last fired. Not sequence-numbered.
   * Entity snapshot (IPersistentState): current value. Chart points, profile bio.
     No journal, no synapses, never a graph endpoint.
   * Orleans.Journaling DurableGrain: infrastructure replay of collection ops.
