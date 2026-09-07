@@ -1,9 +1,9 @@
-# Same catalog as root `.mcp.json` so Grok name-collisions with ~/.claude.json
-# still resolve to the project launch lines. Keep in lockstep with `.mcp.json`.
-
 [mcp_servers.aspire]
 command = "aspire"
-args = ["agent", "mcp"]
+args = [
+    "agent",
+    "mcp",
+]
 startup_timeout_sec = 20
 
 [mcp_servers.dart]
@@ -17,20 +17,33 @@ startup_timeout_sec = 15
 
 [mcp_servers.context7]
 command = "cmd"
-args = ["/c", "npx", "-y", "@upstash/context7-mcp@latest"]
+args = [
+    "/c",
+    "npx",
+    "-y",
+    "@upstash/context7-mcp@latest",
+]
 startup_timeout_sec = 45
 
 [mcp_servers.codegraph]
 command = "cmd"
-args = ["/c", "npx", "-y", "@colbymchenry/codegraph@latest", "serve", "--mcp"]
+args = [
+    "/c",
+    "npx",
+    "-y",
+    "@colbymchenry/codegraph@latest",
+    "serve",
+    "--mcp",
+]
 startup_timeout_sec = 45
 
 [mcp_servers.digitalbrain-mcp]
-url = "http://localhost:5000/mcp"
+url = "http://localhost:5080/mcp"
 startup_timeout_sec = 15
 
-
-# Skills/hooks only — no plugins that inject MCP servers.
+[mcp_servers.digitalbrain]
+url = "http://localhost:5080/mcp?principal=grok"
+enabled = true
 
 [plugins]
 enabled = [

@@ -29,7 +29,7 @@
     },
     "digitalbrain-mcp": {
       "type": "http",
-      "url": "http://localhost:5000/mcp"
+      "url": "http://localhost:5080/mcp"
     }
   }
 }
