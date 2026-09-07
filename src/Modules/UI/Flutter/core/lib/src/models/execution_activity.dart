@@ -56,10 +56,9 @@ final class ExecutionActivityEvent {
     required this.timestamp,
     this.causationId,
     this.targetNeuronId,
-    this.behaviorRevision,
   });
   final String operationId, signalId, sourceNeuronId, signalType, phase;
-  final String? causationId, targetNeuronId, behaviorRevision;
+  final String? causationId, targetNeuronId;
   final DateTime timestamp;
   factory ExecutionActivityEvent.fromJson(Map<String, dynamic> j) =>
       ExecutionActivityEvent(
@@ -70,7 +69,6 @@ final class ExecutionActivityEvent {
         signalType: j['signalType'] as String? ?? '',
         phase: j['phase'] as String? ?? '',
         causationId: j['causationId'] as String?,
-        behaviorRevision: j['behaviorRevision'] as String?,
         timestamp: DateTime.parse(j['timestamp'] as String),
       );
 }

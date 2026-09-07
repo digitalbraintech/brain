@@ -29,6 +29,11 @@ public sealed class SignalRouter
         var seen = new HashSet<NeuronId> { source };
         foreach (var synapse in synapses.ForSignal(signal.GetType().Name))
         {
+            if (synapse.Kind is not (SynapseKind.Bound or SynapseKind.Innate))
+            {
+                continue;
+            }
+
             if (envelope is { } id && synapse.Correlation is { } scoped && scoped != id)
             {
                 continue;

@@ -113,6 +113,37 @@ internal sealed class McpHttpTransport<TIdentity, TConnection>(McpEndpoint endpo
     }
 }
 
+internal sealed class McpLocalHttpTransport<TIdentity>(McpEndpoint endpoint, Func<HttpClient> createHttpClient,
+    TimeSpan timeout) : McpConnectionTransport<TIdentity> where TIdentity : notnull
+{
+    internal override object Binding(TIdentity identity) => endpoint;
+
+    internal override async Task<McpTransportLease> ConnectAsync(TIdentity identity, object binding,
+        BearerTokenHandler.ResponseBudget budget, CancellationToken cancellationToken)
+    {
+        var http = createHttpClient();
+        http.Timeout = timeout;
+        try
+        {
+            var transport = new HttpClientTransport(new HttpClientTransportOptions
+            {
+                Endpoint = endpoint.Uri,
+                TransportMode = HttpTransportMode.StreamableHttp,
+                EnableStandaloneGetStream = false,
+                MaxReconnectionAttempts = 0,
+            }, http);
+            var client = await McpClient.CreateAsync(transport,
+                new McpClientOptions { InitializationTimeout = timeout }, cancellationToken: cancellationToken).ConfigureAwait(false);
+            return new(client, http);
+        }
+        catch
+        {
+            http.Dispose();
+            throw;
+        }
+    }
+}
+
 internal sealed class McpTransportLease(McpClient client, HttpClient? http = null, BearerTokenHandler? handler = null) : IAsyncDisposable
 {
     internal McpClient Client { get; } = client;

@@ -18,6 +18,7 @@ public sealed class McpDiscoveredToolClient<TIdentity> : IAsyncDisposable where 
     private readonly string _name;
     private readonly McpSessionOptions _options;
     private readonly HashSet<string> _allowed;
+    private readonly Func<string, bool>? _allowTool;
     private readonly McpConnectionTransport<TIdentity> _transport;
     private readonly McpToolPolicy _policy;
     private readonly Func<McpClient, TIdentity, CancellationToken, Task>? _configureSession;
@@ -64,9 +65,26 @@ public sealed class McpDiscoveredToolClient<TIdentity> : IAsyncDisposable where 
             new McpHttpTransport<TIdentity, TConnection>(endpoint, credentials, owner, authorize, options.Timeout ?? TimeSpan.FromSeconds(30)), policy);
     }
 
+    /// <summary>Connects to an explicitly configured local MCP server without external credentials.</summary>
+    public static McpDiscoveredToolClient<TIdentity> ForLocalHttp(McpEndpoint endpoint,
+        Func<HttpClient> createHttpClient, Func<string, bool> allowTool, McpSessionOptions? options = null)
+    {
+        ArgumentNullException.ThrowIfNull(endpoint);
+        ArgumentNullException.ThrowIfNull(createHttpClient);
+        ArgumentNullException.ThrowIfNull(allowTool);
+        if (!endpoint.Uri.IsLoopback)
+        {
+            throw new ArgumentException("An unauthenticated local MCP connection requires a loopback endpoint.", nameof(endpoint));
+        }
+        options ??= new();
+        return new(endpoint.Name, options, [], new McpLocalHttpTransport<TIdentity>(endpoint, createHttpClient,
+            options.Timeout ?? TimeSpan.FromSeconds(30)), new McpToolPolicy(static _ => false), allowTool: allowTool);
+    }
+
     internal McpDiscoveredToolClient(string name, McpSessionOptions options,
         IReadOnlyCollection<string> allowedToolNames, McpConnectionTransport<TIdentity> transport,
-        McpToolPolicy policy, Func<McpClient, TIdentity, CancellationToken, Task>? configureSession = null)
+        McpToolPolicy policy, Func<McpClient, TIdentity, CancellationToken, Task>? configureSession = null,
+        Func<string, bool>? allowTool = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentOutOfRangeException.ThrowIfLessThan(options.Capacity, 1);
@@ -79,6 +97,7 @@ public sealed class McpDiscoveredToolClient<TIdentity> : IAsyncDisposable where 
         _name = name;
         _options = options;
         _allowed = new HashSet<string>(allowedToolNames, StringComparer.Ordinal);
+        _allowTool = allowTool;
         _transport = transport;
         _policy = policy;
         _configureSession = configureSession;
@@ -320,7 +339,7 @@ public sealed class McpDiscoveredToolClient<TIdentity> : IAsyncDisposable where 
         }
     }
 
-    private bool IsAllowed(string tool) => _allowed.Contains(tool);
+    private bool IsAllowed(string tool) => _allowTool?.Invoke(tool) ?? _allowed.Contains(tool);
 
     private static void RequireBinding(object? expected, object actual)
     {

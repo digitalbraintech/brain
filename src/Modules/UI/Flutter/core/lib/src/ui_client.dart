@@ -12,10 +12,10 @@ import 'sse_chat_frames.dart';
 import 'sse_frames.dart';
 import 'ui_models.dart';
 import 'models/brain_models.dart';
-import 'models/behavior_models.dart';
+import 'models/application_models.dart';
 import 'models/execution_activity.dart';
 
-final class DigitalBrainUiClient implements BehaviorStudioApi {
+final class DigitalBrainUiClient implements ApplicationStudioApi {
   /// Gated on the kernel; 404 when the kernel runs ungated.
   static const authCheckPath = '/auth/check';
 
@@ -71,82 +71,150 @@ final class DigitalBrainUiClient implements BehaviorStudioApi {
   final bool _ownsClient;
 
   @override
-  Future<List<SavedBehavior>> listBehaviors() async {
+  Future<List<ApplicationSummary>> listApplications() async {
     final response = await _request(
       'GET',
-      '/behaviors',
+      '/applications',
       timeout: const Duration(seconds: 15),
     );
     return (jsonDecode(response.body) as List)
         .map(
-          (value) =>
-              SavedBehavior.fromJson((value as Map).cast<String, dynamic>()),
+          (value) => ApplicationSummary.fromJson(
+            (value as Map).cast<String, dynamic>(),
+          ),
         )
         .toList();
   }
 
   @override
-  Future<SavedBehavior> readBehavior(String name) async {
+  Future<String> applicationTemplate(String key) async {
     final response = await _request(
       'GET',
-      '/behaviors/${Uri.encodeComponent(name)}',
+      '/applications/${Uri.encodeComponent(key)}/template',
       timeout: const Duration(seconds: 15),
     );
-    return SavedBehavior.fromJson(
+    return jsonDecode(response.body) as String;
+  }
+
+  @override
+  Future<ApplicationSource> readApplication(String key) async {
+    final response = await _request(
+      'GET',
+      '/applications/${Uri.encodeComponent(key)}',
+      timeout: const Duration(seconds: 15),
+    );
+    return ApplicationSource.fromJson(
       jsonDecode(response.body) as Map<String, dynamic>,
     );
   }
 
-  Future<SavedBehavior> _behaviorCommand(
-    String name,
+  @override
+  Future<List<String>> listApplicationFiles(String key) async {
+    final response = await _request(
+      'GET',
+      '/applications/${Uri.encodeComponent(key)}/files',
+    );
+    return (jsonDecode(response.body) as List).cast<String>();
+  }
+
+  @override
+  Future<ApplicationSource> readApplicationFile(String key, String path) async {
+    final uri = Uri(
+      path: '/applications/${Uri.encodeComponent(key)}/file',
+      queryParameters: {'path': path},
+    );
+    final response = await _request('GET', uri.toString());
+    return ApplicationSource.fromJson(
+      jsonDecode(response.body) as Map<String, dynamic>,
+    );
+  }
+
+  Future<Map<String, dynamic>> _applicationCommand(
+    String key,
     String operation,
     Map<String, Object?> body,
   ) async {
     final response = await _request(
       'POST',
-      '/behaviors/${Uri.encodeComponent(name)}/$operation',
+      '/applications/${Uri.encodeComponent(key)}/$operation',
       body: body,
       timeout: const Duration(seconds: 30),
     );
-    return SavedBehavior.fromJson(
-      jsonDecode(response.body) as Map<String, dynamic>,
-    );
+    return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
   @override
-  Future<SavedBehavior> saveBehavior(
-    String name, {
+  Future<ApplicationSource> saveApplication(
+    String key, {
     required String source,
-    required List<String> inputSignalTypes,
-    required List<String> outputSignalTypes,
-    String? expectedDraftRevision,
-    int? inputPolicy,
-  }) => _behaviorCommand(name, 'save', {
-    'source': source,
-    'inputSignalTypes': inputSignalTypes,
-    'outputSignalTypes': outputSignalTypes,
-    'expectedDraftRevision': expectedDraftRevision,
-    'inputPolicy': ?inputPolicy,
-  });
+    required String? expectedRevision,
+  }) async => ApplicationSource.fromJson(
+    await _applicationCommand(key, 'save', {
+      'source': source,
+      'expectedRevision': expectedRevision,
+    }),
+  );
+
   @override
-  Future<SavedBehavior> enableBehavior(
-    String name, {
-    String? expectedDraftRevision,
-  }) => _behaviorCommand(name, 'enable', {
-    'expectedDraftRevision': expectedDraftRevision,
-  });
+  Future<ApplicationSource> saveApplicationFile(
+    String key, {
+    required String path,
+    required String source,
+    required String expectedRevision,
+  }) async => ApplicationSource.fromJson(
+    await _applicationCommand(key, 'file', {
+      'path': path,
+      'source': source,
+      'expectedRevision': expectedRevision,
+    }),
+  );
+
   @override
-  Future<SavedBehavior> disableBehavior(String name) =>
-      _behaviorCommand(name, 'disable', {});
+  Future<ApplicationScenarioReport?> readApplicationScenarios(
+    String key, {
+    required String expectedSourceRevision,
+  }) async {
+    final uri = Uri(
+      path: '/applications/${Uri.encodeComponent(key)}/scenarios',
+      queryParameters: {'expectedSourceRevision': expectedSourceRevision},
+    );
+    final response = await _request('GET', uri.toString(), allowNotFound: true);
+    if (response.statusCode == 404) return null;
+    final decoded = jsonDecode(response.body);
+    return decoded == null
+        ? null
+        : ApplicationScenarioReport.fromJson(decoded as Map<String, dynamic>);
+  }
+
   @override
-  Future<SavedBehavior> invokeBehavior(
-    String name, {
-    required String inputType,
-    required Map<String, dynamic> input,
-  }) => _behaviorCommand(name, 'invoke', {
-    'inputType': inputType,
-    'input': input,
-  });
+  Future<ApplicationScenarioReport> runApplicationScenarios(
+    String key, {
+    required String expectedSourceRevision,
+  }) async => ApplicationScenarioReport.fromJson(
+    await _applicationCommand(key, 'scenarios/run', {
+      'expectedSourceRevision': expectedSourceRevision,
+    }),
+  );
+
+  @override
+  Future<ApplicationValidation> validateApplication(
+    String key, {
+    required String expectedSourceRevision,
+  }) async => ApplicationValidation.fromJson(
+    await _applicationCommand(key, 'validate', {
+      'expectedSourceRevision': expectedSourceRevision,
+    }),
+  );
+
+  @override
+  Future<ApplicationActivation> activateApplication(
+    String key, {
+    required String expectedSourceRevision,
+  }) async => ApplicationActivation.fromJson(
+    await _applicationCommand(key, 'activate', {
+      'expectedSourceRevision': expectedSourceRevision,
+    }),
+  );
 
   Future<List<ChatTurnEvent>> readActivityResults({
     required String surfaceName,
@@ -339,13 +407,14 @@ final class DigitalBrainUiClient implements BehaviorStudioApi {
     String path, {
     Map<String, Object?>? body,
     Duration? timeout,
+    bool allowNotFound = false,
   }) async {
     final abort = timeout == null ? null : Completer<void>();
     final request = abort == null
-        ? http.Request(method, baseUri.replace(path: path))
+        ? http.Request(method, baseUri.resolve(path))
         : http.AbortableRequest(
             method,
-            baseUri.replace(path: path),
+            baseUri.resolve(path),
             abortTrigger: abort.future,
           );
     if (body != null) {
@@ -364,7 +433,8 @@ final class DigitalBrainUiClient implements BehaviorStudioApi {
               throw TimeoutException('$method $path timed out', timeout);
             },
           );
-    if (response.statusCode < 200 || response.statusCode >= 300) {
+    if ((response.statusCode < 200 || response.statusCode >= 300) &&
+        !(allowNotFound && response.statusCode == 404)) {
       throw StateError(
         '$method $path failed: ${response.statusCode} ${response.body}',
       );
@@ -393,6 +463,23 @@ final class DigitalBrainUiClient implements BehaviorStudioApi {
         'surface.open failed: ${response.statusCode} ${response.body}',
       );
     }
+  }
+
+  Future<void> activateControl({
+    required String surfaceName,
+    required String surfaceKey,
+    required String controlId,
+    required String intent,
+  }) async {
+    await _request(
+      'POST',
+      '/surfaces/${Uri.encodeComponent(surfaceName)}/controls/'
+          '${Uri.encodeComponent(controlId)}/activate',
+      body: ActivateControlRequest(
+        intent: intent,
+        sceneKey: surfaceKey,
+      ).toJson(),
+    );
   }
 
   Future<void> cancelTurn({

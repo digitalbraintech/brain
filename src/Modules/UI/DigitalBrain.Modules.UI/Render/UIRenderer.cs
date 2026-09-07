@@ -3,6 +3,9 @@ using DigitalBrain.Abstractions.Identity;
 using DigitalBrain.Core;
 using DigitalBrain.Abstractions.Signals;
 using DigitalBrain.Abstractions.Neurons;
+using DigitalBrain.Product.Identity;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace DigitalBrain.UI;
 
@@ -23,20 +26,33 @@ internal sealed class UIRenderer(NeuronRuntime runtime) : Neuron(runtime), IUIRe
         }
 
         var surface = EntityId.For<ISurface>(Id.Owner, Id.Name);
-        await GrainFactory
-            .GetGrain<ISurface>(surface.ToGrainId())
-            .Open(new SurfaceScene(signal.SurfaceKey, signal.Title, signal.Root), RetainedScenes)
+        var surfaceGrain = GrainFactory.GetGrain<ISurface>(surface.ToGrainId());
+        var receipt = await surfaceGrain
+            .Open(signal.CommandId, new SurfaceScene(signal.SurfaceKey, signal.Title, signal.Root), RetainedScenes)
             .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
 
         await RecordOutgoingAsync(new SurfaceOpened(signal.CommandId, Id, signal.SurfaceKey, signal.Title))
             .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
+        foreach (var component in receipt.AddedComponents)
+        {
+            var eventId = StableComponentEventId(signal.CommandId, signal.SurfaceKey, component.Key!);
+            var delivery = CreateDelivery(
+                new ComponentAdded(signal.CommandId, Id, signal.SurfaceKey, component), signalId: eventId);
+            await RecordOutgoingAsync(delivery)
+                .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
+        }
     }
 
-    public Task HandleAsync(ControlActivated signal, CancellationToken cancellationToken)
+    public async Task HandleAsync(ControlActivated signal, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(signal);
         cancellationToken.ThrowIfCancellationRequested();
-        return Task.CompletedTask;
+        if (CurrentDelivery?.Principal is null)
+        {
+            throw new NeuronAuthorizationException("Control activation requires an authenticated principal.");
+        }
+        await RecordOutgoingAsync(signal)
+            .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
     }
 
     public async Task HandleAsync(ActivityChanged signal, CancellationToken cancellationToken)
@@ -51,4 +67,8 @@ internal sealed class UIRenderer(NeuronRuntime runtime) : Neuron(runtime), IUIRe
             .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
         await RecordOutgoingAsync(signal).ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
     }
+
+    private SignalId StableComponentEventId(CommandId commandId, string surfaceKey, string componentKey)
+        => new(new Guid(SHA256.HashData(Encoding.UTF8.GetBytes(
+            $"component-added:{Id}:{commandId}:{surfaceKey}:{componentKey}")).AsSpan(0, 16)));
 }

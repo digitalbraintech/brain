@@ -15,7 +15,7 @@ final class ActivateControlRequest {
 
   Map<String, Object?> toJson() => {
     'intent': intent,
-    if (sceneKey != null) 'sceneKey': sceneKey,
+    if (sceneKey != null) 'surfaceKey': sceneKey,
   };
 }
 

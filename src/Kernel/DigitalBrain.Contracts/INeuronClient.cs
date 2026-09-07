@@ -9,6 +9,7 @@ namespace DigitalBrain.Abstractions;
 internal interface INeuronClient
 {
     OwnerId Owner { get; }
+    PrincipalId? Principal { get; }
     Task<DeliveryOutcome> SendAsync(NeuronId receiver, Signal signal, CancellationToken cancellationToken);
     Task<TResponse> SendRequestAsync<TResponse>(NeuronId receiver, Signal request, CancellationToken cancellationToken)
         where TResponse : Signal;

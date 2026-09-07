@@ -539,8 +539,7 @@ internal sealed class Chat : Neuron, IChat, IChatKernel
     internal static bool CanRecoverSetupTurn(DurableTurnRecord turn)
         => turn.Status == ChatTurnStatus.Running && turn.SetupRecoveryAttempts < 3
             && turn.CompletedUserActionId is not null
-            && turn.SetupContinuation is { ToolName: "connect_github_repository" } setup
-            && (setup.BehaviorName is null || setup.BehaviorRevision is not null)
+            && turn.SetupContinuation is { ToolName: "connect_github_repository" }
             && turn.AllowedToolNames is ["connect_github_repository"];
 
     private async Task<TurnAccepted> EnqueueTurnAsync(SendMessage message)

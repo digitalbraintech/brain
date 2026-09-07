@@ -9,6 +9,10 @@
   <ItemGroup>
     <InternalsVisibleTo Include="DigitalBrain" />
     <InternalsVisibleTo Include="DigitalBrain.Sdk" />
+    <InternalsVisibleTo Include="DigitalBrain.Scripting" />
     <InternalsVisibleTo Include="DigitalBrain.Substrate.Tests" />
+    <InternalsVisibleTo Include="DigitalBrain.Modules.UI.Contracts" />
+    <InternalsVisibleTo Include="DigitalBrain.Simulation.Tests" />
+    <InternalsVisibleTo Include="DigitalBrain.Testing" />
   </ItemGroup>
 </Project>

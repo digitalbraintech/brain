@@ -47,11 +47,7 @@ internal static class NeuronConcurrency
     // snapshot is also needed while an assistant turn is awaiting a behavior command.
     // Watch and Unwatch carry no interleaving attribute and therefore remain serialized.
     private static bool IsKernelFreeRead(MethodInfo method)
-        => method.DeclaringType == typeof(INeuronQuery)
-            || (method.DeclaringType == typeof(IBehaviorsKernel)
-                && method.Name == nameof(IBehaviorsKernel.ReadBehaviorIds))
-            || (method.DeclaringType == typeof(IBehaviorKernel)
-                && method.Name == nameof(IBehaviorKernel.ReadState));
+        => method.DeclaringType == typeof(INeuronQuery);
 
     private static void Refuse(Type neuronType, string attribute)
         => throw new InvalidOperationException(

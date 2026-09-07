@@ -1,6 +1,6 @@
 # File-based scripting and explicit neuron communication
 
-Status: design assembled from accepted grilling decisions Q1–Q39; awaiting final whole-design confirmation. No runtime implementation is included in this document.
+Status: revised from the original Q1–Q39 design and the accepted follow-up grilling decisions Q1–Q18, including the correction to reuse IAgent/AgentRequest/AgentReply. The user approved implementation through TDD. This document is the target contract; implementation progress and remaining gaps are tracked in ../plans/2026-09-07-programmable-brain-tdd.md.
 
 The C# below is complete authoring examples **against the proposed API**, not code that compiles against today's SDK. Only the file-based application mechanism and existing project reference were execution-tested. API names, port declarations, and lifecycle behavior below describe the refactor to implement.
 
@@ -46,7 +46,7 @@ Public contracts expose operations, queries, emitted events, and deliberately co
 | Handle | Bind a named input to local executable code; does not discover an audience or subscribe by itself. |
 | Broadcast | Descriptive term for explicit, scoped event fan-out; no second public routing mechanism is needed initially. |
 
-Use explicit typed ports. `EventPort<T>` identifies an output, `InputPort<T>` identifies a connectable input, `CommandPort<T>` identifies a callable operation, and `QueryPort<TRequest,TResult>` identifies a query. They are descriptors containing stable contract and instance identity, not executable delegates or unrestricted grain references.
+Use explicit typed ports. `EventPort<T>` identifies an output, `InputPort<T>` identifies a connectable input, `CommandPort<T>` identifies a callable operation, `CommandPort<TRequest,TResult>` identifies a result-bearing operation, and `QueryPort<TRequest,TResult>` identifies a query. They are descriptors containing stable contract and instance identity, not executable delegates or unrestricted grain references.
 
 An `EventPort<T>` is not a general permission to impersonate its source. Publishing is allowed only for the executing definition’s declared outputs or an explicitly authorized ingress. A connectable telemetry input can accept validated deliveries from a trusted activity source without becoming a public command that arbitrary clients can forge.
 
@@ -67,7 +67,7 @@ Authorization is checked when declaring a connection and when admitting a delive
 5. **Invocation** admits an input to an already installed behavior or invokes a neuron operation. It does not implicitly reapply its source file.
 6. **Execution** reconstructs registered handlers from an installed artifact and processes admitted work under a worker lease.
 
-`app.Script(key, relativePath)` declares a dependency without applying it. Paths resolve relative to the declaring source file. `context.ApplyScriptAsync(reference)` applies that already-snapshotted child revision. Reject cycles, conflicting identities, and undeclared dependencies. The initial version does not support arbitrary runtime-computed script paths inside durable work.
+`app.Script(key, relativePath)` declares a dependency without applying it. Paths resolve relative to the declaring source file. `context.ApplyScriptAsync(reference)` applies that already-snapshotted child revision. Reject cycles, conflicting identities, and undeclared dependencies. Runtime-computed filesystem paths are not an invocation mechanism. Dynamic capability discovery and behavior creation use the catalog and authoring service described below; selected target revisions are recorded when calls are admitted.
 
 Validate/build the complete declared graph before changes to live definitions. Record the child reference-to-revision mapping in the root application operation. Effective revision equality includes source, dependency revisions, resolved contract/library artifacts and evaluated build settings. Thus unchanged `start.cs` with changed `ui.cs` produces a changed effective root revision and reruns its application callback. Within that operation a repeated child application joins the recorded child result. A crash cannot make `start.cs` and discovery independently execute a child. A later application compares revisions and skips already-successful unchanged work; a failed application can resume instead of being permanently suppressed by a failure ledger entry.
 
@@ -83,7 +83,7 @@ Keep `DigitalBrainClient.ConnectAsync(args)`. It establishes configuration, veri
 
 The application entrypoint ends with `app.RunAsync(args)`. In ordinary terminal/startup mode it installs/applies and awaits tracked application completion, then returns. Under a worker it serves the pinned artifact under a verified execution context. Worker mode and acting principal cannot be enabled merely by an untrusted command-line flag; a valid server-issued lease/context is required.
 
-The worker supervises processes by immutable application revision. Different revisions may coexist while old work drains. Each behavior instance runs one admitted input at a time by default; distinct behaviors may run concurrently. Mutable static variables and closure objects are not durable state and must not be relied on for correctness.
+The worker supervises processes by immutable application revision. Different revisions may coexist while old work drains. Independent operation invocations run concurrently with isolated run state and conversation history. Stateful subscription handlers serialize inputs within their declared shared-state scope; distinct scopes may run concurrently. Mutable static variables and closure objects are not durable state and must not be relied on for correctness.
 
 An owned client disposes its host. A borrowed execution view disposes only its local scope; it cannot shut down the parent host. Child application operations inherit authorization and causal context, not a requirement to share an operating-system process. Worker children establish their own scoped transport as required.
 
@@ -111,7 +111,7 @@ Persist per-target pending event delivery before acknowledging publication accep
 
 Ordinary durable subscriptions start at their committed binding point. Retain pending work for existing durable subscriptions according to explicit retention limits; exhausted retries or limits produce visible failure records. Historical replay is opt-in and source-supported. The causal journal is not automatically an unlimited event store. Temporary listeners use live session delivery by default.
 
-One behavior processes one input at a time in durable admission order; publishers have no global order. The durable claim gate belongs to the stable behavior identity and spans all artifact revisions/processes. On resume, paused old-revision inputs retain their place ahead of later admissions. When an input exhausts automatic retries, mark it failed and visible rather than blocking the queue forever. Explicit replay is a new tracked attempt preserving the original causal relationship. Operations requiring stronger application-specific ordering must encode that invariant rather than rely on an undocumented global queue.
+Stateful subscription inputs process in durable admission order within the declared shared-state scope; publishers have no global order. The durable claim gate belongs to that stable scope and spans all artifact revisions/processes. Reusable operation invocations have separate run identities and may execute concurrently. Shared durable state requires serialized access; a suspended run must not hold an exclusive worker or shared-state lock while awaiting external input. On resume, paused old-revision inputs retain their place ahead of later admissions. When an input exhausts automatic retries, mark it failed and visible rather than blocking the queue forever. Explicit replay is a new tracked attempt preserving the original causal relationship. Operations requiring stronger application-specific ordering must encode that invariant rather than rely on an undocumented global queue.
 
 Execution checkpoints commit behavior state updates, output intents and checkpoint progress together. A remote operation creates a durable boundary: assign a stable operation ID and record its result. Recovery replays local code up to recorded checkpoints, verifies effect sequence identity, and reuses recorded outcomes. At final completion commit remaining state/output intents and acknowledge the input. A changed effect sequence within the same pinned revision is a determinism violation and must fail visibly rather than attach an old result to a different command.
 
@@ -123,7 +123,119 @@ Application code revisions switch together for new admissions. Stage all candida
 
 Disable stops new admission, pauses queued work and lets running work finish; drain and cancel are separate operations. This deliberately changes current disable semantics, which cancel/fence pending work and outputs. Paused inputs retain their pinned revisions. Deletion must resolve retained/queued work explicitly before removing runtime state. Artifacts cannot be garbage-collected while referenced by active, queued, paused, failed-retained or replayable work.
 
-State is scoped to stable behavior identity, with declared schema version and optimistic concurrency. Compatible upgrades retain state. An incompatible migration pauses admission, drains accepted work, migrates state and activates the new application revision. Failed draining or migration leaves a visible blocked upgrade; it does not drop old inputs.
+Run state is scoped to invocation identity. Shared state is scoped to the declared stable behavior/state identity, with schema version and optimistic concurrency. Compatible upgrades retain state. An incompatible migration pauses admission, drains accepted work, migrates state and activates the new application revision. Failed draining or migration leaves a visible blocked upgrade; it does not drop old inputs.
+
+## Programmable behaviors and agent composition
+
+The authoring test is whether a user or assistant can express, save, compose and run a useful behavior without understanding kernel internals. Public APIs expose ordinary C# control flow, typed capabilities and explicit event connections. Revision, lease, checkpoint and receipt bookkeeping belongs behind those APIs unless an author needs to inspect or control it.
+
+Reuse contracts when their semantics fit. A proposer, critic and synthesizer are configured `IAgent` instances accepting `AgentRequest` and returning `AgentReply`. Do not create `CritiqueRequest`, `SynthesisRequest` or a new brainstorming request/result merely to name workflow steps. A composed brainstorming agent exposes the same public agent contract as a model-backed agent. The current `IAgent : INeuron, IHandle<AgentRequest>` inheritance is internal coupling to replace, not part of the desired facade.
+
+Support typed result-bearing operations as well as completion-only commands. The public agent facade has a request operation with `AgentRequest`/`AgentReply` semantics. Durable operation calls return the business result while retaining inspectable operation identity and failure status. Callers must not construct reply subscriptions to obtain a result. Events remain independently subscribable facts; an operation reply does not automatically become an event.
+
+### Proposed brainstorm.cs authoring example
+
+The following is a complete illustrative file against the proposed facade. `app.Agent` declares a composed implementation of the existing agent contract, `run.CallAsync` calls that contract with checkpointed results, and `brain.Get<IAgent>` resolves configured agent instances. These members require implementation and compilation verification; they are not existing SDK APIs.
+
+```csharp
+#:project ../src/Kernel/DigitalBrain.Sdk/DigitalBrain.Sdk.csproj
+#:project ../src/Modules/AI/Contracts/DigitalBrain.Modules.AI.Contracts.csproj
+#:property TargetFramework=net11.0
+#:property PublishAot=false
+
+using DigitalBrain.Abstractions;
+using DigitalBrain.Abstractions.Scripting;
+using DigitalBrain.AI;
+
+await using var brain = await DigitalBrainClient.ConnectAsync(args);
+var app = brain.Application("brainstorming");
+
+// Agent configuration supplies roles, models, tools and default limits.
+var proposer = brain.Get<IAgent>("proposer");
+var critic = brain.Get<IAgent>("critic");
+var synthesizer = brain.Get<IAgent>("synthesizer");
+
+app.Agent("brainstorm", async (request, run, ct) =>
+{
+    var proposal = await run.CallAsync(proposer, request, ct);
+
+    var criticism = await run.CallAsync(critic, new AgentRequest($"""
+        Critique the proposal against the original idea.
+        Identify weaknesses, assumptions and alternatives.
+        Idea: {request.Text}
+        Proposal: {proposal.Text}
+        """), ct);
+
+    return await run.CallAsync(synthesizer, new AgentRequest($"""
+        Return a revised proposal, disagreements and open questions.
+        Idea: {request.Text}
+        Proposal: {proposal.Text}
+        Criticism: {criticism.Text}
+        """), ct);
+});
+
+await app.RunAsync(args);
+```
+
+Installing this file does not automatically subscribe it to chat. A separate chat dispatch declaration matches user messages containing `brainstorm`, extracts the idea, invokes the installed `IAgent` named `brainstorm`, and sends its `AgentReply.Text` to the originating conversation. Matching and extraction must have explicit tested rules. A button, timer or another behavior can invoke the identical agent capability without chat-specific payloads.
+
+For the acceptance flow, the brainstorming rule claims matching user messages; the general assistant receives unmatched messages. Claim selection is explicit and deterministic, with ambiguous competing rules rejected during validation until an ordering policy is declared. It must not depend on subscriber execution order. Ordinary event fan-out remains independent. Assistant-generated replies must not re-enter user-message ingress and recursively trigger the rule.
+
+### Configuration, concurrency and recovery
+
+Keep installation configuration, invocation input and durable state separate. Roles, models, tools and default limits are configuration; the idea is invocation input; progress and conversation history belong to the run. Reusable agent definitions share configuration, not mutable conversations. Secrets remain protected references, never source literals. Catalog metadata describes required configuration and supported contracts.
+
+Independent invocations have isolated run identities and may execute concurrently. Shared durable state has explicit serialized access. Do not serialize all calls to a reusable agent behind one long-running invocation, or rely on mutable closures/static variables for durable state.
+
+Ordinary local calculations use normal C#. Effects that require recovery use the execution context: neuron and agent calls, child behavior invocations, durable delays and event waits. Time and randomness affecting durable control flow use recorded context values. Direct network/filesystem effects have no automatic recovery guarantee. Validation diagnoses common unsupported effects and recommends the supported API; arbitrary C# is not a security sandbox or mechanically proven deterministic.
+
+Durable parallel calls record child identities, inputs and results. Durable waits register correlation and deadlines before suspension with a race-safe event-admission handshake; an immediate response cannot disappear between registration and suspension. Waiting releases the worker and shared-state locks. Parent cancellation propagates to child work by default. Completed effects remain completed.
+
+Every run exposes progress, cancellation and configured time, cost and round limits. External providers may make exact cost enforcement impossible; enforce known budgets at admission and between calls, and report measured usage and any overrun. Record completed model responses for recovery, retry transient failures within limits, and expose terminal failures. Recovery must not silently regenerate an already-recorded response.
+
+### Discovery and authoring tools
+
+Provide one catalog of authorized public capabilities, operation/event schemas, configuration, permissions and examples. Typed source resolves contract references; assistants may discover and select compatible capabilities dynamically. Installed static dependencies remain revision-pinned until explicitly updated. Dynamic calls record their selected target and revision when admitted; recovery uses that selection. Runtime-computed script paths are not a substitute for this service.
+
+Assistant, editor, MCP and executing behaviors share one authoring service: discover contracts; inspect source/configuration; create or edit a draft with expected revision; validate/build; execute scenarios; activate; invoke; inspect status, diagnostics and causal history. Explicit user creation requests authorize this sequence within granted capabilities. Autonomous changes require a separately granted policy. Generated behavior code cannot expand its authority by declaring more permissions.
+
+A running behavior may create another reusable behavior through that service. Creation supplies source, contracts and scenario tests; validation precedes activation. Creation and activation use recoverable operation identities so retries cannot install duplicates. Child capabilities are explicitly granted and bounded by the caller's authority. Updating a dependency validates compatibility, while accepted runs retain their recorded revisions.
+
+### Web search configuration and Aspire onboarding
+
+Use Tavily as the initial direct-search provider. The AI module's Aspire hosting integration declares `tavily-api-key` with `secret: true` when Tavily search is enabled and passes the parameter reference to the consuming runtime configuration. Follow the existing provider-key pattern in `AIHostingExtensions.EnsureProviderApiKey`; do not put secret values in source, behavior definitions, model prompts or logs.
+
+When the parameter is missing at startup, use Aspire's built-in unresolved-parameter prompt. Provide a Markdown-enabled description: "API key for Tavily web search. Sign up at [Tavily](https://www.tavily.com/) and copy your API key from your account dashboard. Paste it here to enable web search for DigitalBrain agents." Explain the purpose and credential-creation location; avoid embedding changing free-tier quotas in the prompt. A configured value is reused instead of prompting on every start. Only enabled providers require credentials. Other enabled AI provider secrets should have equivalent provider-specific descriptions and credential links.
+
+Tavily is an explicit search operation/function tool backed by its API, not an implementation supplied by `HostedWebSearchTool`. Hosted search remains a distinct optional provider capability: the AI service executes it inside a model call. Do not silently switch between these semantics. Direct search results can be recorded independently and passed to ordinary `IAgent` calls using the existing agent request/reply contracts.
+
+TDD acceptance: first prove that enabling Tavily declares one secret parameter with the description/link and wires its reference into the consumer; repeated registration does not duplicate it. Verify missing configuration requires input, configured credentials resolve without another prompt, and disabled search requires no key. Use nonsecret sentinel values and a controlled external provider in automated tests; no interactive prompts or real keys in CI. Exercise real Aspire onboarding and one real provider search separately before claiming the integration works. Missing/invalid credentials and exhausted quota produce visible failures, not fabricated search results.
+
+### Accepted TDD discipline and learned behaviors
+
+Implement each vertical slice through an observed meaningful failing test, minimal production implementation, then refactoring with the relevant suite green. The sequence below is dependency order, not permission to implement the runtime before tests. Persist the original user instruction, independently established acceptance examples and executable revision/configuration. Future matching events run the installed behavior; model memory is not the persistence mechanism.
+
+Establish triggering/non-triggering examples, expected outcomes and forbidden effects before generating the implementation. Generated tests supplement those expectations; an authoring agent cannot weaken platform regression tests. Explicit user revisions may supersede conflicting expectations with recorded provenance; unrelated accepted expectations remain mandatory.
+
+Begin with `/ping` -> `pong` in the originating conversation through authored C# and production installation, then through assistant tools. Verify another invocation in a fresh session after service restart without reinstalling or repeating the instruction, absence of duplicate/unrelated replies and user isolation. Expand through new failing tests to agent composition, direct search, waits and UI ingress. Scenario setup must not create the output the behavior is supposed to produce.
+
+Use strict external-provider fixtures that reject unexpected requests or extra calls while production authoring, compilation, routing, persistence and execution remain real. Separately evaluate real-model authoring on unseen instructions against independent expectations. A mock proves deterministic execution, not natural-language understanding. Recovery tests use reproducible fault boundaries, persisted stores and independently observed effects.
+
+### UI event meanings
+
+Keep capability registration, durable surface-component addition, browser rendering and user activation distinct. They have different producers, identities and replay semantics. Adding a component is a durable server fact; rendering is client/session scoped; activation is authenticated user ingress. Opening another browser tab must not duplicate an automation intended to react to durable component creation. The current no-op `ControlActivated` handler is not a supported completed flow.
+
+### Acceptance scenarios
+
+1. Through the assistant's actual authoring tools, create the source artifact, validate it, run scenarios and activate it. Script only the external model/provider responses in deterministic tests; assert actual tool inputs and outputs.
+2. Submit through production chat ingress. Verify proposer, critic and synthesizer receive the expected content, the final reply appears in the originating conversation, and the general assistant does not separately answer the claimed request. Unmatched messages still reach the assistant.
+3. Invoke the same composed `IAgent` directly and from another behavior. Verify two simultaneous ideas have isolated histories, results and cancellation.
+4. Restart around child-result checkpoints and final publication. Verify recorded responses are reused, outputs are not duplicated, and causal records identify source, connection and revisions. Use persistent storage for silo/storage recovery tests.
+5. Edit and activate a revision, reuse the capability, and verify accepted work remains on its recorded revision. Exercise validation failures, revision conflicts, timeouts, retry exhaustion and limits.
+6. Exercise component addition through the production UI API and activation through real ingress. Add browser checks proving actual rendering and click forwarding. Test client rendering separately from durable component addition.
+7. Verify durable parallel calls, wait registration races, cancellation propagation and recoverable child-behavior creation. Reject unauthorized capability selection and authority expansion.
+
+Use production compilation, routing, execution and persistence paths. The existing simulation manually saves and activates a legacy handler and cannot count as evidence of assistant authoring. Deterministic runtime tests establish behavior for tested artifacts and inputs; separate real-model evaluations assess authoring quality. No finite suite guarantees arbitrary future generated programs or provider behavior.
 
 ## Source and editor ownership
 
@@ -131,7 +243,7 @@ The complete C# file is the source/revision unit. The behavior editor selects be
 
 Keep drafts, active revision, last applied file revision and file provenance separate. A repeated unchanged file does not overwrite an active UI edit. A diverged file/UI change creates a conflict and retains the last active revision. Reconciliation uses optimistic expected-revision checks.
 
-Renaming a file while retaining application/behavior keys updates provenance. A missing file marks missing provenance; it does not implicitly delete a durable application. Explicit deactivation/deletion reconciles only subscriptions that definition owns. Graph and MCP edits create or update named wiring definitions and follow the same revision rules.
+Renaming a file while retaining application/behavior keys updates provenance. A missing file marks missing provenance; it does not implicitly delete a durable application. Explicit deactivation/deletion reconciles only subscriptions that definition owns. Files, editor, assistant, graph and MCP use one versioned source-and-configuration definition. Graph and MCP edits must produce validated source changes through that same authoring service; they cannot maintain separate hidden wiring definitions.
 
 ## Complete proposed authoring examples
 
@@ -318,10 +430,11 @@ This is the required authoring surface, not a complete declaration of runtime-in
 | Client | `ConnectAsync(args, cancellationToken)` → disposable `IDigitalBrain`; `Owner`, `Principal`, `Root`, `Get<TContract>(id)`, `Application(key)`. |
 | Public root | `Id`; `Events.Activated : EventPort<DigitalBrainActivated>`. |
 | Application | `Script(key,path) : ScriptReference`; `Behavior(key) : BehaviorDefinition`; `Connect<T>(key, EventPort<T>, InputPort<T>, replay)` and a public `CommandPort<T>` target overload; `OnApply(Func<ApplicationContext,CancellationToken,Task>)`; `RunAsync(args,cancellationToken)`. |
-| Behavior definition | `Handle<T>(inputKey, Func<T,BehaviorContext,CancellationToken,Task>) : InputPort<T>`; `Command<T>(operationKey, handler) : CommandPort<T>`; `Query<TRequest,TResult>(queryKey, readOnlyHandler) : QueryPort<TRequest,TResult>`; `Event<T>(outputKey) : EventPort<T>`; `State<T>(key,schemaVersion) : StateKey<T>`. Command handlers use the same durable execution context as inputs; queries cannot mutate state or emit effects. |
+| Behavior definition | `Handle<T>(inputKey, Func<T,BehaviorContext,CancellationToken,Task>) : InputPort<T>`; `Command<T>(operationKey, handler) : CommandPort<T>`; `Command<TRequest,TResult>(operationKey, handler) : CommandPort<TRequest,TResult>`; `Query<TRequest,TResult>(queryKey, readOnlyHandler) : QueryPort<TRequest,TResult>`; `Event<T>(outputKey) : EventPort<T>`; `State<T>(key,schemaVersion) : StateKey<T>`. Command handlers use the same durable execution context as inputs; queries cannot mutate state or emit effects. |
 | Application context | `Brain`; `ApplyScriptAsync(ScriptReference,ct)`; `EnsureInitializedAsync(ct)`; `CommandId(stepKey)`; checkpointed `InvokeAsync`, `QueryAsync`. |
 | Behavior context | Authenticated execution `Brain`, behavior ID, input/event ID, causation, correlation, revision and cancellation; typed `State.Get/Set`; checkpointed `InvokeAsync`, `QueryAsync`, `PublishAsync`. |
 | Commands | `InvokeAsync<T>(CommandPort<T>, T, ct)` awaits tracked operation completion; nonblocking submission/status is a separate client operation. Result receipt includes operation ID. |
+| Result-bearing operations | `CommandPort<TRequest,TResult>` supports checkpointed invocation returning a business result. `app.Agent(key, handler)` implements the existing public agent contract; `run.CallAsync(IAgent, AgentRequest, ct)` returns `AgentReply`. Operation identity remains available through run diagnostics. |
 | Queries | `QueryAsync<TRequest,TResult>(QueryPort<TRequest,TResult>, request, ct)` returns a typed result; execution context checkpoints it. |
 | Events | `PublishAsync<T>(EventPort<T>, T, ct)` returns durable publication receipt; only authorized source owners can publish. |
 | Temporary listener | Client `ListenAsync<T>(EventPort<T>, callback,ct)` returns an async-disposable session listener; no implied durable installation. |
@@ -333,11 +446,11 @@ Calls made through `context.Brain` during execution must remain execution-bound.
 
 Do not add both generic `Send`, `Publish`, `Broadcast` aliases with inconsistent semantics. Typed command/query/event ports make the intended interaction visible at the call site. A convenience direct method can be added only if it preserves those semantics.
 
-## Neuron and flow migration inventory
+## Neuron and flow replacement inventory
 
 All production families identified in the repository must be reviewed, including inherited contracts and partial implementations. This table records the starting disposition, not a claim that the new facades already exist.
 
-| Family | Author-facing surface / migration |
+| Family | Author-facing surface / replacement |
 |---|---|
 | Brain | Explicit initialization and authorized initialization event; journal/root transport APIs remain infrastructure. |
 | Behavior | Named inputs/outputs and management view; separate user code ports from save/claim/registry/worker APIs. |
@@ -369,19 +482,32 @@ Preserve these concrete routes and outcomes:
 
 Causal envelopes retain owner, verified principal, source and target, correlation, causation, event/operation IDs, application/behavior revision and contributing connections. Handler side effects are attributed to the behavior, not the installer or root brain. Telemetry must continue excluding its own bookkeeping to avoid recursion.
 
-## Migration sequence
+## Clean-break implementation sequence
 
-1. Lock intended flows with client-driven integration scenarios. Inventory all public candidates, internal handlers, outputs, learned-edge dependencies, and owner/principal policies. Preserve a snapshot of current persisted subscription provenance before transforming it.
-2. Introduce explicit contract/port metadata and SDK facades alongside current implementation interfaces. Add missing intended lifecycle events. Keep aliases/wire identifiers stable where valid; explicitly migrate simple-name collisions.
-3. Introduce definition-owned connections and event-target admission deduplication. Existing explicitly bound routes need recorded migration ownership; learned routes remain observation-only and are never blindly promoted. Update graph/MCP writes to definitions before removing bypass paths.
-4. Introduce application revisions, artifact storage, dependency snapshots and durable application operations. Reuse behavior queues/request-checkpoints/leases; implement the new state-plus-outbox checkpoint transaction and replay-state view, and add application-level activation coordination. Wrap each existing saved script as a one-behavior application during migration.
-5. Implement file-based build and worker execution. No per-script project generation, no IAW orchestration project generator, no Roslyn `#load` authoring requirement. Keep legacy execution only for existing revisions until their pinned work is resolved.
-6. Split connection from initialization in both connection and transport. Implement initialization event/checkpoint recovery and readiness barriers. Replace local startup JSONL deduplication with durable application operations.
-7. Move the three startup files to root `scripts/` with the proposed phases. Replace the old activation worker startup entrypoint so only one startup authority remains. Verify Home and assistant behavior before retiring the old path.
-8. Update full-file editor semantics, drafts/conflicts/provenance, pause versus cancel controls, and graph/MCP ownership. Migrate existing disable semantics explicitly; do not silently relabel cancellation as pause.
-9. Add light testing facade, restart/retry and isolation coverage, then retire ambiguous publish aliases and learned routing. Retain old revision artifacts until no retained work references them.
+The product is development-only. No existing persisted data, scripts, schemas or public APIs require migration or backward compatibility. Do not build migration ownership, legacy script wrappers, old execution compatibility or dual routing. Reset development stores as part of the explicit replacement setup when required. This does not authorize deleting unrelated files or credentials.
 
-Migration is gated by end-to-end behavior, not completion of isolated renames. Do not mix learned and declared delivery in the new mode. Keep legacy compatibility explicitly scoped to unmigrated execution where unavoidable, with no duplicate routing path for the same application.
+1. Specify executable acceptance scenarios for assistant-created brainstorming and UI interaction. Inventory public operations/events and internal handlers across every neuron family.
+2. Replace public kernel coupling with discoverable typed contracts. Reuse meaningful existing payloads, particularly `AgentRequest` and `AgentReply`; add types only for materially different data or semantics.
+3. Replace learned delivery with definition-owned explicit connections and durable recipient admission. Retain learned causal observations only for inspection and suggestions.
+4. Implement application revisions, SDK-built artifacts, durable application operations, isolated invocation runs, shared-state claim gates, state/checkpoint/outbox transactions and revision-pinned recovery.
+5. Replace Roslyn script execution and startup ledgers with the single file-based application path. Separate connection, configuration and explicit initialization.
+6. Replace assistant, editor and MCP authoring with one source-and-configuration revision service. Add catalog discovery, validation, scenario execution, activation, invocation, diagnostics and conflict handling.
+7. Implement durable composition, parallel child calls, delays, event waits, cancellation and limits. Add the intended UI events and real ingress; implement chat claiming independently from ordinary event fan-out.
+8. Rewrite startup scripts and complete the acceptance scenarios through production services and browser ingress. Remove superseded code, tests and documentation rather than retaining compatibility branches.
+
+Deletion inventory:
+
+- Roslyn `BehaviorProgramRunner` source rewriting and inferred simple-name ports, old `.csx` examples and the old handler-body save/activation model.
+- Roslyn startup runner, local startup ledger and activation-driven startup authority.
+- Implicit initialization in client connection and ordinary transport.
+- Learned-synapse delivery, simple-name routing and ambiguous publication aliases.
+- Ownership-free graph subscription writes and hardcoded/reflection-based author capability discovery.
+- Assistant tools and instructions teaching the superseded programming model.
+- Tests that assert obsolete contracts or substitute direct state setup for the user flow they claim to test.
+
+Retain useful causal diagnostics, queue/outbox and lease concepts only where they meet the new invariants. Current subject-based claiming does not guarantee serialized shared-state execution; current request checkpoints do not implement a globally verified effect sequence or replay-state transaction. Those require implementation, not renaming.
+
+Old code artifacts from this development system need no retention. In the new system, artifacts referenced by accepted runs, paused work or supported replay remain retained until those references are resolved. Future incompatible state upgrades remain explicit operations; that runtime requirement is separate from migrating today's development data.
 
 ## Lightweight testing and verification
 
@@ -458,4 +584,4 @@ IAW references inspected:
 
 ## Confirmation boundary
 
-This document consolidates the accepted architecture and supplies the requested examples, public API, migration sequence and verification criteria. Final review should confirm that these concrete examples express the intended programming model. Implementation, runtime tests of the new API, MCP verification and computer-use verification begin only after that confirmation. No application code has been changed by this design document.
+This document consolidates the accepted architecture and supplies the requested examples, public API, clean-break replacement sequence and verification criteria. Final review should confirm that these concrete examples express the intended programming model. Implementation, runtime tests of the new API, MCP verification and computer-use verification begin only after that confirmation. No application code has been changed by this design document.

@@ -6,6 +6,4 @@ namespace DigitalBrain.Product.Interactions;
 [Alias("db.setup-continuation")]
 public sealed record SetupContinuation(
     [property: Id(0)] string ToolName,
-    [property: Id(1)] string Scope,
-    [property: Id(2)] string? BehaviorName = null,
-    [property: Id(3)] Guid? BehaviorRevision = null);
+    [property: Id(1)] string Scope);

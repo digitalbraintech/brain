@@ -5,6 +5,10 @@ using DigitalBrain.ServiceDefaults;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddDigitalBrainClient();
+builder.Services.AddHttpClient<ApplicationAuthoringHttpClient>(client =>
+    client.BaseAddress = new Uri("https+http://kernel"));
+builder.Services.AddSingleton<DigitalBrain.Abstractions.Scripting.IApplicationAuthoring>(services =>
+    services.GetRequiredService<ApplicationAuthoringHttpClient>());
 builder.Services
     .AddMcpServer()
     // URL-mode elicitation is negotiated at initialization. Preserve the peer's

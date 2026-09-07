@@ -5,7 +5,7 @@ import 'package:digitalbrain_ui_kit/digitalbrain_ui_kit.dart';
 import 'package:flutter/material.dart';
 import 'brain_chat_screen.dart';
 import 'brain_graph_store.dart';
-import 'behavior_studio.dart';
+import 'application_studio.dart';
 import 'chat_contracts.dart';
 import 'graph_examples_screen.dart';
 import 'activity_projection.dart';
@@ -84,6 +84,8 @@ final class GraphHomeScreen extends StatefulWidget {
     this.conversation = false,
     this.graph,
     this.surfaceRoot,
+    this.surfaceKey,
+    this.onActivateControl,
     this.onWatchActivities,
     this.onReadActivityResults,
   });
@@ -103,11 +105,18 @@ final class GraphHomeScreen extends StatefulWidget {
   final GraphSceneFactory? sceneFactory;
   final ReadBrain? onReadBrain;
   final WatchBrain? onWatchBrain;
-  final BehaviorStudioApi? behaviorStudio;
+  final ApplicationStudioApi? behaviorStudio;
   final SetBrainSubscription? onSetBrainSubscription;
   final bool conversation;
   final BrainGraphStore? graph;
   final SurfaceComponent? surfaceRoot;
+  final String? surfaceKey;
+  final Future<void> Function(
+    String surfaceKey,
+    String controlId,
+    String intent,
+  )?
+  onActivateControl;
   final WatchExecutionActivities? onWatchActivities;
   final ReadActivityResults? onReadActivityResults;
   @override
@@ -120,6 +129,8 @@ final class _GraphHomeScreenState extends State<GraphHomeScreen> {
   final _chatKey = GlobalKey();
   String? _selected;
   bool _directory = false;
+  String? _editingApplication;
+  final List<String> _openApplications = [];
   bool _technical = false;
   List<ExecutionActivity> _activities = const [];
   StreamSubscription<List<ExecutionActivity>>? _activityStream;
@@ -130,8 +141,6 @@ final class _GraphHomeScreenState extends State<GraphHomeScreen> {
       _localActivity,
       _localTitle;
   bool _allActivities = false, _systemGraph = false;
-  String? _editingBehavior;
-  final List<String> _openBehaviors = [];
   final Map<String, double> _splitFractions = {};
   Map<String, List<ExecutionActivityEvent>> _activityPulses = {};
   bool _receivedActivities = false;
@@ -268,9 +277,9 @@ final class _GraphHomeScreenState extends State<GraphHomeScreen> {
                               const SizedBox(width: 10),
                               if (widget.behaviorStudio != null)
                                 LumenIconButton(
-                                  key: const Key('behavior_library'),
+                                  key: const Key('application_library'),
                                   icon: const Icon(Icons.code, size: 18),
-                                  label: 'Behavior Studio',
+                                  label: 'Application Studio',
                                   onPressed: () => _studio(),
                                 ),
                               LumenIconButton(
@@ -621,41 +630,8 @@ final class _GraphHomeScreenState extends State<GraphHomeScreen> {
     _detail('Module', node.module),
     _detail('Instance', node.name),
     _detail('Status', node.status),
-    if (node.type == 'behavior' && widget.behaviorStudio != null)
-      TextButton.icon(
-        onPressed: () => _studio(node.name),
-        icon: const Icon(Icons.code),
-        label: const Text('Edit / run behavior'),
-      ),
     if (node.handledSignals.isNotEmpty)
       _detail('Inputs', node.handledSignals.join(', ')),
-    if (node.outputSignals.isNotEmpty)
-      _detail('Outputs', node.outputSignals.join(', ')),
-    if (node.activeRevision != null)
-      _detail('Active revision', node.activeRevision!),
-    for (final revision
-        in _focusedActivity?.events
-                .where(
-                  (event) =>
-                      (event.targetNeuronId == node.id ||
-                          event.sourceNeuronId == node.id) &&
-                      event.behaviorRevision != null,
-                )
-                .map((event) => event.behaviorRevision!)
-                .toSet() ??
-            <String>{})
-      _detail('Revision in this activity', revision),
-    if (node.type == 'behavior')
-      _detail(
-        'Input policy',
-        node.inputPolicy == 0
-            ? 'Every event'
-            : [
-                if ((node.inputPolicy & 1) != 0) 'Latest per subject',
-                if ((node.inputPolicy & 2) != 0) 'Observe from activation',
-                if ((node.inputPolicy & 4) != 0) 'Once per version',
-              ].join(', '),
-      ),
     for (final server
         in snapshot.activity
             .where((event) => event.neuronId == node.id && event.server != null)
@@ -717,23 +693,10 @@ final class _GraphHomeScreenState extends State<GraphHomeScreen> {
   Future<void> _studio([String? name]) async {
     final api = widget.behaviorStudio;
     if (api == null) return;
-    if (widget.surfaceRoot != null && name != null) {
-      setState(() {
-        if (!_openBehaviors.contains(name)) _openBehaviors.add(name);
-        _editingBehavior = name;
-        _selected = null;
-        _directory = false;
-      });
-      return;
-    }
     await showDialog<void>(
       context: context,
-      builder: (_) => BehaviorLibrary(
-        api: api,
-        changes: _brain,
-        initialName: name,
-        readGraph: () => _brain.snapshot,
-      ),
+      builder: (_) =>
+          ApplicationLibrary(api: api, changes: _brain, initialKey: name),
     );
     if (mounted) await _brain.refresh();
   }

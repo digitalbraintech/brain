@@ -73,22 +73,13 @@ KitGalleryScreen) is the starting point for the widget side.
 - **Voice**: Whisper STT (Foundry Local) stays dev-only. PersonaPlex is deleted
   (see Trash record); future voice = provider realtime APIs.
 
-## Scripts and behaviors
+## Authored applications
 
-User- and assistant-authored C# runs in `DigitalBrain.Scripting` (outside the silo).
-`SaveScriptAsync` creates a draft on an individual `IBehavior`; activation chooses
-its compiled revision. A handler runs for each accepted typed input, uses `PublishAsync`
-(broadcast along synapses) and `SendAsync` through `SignalSender`. It does not return
-a signal as publication. `IUserMessages` is the principal inbox for owner messages.
-Chat turns still use `ExecutionNeuron` as per-turn working memory, not as an automation engine.
-Definitions, revisions, accepted inputs, request checkpoints and output intents are
-durable state on each `BehaviorNeuron`. `BehaviorsNeuron` is only the discovery
-index. The execution worker wakes from journal notifications and recovers missed
-work through bounded scans. Flutter and Ino can save, inspect, connect, activate,
-invoke and disable these same behaviors. Studio's graph uses actual source-owned
-synapses and observed journals; it owns no second execution model.
-See [Getting started](GETTING_STARTED.md) for local repository review and an executable example.
+User- and assistant-authored C# runs through `DigitalBrain.Scripting`. The authoring service stores exact source revisions per owner and principal, validates them without business execution, and publishes content-addressed artifacts. Activation applies a verified revision. The hosted supervisor starts separate artifact worker processes and retains revisions still referenced by admitted work.
 
+An application declares commands, typed input handlers, state, durable delays, event waits, output ports, and apply-time composition with `brain.Application(key)`. The kernel durably records definitions, accepted operations, revision pins, checkpoints, effect intents, and waiting state. Workers use one-use bootstrap tickets and server-issued capabilities bound to owner, principal, application, and revision. Current capability authority is silo-local; multi-silo issuance and revocation remain a separate guarantee.
+
+Application Studio, assistant tools, and MCP use the same `IApplicationAuthoring` contract and persisted source store. The graph displays actual neuron subscriptions and journal activity; it does not provide a second scripting runtime. See [Getting started](GETTING_STARTED.md) for the current file format and workflow, the [design specification](superpowers/specs/2026-09-07-file-based-scripting-design.md) for intended semantics, and [recorded validation](programmable-behaviors-validation.md) for tested guarantees and remaining limits.
 ## Integration modules
 
 Microsoft, Google, and Salesforce use the same Contracts / implementation /
@@ -167,6 +158,6 @@ provide labels and icon keys for observed neurons; they never create graph topol
 2. Auth (UserAccountEntity, cookie + token) — multiuser boundary.
 3. UI kit, all 13 components on the template. (template + Chart + Image shipped 2026-08-23)
 4. Self-knowledge catalog — historical; not in the current product path.
-5. Durable scripting: saved `IBehavior` revisions and a separate C# execution worker.
+5. Durable authored applications with immutable file artifacts and supervised worker processes.
 6. Google + Salesforce specialist neurons through the inherited generic agent request contract.
 7. Image → Docker Hub, ACA + Key Vault deploy.

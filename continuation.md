@@ -72,5 +72,4 @@ turn explicitly reauthorizes final Computer testing. Use the Computer plugin's
 
 Live GitHub OAuth/App installation/public webhook delivery and real PR review
 have not been performed. Follow [GitHub setup](docs/github-pr-review.md).
-`IXAccount` supports typed `NewPost`, but there is no live authenticated X adapter.
 No commit or external provider configuration change has been made.

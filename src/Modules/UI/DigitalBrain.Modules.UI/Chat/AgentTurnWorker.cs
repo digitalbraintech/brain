@@ -74,18 +74,57 @@ internal sealed class AgentTurnWorker(IGrainFactory grains) : Grain, IAgentTurnW
                     new TranscriptEntry(false, reply, command.ToString(), DateTimeOffset.UtcNow),
                     ITranscript.DefaultCap)
                 .ConfigureAwait(true);
-            await turn.RecordTurnFact(new Responded(command, assistant, reply), correlation, cancellationToken)
+            var composer = new NeuronId(IComposer.GrainTypeName, owner, IComposer.DefaultInstanceName);
+            await turn.SendFact(composer, new Responded(command, composer, reply, "assistant"), correlation, cancellationToken)
                 .ConfigureAwait(true);
             await turn.ReportTurnActivity(delivery, "completed").ConfigureAwait(true);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException error)
         {
-            await turn.ReportTurnActivity(delivery, "cancelled", "Assistant turn cancelled.").ConfigureAwait(true);
+            var composer = new NeuronId(IComposer.GrainTypeName, owner, IComposer.DefaultInstanceName);
+            try
+            {
+                await turn.SendFact(composer, new TurnLifecycle(
+                        new TurnId(command.Value), command, composer,
+                        ChatTurnStatus.Cancelled, "Assistant turn cancelled."),
+                    correlation, CancellationToken.None).ConfigureAwait(true);
+            }
+            catch (Exception terminalError)
+            {
+                error.Data["TerminalDeliveryFailure"] = terminalError;
+            }
+            try
+            {
+                await turn.ReportTurnActivity(delivery, "cancelled", "Assistant turn cancelled.").ConfigureAwait(true);
+            }
+            catch (Exception activityError)
+            {
+                error.Data["ActivityReportingFailure"] = activityError;
+            }
             throw;
         }
-        catch (Exception)
+        catch (Exception error)
         {
-            await turn.ReportTurnActivity(delivery, "failed", "Assistant turn failed.").ConfigureAwait(true);
+            var composer = new NeuronId(IComposer.GrainTypeName, owner, IComposer.DefaultInstanceName);
+            try
+            {
+                await turn.SendFact(composer, new TurnLifecycle(
+                        new TurnId(command.Value), command, composer,
+                        ChatTurnStatus.Failed, "Assistant turn failed. See activity and traces for details."),
+                    correlation, CancellationToken.None).ConfigureAwait(true);
+            }
+            catch (Exception terminalError)
+            {
+                error.Data["TerminalDeliveryFailure"] = terminalError;
+            }
+            try
+            {
+                await turn.ReportTurnActivity(delivery, "failed", "Assistant turn failed.").ConfigureAwait(true);
+            }
+            catch (Exception activityError)
+            {
+                error.Data["ActivityReportingFailure"] = activityError;
+            }
             throw;
         }
     }

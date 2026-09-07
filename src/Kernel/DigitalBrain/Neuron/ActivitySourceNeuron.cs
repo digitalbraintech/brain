@@ -53,12 +53,6 @@ internal sealed class ActivitySourceNeuron : Neuron, IActivitySource
     private async Task DrainAsync(CancellationToken cancellationToken)
     {
         using var path = NeuronRequestPath.Clear();
-        // Preserve facts produced before startup wires the activity collector.
-        if (!(await ReadSynapses().ConfigureAwait(true)).Any(edge => edge.SignalType == nameof(ActivityExecutionChanged)))
-        {
-            return;
-        }
-
         // Snapshot before any await. Input turns only append new keys; successful
         // dispatch removes its own key without replacing concurrently appended state.
         foreach (var pending in _pending.OrderBy(pair => pair.Key).Take(32).ToArray())
@@ -69,10 +63,7 @@ internal sealed class ActivitySourceNeuron : Neuron, IActivitySource
                 ? new ActorContext(principal, "_activity") : null);
             try
             {
-                if (await BroadcastAsync(delivery.Signal, delivery).ConfigureAwait(true) == 0)
-                {
-                    return;
-                }
+                await BroadcastAsync(delivery.Signal, delivery).ConfigureAwait(true);
                 _pending.Remove(pending.Key);
                 await WriteStateAsync(cancellationToken).ConfigureAwait(true);
             }

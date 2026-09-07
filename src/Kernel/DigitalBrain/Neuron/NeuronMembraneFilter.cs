@@ -48,9 +48,7 @@ internal sealed class NeuronMembraneFilter : IIncomingGrainCallFilter
     {
         var declaring = method?.DeclaringType;
         return declaring == typeof(INeuronGrain)
-            || declaring == typeof(INeuronQuery)
-            || declaring == typeof(IBehaviorsKernel)
-            || declaring == typeof(IBehaviorKernel);
+            || declaring == typeof(INeuronQuery);
     }
 
     private static void Authorize(IIncomingGrainCallContext context, NeuronId target)

@@ -1,5 +1,6 @@
 using DigitalBrain.Abstractions.Entities;
 using DigitalBrain.Abstractions.Signals;
+using DigitalBrain.Product.Identity;
 namespace DigitalBrain.UI;
 
 // Deliberately no [ClientEntryPoint] here (same wall as IChart): Read() arrives through
@@ -11,7 +12,7 @@ public interface ISurface : IEntity<SurfaceState>
     const string DefaultInstanceName = "desk";
 
     [Alias(nameof(Open))]
-    Task Open(SurfaceScene scene, int cap);
+    Task<SurfaceOpenReceipt> Open(CommandId commandId, SurfaceScene scene, int cap);
 
     [Alias(nameof(ApplyActivity))]
     Task ApplyActivity(ActivityView activity, int cap);

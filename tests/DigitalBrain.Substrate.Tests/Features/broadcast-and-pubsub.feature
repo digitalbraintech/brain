@@ -1,7 +1,8 @@
 Feature: Broadcast versus named-instance pub/sub
   Broadcast fires only along synapses on the source. IHandle<T> is the capability
   to receive T; it does not subscribe every instance of a type. SubscribeTo writes
-  a Bound synapse (does not decay). A handled directed Send writes a Learned synapse.
+  a Bound synapse (does not decay). A handled directed Send writes a Learned synapse
+  as a causal observation, but only Bound or Innate synapses participate in broadcast.
 
   Broadcast receiver set:
     1. Synapses on the source for that signal type
@@ -47,21 +48,23 @@ Feature: Broadcast versus named-instance pub/sub
       Given a running brain
       And timeline "alice" can handle NewPost
       And timeline "bob" can handle NewPost
-      And account "elon" has introduced NewPost to timeline "alice"
-      And account "vlad" has introduced NewPost to timeline "bob"
+      And timeline "alice" subscribes to account "elon" for NewPost
+      And timeline "bob" subscribes to account "vlad" for NewPost
       When account "elon" broadcasts NewPost "starship"
       And account "vlad" broadcasts NewPost "ukraine"
       Then timeline "alice" incoming journal contains NewPost "starship"
       And timeline "alice" incoming journal does not contain NewPost "ukraine"
       And timeline "bob" incoming journal contains NewPost "ukraine"
       And timeline "bob" incoming journal does not contain NewPost "starship"
-      And account "elon" has a learned NewPost synapse to timeline "alice"
+      And account "elon" has a bound NewPost synapse to timeline "alice"
       And account "elon" has no NewPost synapse to timeline "bob"
 
-    Scenario: A later broadcast follows the learned synapse without a new directed fire
+    Scenario: A handled directed send records causality without subscribing its receiver
       Given a running brain
       And timeline "alice" can handle NewPost
       And account "elon" has introduced NewPost to timeline "alice"
       When account "elon" broadcasts NewPost "second post"
-      Then timeline "alice" incoming journal contains NewPost "second post"
-      And the NewPost synapse from account "elon" to timeline "alice" has fire count 2
+      Then the broadcast reaches 0 receivers
+      And timeline "alice" incoming journal does not contain NewPost "second post"
+      And account "elon" has a learned NewPost synapse to timeline "alice"
+      And the NewPost synapse from account "elon" to timeline "alice" has fire count 1

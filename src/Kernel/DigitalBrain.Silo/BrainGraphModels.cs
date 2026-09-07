@@ -25,11 +25,7 @@ internal sealed record BrainGraphNode(
     long OutgoingSequence,
     DateTimeOffset? LastActivityAt,
     string? IconKey = null,
-    IReadOnlyList<string>? OutputSignals = null,
-    Guid? ActiveRevision = null,
-    Guid? DraftRevision = null,
-    bool IsInfrastructure = false,
-    int InputPolicy = 0);
+    bool IsInfrastructure = false);
 
 internal sealed record BrainGraphSynapse(
     string Id,

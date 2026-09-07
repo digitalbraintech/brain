@@ -8,11 +8,10 @@ internal sealed class ActivityReporter(NeuronId neuron, IGrainFactory grains, Ti
 {
     internal static bool Tracks(SignalDelivery delivery)
         => !delivery.IsActivityTelemetry
-            && delivery.Signal is not (IActivityTelemetry or Subscribe or Unsubscribe or DigitalBrainActivated
-                or BehaviorWorkAvailable or BehaviorStateChanged or ReadBehavior or BehaviorRead);
+            && delivery.Signal is not (IActivityTelemetry or Subscribe or Unsubscribe or DigitalBrainActivated);
 
-    internal async Task ReportAsync(SignalDelivery delivery, string operationId, string phase,
-        NeuronId? target, string? detail = null, string? revision = null)
+    internal async Task ReportAsync(
+        SignalDelivery delivery, string operationId, string phase, NeuronId? target, string? detail = null)
     {
         if (!Tracks(delivery) || neuron.Type is IActivities.GrainTypeName or IActivitySource.GrainTypeName)
         {
@@ -25,7 +24,7 @@ internal sealed class ActivityReporter(NeuronId neuron, IGrainFactory grains, Ti
         var command = payload.GetType().GetProperty("CommandId")?.GetValue(payload)?.ToString();
         var fact = new ActivityExecutionChanged(delivery.CorrelationId, delivery.Principal, operationId,
             delivery.SignalId, delivery.CausationId, delivery.Caller, target, payload.GetType().Name,
-            phase, clock.GetUtcNow(), title is { Length: > 160 } ? title[..160] : title, command, detail, revision);
+            phase, clock.GetUtcNow(), title is { Length: > 160 } ? title[..160] : title, command, detail);
         var source = NeuronId.For<IActivitySource>(neuron.Owner, IActivitySource.DefaultInstanceName);
         using var path = NeuronRequestPath.Enter(neuron, source);
         await grains.GetGrain<INeuronGrain>(source.ToGrainId())

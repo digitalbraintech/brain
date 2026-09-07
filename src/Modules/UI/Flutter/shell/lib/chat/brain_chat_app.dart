@@ -56,7 +56,7 @@ final class BrainChatApp extends StatelessWidget {
   final WatchExecutionActivities? onWatchActivities;
   final Stream<SceneOpenedEvent>? surfaceEvents;
   final DigitalBrainUiClient? client;
-  final BehaviorStudioApi? behaviorStudio;
+  final ApplicationStudioApi? behaviorStudio;
   final SetBrainSubscription? onSetBrainSubscription;
   final GraphSceneFactory? graphSceneFactory;
   final List<UserActionCardModel> userActions;

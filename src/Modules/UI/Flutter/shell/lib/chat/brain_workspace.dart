@@ -59,7 +59,7 @@ final class BrainWorkspace extends StatefulWidget {
   final ReadSurface? onReadSurface;
   final ReadBrain? onReadBrain;
   final WatchBrain? onWatchBrain;
-  final BehaviorStudioApi? behaviorStudio;
+  final ApplicationStudioApi? behaviorStudio;
   final SetBrainSubscription? onSetBrainSubscription;
   final GraphSceneFactory? graphSceneFactory;
   final List<UserActionCardModel> userActions;
@@ -385,6 +385,16 @@ final class _BrainWorkspaceState extends State<BrainWorkspace> {
                       chatName: _session.chatName,
                       turns: _session.projectedTurns,
                       surfaceRoot: _scene!.root,
+                      surfaceKey: _scene!.surfaceKey,
+                      onActivateControl: widget.client == null
+                          ? null
+                          : (surfaceKey, controlId, intent) =>
+                                widget.client!.activateControl(
+                                  surfaceName: 'desk',
+                                  surfaceKey: surfaceKey,
+                                  controlId: controlId,
+                                  intent: intent,
+                                ),
                       onWatchActivities: widget.onWatchActivities,
                       onReadActivityResults: widget.client == null
                           ? null

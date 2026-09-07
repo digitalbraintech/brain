@@ -118,10 +118,6 @@ BrainNeuron _activityNode(
     incomingSequence: node.incomingSequence,
     outgoingSequence: node.outgoingSequence,
     lastActivityAt: node.lastActivityAt,
-    outputSignals: node.outputSignals,
-    activeRevision: node.activeRevision,
-    draftRevision: node.draftRevision,
     isInfrastructure: node.isInfrastructure,
-    inputPolicy: node.inputPolicy,
   );
 }

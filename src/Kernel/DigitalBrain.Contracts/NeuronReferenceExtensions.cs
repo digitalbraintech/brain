@@ -7,8 +7,8 @@ namespace DigitalBrain.Abstractions;
 public static class NeuronReferenceExtensions
 {
     // The only public fire/ask: TNeuron must declare IHandle<TSignal>. That is how the
-    // assistant and scripts stay type-safe — PublishPost cannot be sent to IBehaviors,
-    // and AgentRequest cannot be asked of IChat.
+    // assistant and scripts stay type-safe: a signal can only be sent to a neuron
+    // interface which explicitly declares IHandle<TSignal>.
     public static Task<DeliveryOutcome> SendAsync<TNeuron, TSignal>(
         this NeuronReference<TNeuron> neuron,
         TSignal signal,

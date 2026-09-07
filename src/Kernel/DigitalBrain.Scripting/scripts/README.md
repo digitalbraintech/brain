@@ -1,14 +1,12 @@
 # The default brain
 
-`DigitalBrainActivated` starts `start.cs`, which loads an immutable snapshot of
-`activities.cs` and `ui.cs`. Changing either child changes the startup bundle
-version. The startup receipt records success or failure for that version.
+`start.cs` is a file application with immutable `activities.cs` and `ui.cs`
+children. Changing either child changes the effective startup revision.
 
 `activities.cs` connects ordinary neuron APIs:
 
 ```text
 execution --ActivityExecutionChanged--> activities --ActivityChanged--> desk
-inbox     --UserMessaged-------------> assistant
 ```
 
 The runtime records causal execution facts. The `execution` neuron durably queues
@@ -27,10 +25,8 @@ primitives; a new primitive kind still needs a renderer implementation.
 Every new input starts an activity with its own correlation. Selecting an
 activity shows its causal graph and retained messages/card references. **All**
 shows the union of visible activities; **System** shows the subscription graph.
-The embedded behavior editor uses that same graph for subscription changes and
-execution inspection. Behavior source uses `Signal` as its incoming value and
-`Brain.PublishAsync(...)` for output. Saved drafts and enabled revisions are
-separate, so editing a draft does not silently replace running logic.
+Application source is validated and retained before activation, so editing a
+working file does not silently replace the active revision.
 
 Activity facts preserve owner and principal scope. Their own delivery is marked
 as telemetry so observing activity does not recursively create more activity.

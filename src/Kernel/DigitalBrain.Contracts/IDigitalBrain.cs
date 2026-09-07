@@ -4,6 +4,7 @@ using DigitalBrain.Abstractions.Journals;
 using DigitalBrain.Abstractions.Neurons;
 using DigitalBrain.Abstractions.Synapses;
 using DigitalBrain.Abstractions.Signals;
+using DigitalBrain.Abstractions.Scripting;
 
 namespace DigitalBrain.Abstractions;
 
@@ -13,14 +14,9 @@ namespace DigitalBrain.Abstractions;
 public interface IDigitalBrain : IAsyncDisposable
 {
     OwnerId Owner { get; }
+    BrainRoot Root { get; }
 
     Task ActivateAsync(CancellationToken cancellationToken = default);
-
-    Task<int> PublishAsync(Signal signal, CancellationToken cancellationToken = default)
-        => throw new InvalidOperationException("Publish is available only while a saved behavior is executing.");
-
-    NeuronId InputSource
-        => throw new InvalidOperationException("InputSource is available only while a saved behavior is executing.");
 
     NeuronReference<TNeuron> Get<TNeuron>(string name = "default")
         where TNeuron : INeuron;

@@ -7,6 +7,7 @@ namespace DigitalBrain.UI;
 
 [GenerateSerializer]
 [Alias("ui.open-surface")]
+[DigitalBrain.Abstractions.Scripting.ApplicationJsonContract("ui.open-surface", 1)]
 public sealed record OpenSurface : Signal
 {
     // Overrides IUIRenderer's own default ("default"): an untargeted fire must still reach the

@@ -10,6 +10,7 @@
     <Project Path="src/Modules/AI/AI/DigitalBrain.Modules.AI.csproj" />
     <Project Path="src/Modules/AI/Aspire.Hosting/DigitalBrain.Modules.AI.Aspire.Hosting.csproj" />
     <Project Path="src/Modules/AI/Contracts/DigitalBrain.Modules.AI.Contracts.csproj" />
+    <Project Path="src/Modules/AI/Sdk/DigitalBrain.Modules.AI.Sdk.csproj" />
   </Folder>
   <Folder Name="/Modules/Memory/">
     <Project Path="src/Modules/Memory/Aspire.Hosting/DigitalBrain.Modules.Memory.Aspire.Hosting.csproj" />
@@ -65,6 +66,8 @@
     <Project Path="src/Testing/DigitalBrain.Testing/DigitalBrain.Testing.csproj" />
   </Folder>
   <Folder Name="/Tests/">
+    <Project Path="tests/DigitalBrain.Authoring.Tests/DigitalBrain.Authoring.Tests.csproj" />
+    <Project Path="tests/DigitalBrain.AI.Tests/DigitalBrain.AI.Tests.csproj" />
     <Project Path="tests/DigitalBrain.Simulation.Tests/DigitalBrain.Simulation.Tests.csproj" />
     <Project Path="tests/DigitalBrain.Substrate.Tests/DigitalBrain.Substrate.Tests.csproj" />
   </Folder>

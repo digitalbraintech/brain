@@ -4,10 +4,16 @@ import '../components/graph/graph_models.dart';
 import 'onboarding_models.dart';
 
 abstract final class OnboardingCatalog {
-  static const elon = GraphNode(id: 'elon', label: 'elon');
-  static const alice = GraphNode(id: 'alice', label: 'alice');
-  static const vlad = GraphNode(id: 'vlad', label: 'vlad');
-  static const bob = GraphNode(id: 'bob', label: 'bob');
+  static const source = GraphNode(id: 'source', label: 'source');
+  static const consumer = GraphNode(id: 'consumer', label: 'consumer');
+  static const otherSource = GraphNode(
+    id: 'other-source',
+    label: 'other-source',
+  );
+  static const otherConsumer = GraphNode(
+    id: 'other-consumer',
+    label: 'other-consumer',
+  );
   static const timeline = GraphNode(
     id: 'timeline',
     label: 'unsubscribed',
@@ -25,15 +31,15 @@ abstract final class OnboardingCatalog {
   );
   static const timer = GraphNode(id: 'timer', label: 'Timer', cluster: 'Time');
 
-  static const elonToAlice = GraphEdge(
-    id: 'elon-alice',
-    sourceId: 'elon',
-    targetId: 'alice',
+  static const sourceToConsumer = GraphEdge(
+    id: 'source-consumer',
+    sourceId: 'source',
+    targetId: 'consumer',
   );
-  static const vladToBob = GraphEdge(
-    id: 'vlad-bob',
-    sourceId: 'vlad',
-    targetId: 'bob',
+  static const otherSourceToConsumer = GraphEdge(
+    id: 'other-source-consumer',
+    sourceId: 'other-source',
+    targetId: 'other-consumer',
   );
   static const clientToTimer = GraphEdge(
     id: 'client-timer',
@@ -66,14 +72,18 @@ abstract final class OnboardingCatalog {
     icon: Icons.flash_on_outlined,
     frames: [
       OnboardingLessonFrame(
-        nodes: [elon, alice],
+        nodes: [source, consumer],
         edges: [],
         duration: Duration(milliseconds: 400),
       ),
       OnboardingLessonFrame(
-        nodes: [elon, alice],
+        nodes: [source, consumer],
         edges: [],
-        pulse: GraphPulse(fromId: 'elon', toId: 'alice', signature: 'fire-1'),
+        pulse: GraphPulse(
+          fromId: 'source',
+          toId: 'consumer',
+          signature: 'fire-1',
+        ),
       ),
     ],
   );
@@ -83,18 +93,22 @@ abstract final class OnboardingCatalog {
     title: 'Handle',
     blurb: 'IHandle is a type capability, not a subscription.',
     rule:
-        'IHandle<NewPost> means this grain type can receive NewPost. It does not subscribe Alice to every account. Unhandled fires still journal; they do not learn a route.',
+        'IHandle<ActivityChanged> means this grain type can receive ActivityChanged. It does not subscribe the handler to every source. Unhandled fires still journal; they do not learn a route.',
     icon: Icons.pan_tool_outlined,
     frames: [
       OnboardingLessonFrame(
-        nodes: [elon, alice],
+        nodes: [source, consumer],
         edges: [],
         duration: Duration(milliseconds: 400),
       ),
       OnboardingLessonFrame(
-        nodes: [elon, alice],
+        nodes: [source, consumer],
         edges: [],
-        pulse: GraphPulse(fromId: 'elon', toId: 'alice', signature: 'handle-1'),
+        pulse: GraphPulse(
+          fromId: 'source',
+          toId: 'consumer',
+          signature: 'handle-1',
+        ),
       ),
     ],
   );
@@ -104,19 +118,27 @@ abstract final class OnboardingCatalog {
     title: 'Synapse',
     blurb: 'A handled fire writes an edge on the source.',
     rule:
-        'When Alice handles Elon’s NewPost, a learned synapse is stored on Elon: elon --NewPost--> alice. Unhandled fire: journal only, no edge.',
+        'A handled directed ActivityChanged delivery records an observational learned edge on its source. Unhandled fire: journal only, no edge.',
     icon: Icons.hub_outlined,
     frames: [
       OnboardingLessonFrame(
-        nodes: [elon, alice],
+        nodes: [source, consumer],
         edges: [],
-        pulse: GraphPulse(fromId: 'elon', toId: 'alice', signature: 'syn-1'),
+        pulse: GraphPulse(
+          fromId: 'source',
+          toId: 'consumer',
+          signature: 'syn-1',
+        ),
       ),
       OnboardingLessonFrame(
-        nodes: [elon, alice],
-        edges: [elonToAlice],
-        highlightEdgeId: 'elon-alice',
-        pulse: GraphPulse(fromId: 'elon', toId: 'alice', signature: 'syn-2'),
+        nodes: [source, consumer],
+        edges: [sourceToConsumer],
+        highlightEdgeId: 'source-consumer',
+        pulse: GraphPulse(
+          fromId: 'source',
+          toId: 'consumer',
+          signature: 'syn-2',
+        ),
       ),
     ],
   );
@@ -130,23 +152,23 @@ abstract final class OnboardingCatalog {
     icon: Icons.campaign_outlined,
     frames: [
       OnboardingLessonFrame(
-        nodes: [elon, alice, timeline],
-        edges: [elonToAlice],
+        nodes: [source, consumer, timeline],
+        edges: [sourceToConsumer],
         duration: Duration(milliseconds: 500),
       ),
       OnboardingLessonFrame(
-        nodes: [elon, alice, timeline],
-        edges: [elonToAlice],
+        nodes: [source, consumer, timeline],
+        edges: [sourceToConsumer],
         pulse: GraphPulse(
-          fromId: 'elon',
-          toId: 'alice',
-          signature: 'broadcast-alice',
+          fromId: 'source',
+          toId: 'consumer',
+          signature: 'broadcast-consumer',
         ),
-        highlightEdgeId: 'elon-alice',
+        highlightEdgeId: 'source-consumer',
       ),
       OnboardingLessonFrame(
-        nodes: [elon, alice, timeline],
-        edges: [elonToAlice],
+        nodes: [source, consumer, timeline],
+        edges: [sourceToConsumer],
       ),
     ],
   );
@@ -154,26 +176,34 @@ abstract final class OnboardingCatalog {
   static const subscribe = OnboardingCapability(
     id: 'subscribe',
     title: 'Subscribe',
-    blurb: 'Follow Elon is not follow Vlad.',
+    blurb: 'A subscription names one exact source.',
     rule:
-        'Alice’s subscription is a NewPost synapse on Elon. Bob’s is on Vlad. Elon’s broadcast pulses Alice only; Bob stays dimmed. Azure queues are not how you follow a named account.',
+        'Each subscription is a bound edge on one named source. A broadcast follows only those explicit bound edges for its signal type.',
     icon: Icons.notifications_active_outlined,
     frames: [
       OnboardingLessonFrame(
-        nodes: [elon, alice, vlad, bob],
-        edges: [elonToAlice, vladToBob],
+        nodes: [source, consumer, otherSource, otherConsumer],
+        edges: [sourceToConsumer, otherSourceToConsumer],
         duration: Duration(milliseconds: 700),
       ),
       OnboardingLessonFrame(
         nodes: [
-          elon,
-          alice,
-          vlad,
-          GraphNode(id: 'bob', label: 'bob', dimmed: true),
+          source,
+          consumer,
+          otherSource,
+          GraphNode(
+            id: 'other-consumer',
+            label: 'other-consumer',
+            dimmed: true,
+          ),
         ],
-        edges: [elonToAlice, vladToBob],
-        pulse: GraphPulse(fromId: 'elon', toId: 'alice', signature: 'sub-elon'),
-        highlightEdgeId: 'elon-alice',
+        edges: [sourceToConsumer, otherSourceToConsumer],
+        pulse: GraphPulse(
+          fromId: 'source',
+          toId: 'consumer',
+          signature: 'sub-source',
+        ),
+        highlightEdgeId: 'source-consumer',
       ),
     ],
   );
@@ -187,14 +217,14 @@ abstract final class OnboardingCatalog {
     icon: Icons.receipt_long_outlined,
     frames: [
       OnboardingLessonFrame(
-        nodes: [elon, alice],
-        edges: [elonToAlice],
+        nodes: [source, consumer],
+        edges: [sourceToConsumer],
         pulse: GraphPulse(
-          fromId: 'elon',
-          toId: 'alice',
+          fromId: 'source',
+          toId: 'consumer',
           signature: 'journal-1',
         ),
-        highlightEdgeId: 'elon-alice',
+        highlightEdgeId: 'source-consumer',
       ),
     ],
   );
@@ -208,14 +238,14 @@ abstract final class OnboardingCatalog {
     icon: Icons.inventory_2_outlined,
     frames: [
       OnboardingLessonFrame(
-        nodes: [elon, alice, profile],
-        edges: [elonToAlice],
+        nodes: [source, consumer, profile],
+        edges: [sourceToConsumer],
         duration: Duration(milliseconds: 500),
       ),
       OnboardingLessonFrame(
         nodes: [
-          elon,
-          alice,
+          source,
+          consumer,
           GraphNode(
             id: 'profile',
             label: 'profile',
@@ -223,8 +253,12 @@ abstract final class OnboardingCatalog {
             dimmed: true,
           ),
         ],
-        edges: [elonToAlice],
-        pulse: GraphPulse(fromId: 'elon', toId: 'alice', signature: 'entity-1'),
+        edges: [sourceToConsumer],
+        pulse: GraphPulse(
+          fromId: 'source',
+          toId: 'consumer',
+          signature: 'entity-1',
+        ),
       ),
     ],
   );

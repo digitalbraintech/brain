@@ -4,6 +4,7 @@ using DigitalBrain.Core;
 using DigitalBrain.Kernel;
 using DigitalBrain.Kernel.Auth;
 using DigitalBrain.Sdk;
+using DigitalBrain.Scripting.Applications;
 using DigitalBrain.ServiceDefaults;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Orleans.Dashboard;
@@ -11,6 +12,10 @@ using Orleans.Dashboard;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddDigitalBrain();
+builder.Services.AddApplicationAuthoring(
+    builder.Configuration["DigitalBrain:ApplicationStore"]
+    ?? Path.Combine(builder.Environment.ContentRootPath, ".digitalbrain", "v2", "applications"));
+builder.Services.AddHostedService<ShippedApplicationBootstrap>();
 builder.Services.AddAuthentication();
 builder.AddKernelCors();
 builder.Services.TryAddSingleton(static services =>
@@ -35,9 +40,10 @@ app.MapChatStreams();
 app.MapKitEntities();
 app.MapSurfaceStreams();
 app.MapSurfaceActivities();
+app.MapSurfaceControls();
 app.MapActivityResults();
 app.MapActivities();
 app.MapBrainGraph();
-app.MapBehaviorStudio();
+app.MapApplicationStudio();
 app.MapOrleansDashboard("/orleans");
 app.Run();

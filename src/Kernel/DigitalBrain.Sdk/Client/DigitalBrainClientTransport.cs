@@ -29,15 +29,26 @@ internal sealed partial class DigitalBrainClientTransport
 
     internal OwnerId Owner { get; }
 
+    internal ActorContext? ConnectionActor => _connectionActor;
+
+    internal PrincipalId? CurrentPrincipal
+    {
+        get
+        {
+            using var scope = EnterConnectionActor();
+            return VerifiedActor.Current?.PrincipalId;
+        }
+    }
+
+    internal DigitalBrainClientTransport CreateSibling(OwnerId owner, ActorContext actor)
+        => new(_grains, owner, actor);
+
     internal NeuronId Root => IBrainNeuron.ForOwner(Owner);
 
     internal Task ActivateAsync(CancellationToken cancellationToken)
     {
+        Scripting.ApplicationRunScope.ThrowIfDefinitionEffect("activate");
         cancellationToken.ThrowIfCancellationRequested();
-        if (_executionSource is not null)
-        {
-            return Task.CompletedTask;
-        }
         return Brain().Activate().WaitAsync(cancellationToken);
     }
 
@@ -49,8 +60,8 @@ internal sealed partial class DigitalBrainClientTransport
         ArgumentNullException.ThrowIfNull(client);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         RequireDomainNeuronContract(typeof(TNeuron));
-        if (!IsOwnerGlobalNeuron(typeof(TNeuron)) && (_claim is not null || _connectionActor is not null
-            || typeof(IBehavior).IsAssignableFrom(typeof(TNeuron)) || typeof(IWebhook).IsAssignableFrom(typeof(TNeuron))))
+        if (!IsOwnerGlobalNeuron(typeof(TNeuron)) && (_connectionActor is not null
+            || typeof(IWebhook).IsAssignableFrom(typeof(TNeuron))))
         {
             name = ScopeName(name);
         }
@@ -60,19 +71,15 @@ internal sealed partial class DigitalBrainClientTransport
     internal TEntity GetEntity<TEntity>(string name)
         where TEntity : class, IEntity
     {
+        Scripting.ApplicationRunScope.ThrowIfDefinitionEffect("get entity");
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         RequireDomainEntityContract(typeof(TEntity));
         return _grains.GetGrain<TEntity>(EntityId.For<TEntity>(Owner,
-            _claim is not null || _connectionActor is not null ? ScopeName(name) : name).ToGrainId());
+            _connectionActor is not null ? ScopeName(name) : name).ToGrainId());
     }
 
     private static bool IsOwnerGlobalNeuron(Type neuronType)
     {
-        if (neuronType == typeof(IBehaviors))
-        {
-            return true;
-        }
-
         var type = NeuronId.GrainTypeNameOf(neuronType);
         return type.Equals("usermessages", StringComparison.OrdinalIgnoreCase)
             || type.Equals("assistant", StringComparison.OrdinalIgnoreCase);
@@ -80,7 +87,7 @@ internal sealed partial class DigitalBrainClientTransport
 
     private string ScopeName(string name)
     {
-        var principal = _claim?.Principal ?? _connectionActor?.PrincipalId ?? VerifiedActor.Current?.PrincipalId;
+        var principal = _connectionActor?.PrincipalId ?? VerifiedActor.Current?.PrincipalId;
         if (principal is not { } actor)
         {
             return name;
@@ -214,16 +221,12 @@ internal sealed partial class DigitalBrainClientTransport
         Signal signal,
         CancellationToken cancellationToken)
     {
+        Scripting.ApplicationRunScope.ThrowIfDefinitionEffect("send");
         using var actor = EnterConnectionActor();
         RequireOwnedSubject(receiver);
         ArgumentNullException.ThrowIfNull(signal);
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (_executionSource is not null)
-        {
-            return await SendExecutionAsync(receiver, signal, cancellationToken).ConfigureAwait(false);
-        }
-        await ActivateAsync(cancellationToken).ConfigureAwait(false);
         return await Brain().Send(receiver, signal, cancellationToken)
             .WaitAsync(cancellationToken)
             .ConfigureAwait(false);
@@ -235,14 +238,11 @@ internal sealed partial class DigitalBrainClientTransport
         Type responseType,
         CancellationToken cancellationToken)
     {
+        Scripting.ApplicationRunScope.ThrowIfDefinitionEffect("request");
         using var actor = EnterConnectionActor();
         using var budget = SignalRequestPolicy.CreateBudget(cancellationToken);
         try
         {
-            if (_executionSource is not null)
-            {
-                return await RequestExecutionAsync(receiver, request, responseType, budget.Token).ConfigureAwait(false);
-            }
             return await SendRequestCoreAsync(receiver, request, responseType, budget.Token)
                 .ConfigureAwait(false);
         }

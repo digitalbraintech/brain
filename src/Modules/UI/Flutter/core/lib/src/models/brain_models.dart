@@ -74,21 +74,14 @@ final class BrainNeuron {
     this.incomingSequence = 0,
     this.outgoingSequence = 0,
     this.lastActivityAt,
-    this.outputSignals = const [],
-    this.activeRevision,
-    this.draftRevision,
     this.isInfrastructure = false,
-    this.inputPolicy = 0,
   });
   final String id, type, name, label, module, role, status;
   final String? iconKey;
   final List<String> handledSignals;
   final int incomingSequence, outgoingSequence;
   final DateTime? lastActivityAt;
-  final List<String> outputSignals;
-  final String? activeRevision, draftRevision;
   final bool isInfrastructure;
-  final int inputPolicy;
   factory BrainNeuron.fromJson(Map<String, dynamic> j) => BrainNeuron(
     id: j['id'] as String,
     type: j['type'] as String,
@@ -102,11 +95,7 @@ final class BrainNeuron {
     incomingSequence: (j['incomingSequence'] as num?)?.toInt() ?? 0,
     outgoingSequence: (j['outgoingSequence'] as num?)?.toInt() ?? 0,
     lastActivityAt: _date(j['lastActivityAt']),
-    outputSignals: (j['outputSignals'] as List? ?? []).cast<String>(),
-    activeRevision: j['activeRevision'] as String?,
-    draftRevision: j['draftRevision'] as String?,
     isInfrastructure: j['isInfrastructure'] == true,
-    inputPolicy: (j['inputPolicy'] as num?)?.toInt() ?? 0,
   );
 }
 
@@ -178,8 +167,10 @@ final class BrainCorrelation {
     }
     final correlations = groups.entries.map((entry) {
       final items = [...entry.value]
-        ..sort((a, b) => (a.timestamp ?? DateTime.fromMillisecondsSinceEpoch(0))
-            .compareTo(b.timestamp ?? DateTime.fromMillisecondsSinceEpoch(0)));
+        ..sort(
+          (a, b) => (a.timestamp ?? DateTime.fromMillisecondsSinceEpoch(0))
+              .compareTo(b.timestamp ?? DateTime.fromMillisecondsSinceEpoch(0)),
+        );
       final last = items.last;
       return BrainCorrelation(
         correlationId: entry.key,
@@ -201,9 +192,7 @@ final class BrainCorrelation {
   static String _status(List<BrainActivity> items) {
     if (items.any(
       (item) =>
-          item.isError ||
-          item.state == 'failed' ||
-          _turn(item) == 'Failed',
+          item.isError || item.state == 'failed' || _turn(item) == 'Failed',
     )) {
       return 'failed';
     }

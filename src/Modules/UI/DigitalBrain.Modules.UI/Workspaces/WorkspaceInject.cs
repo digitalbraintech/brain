@@ -20,7 +20,9 @@ public sealed class WorkspaceInject(IDigitalBrain brain, IGrainFactory grains) :
         ArgumentException.ThrowIfNullOrWhiteSpace(text);
         ArgumentNullException.ThrowIfNull(actor);
         cancellationToken.ThrowIfCancellationRequested();
-        if (VerifiedActor.Current is { } verified && verified.PrincipalId != actor.PrincipalId)
+        var verified = VerifiedActor.Current ?? throw new NeuronAuthorizationException(
+            "User messages require a verified actor.");
+        if (verified.PrincipalId != actor.PrincipalId)
         {
             throw new NeuronAuthorizationException("User messages must be injected as the verified actor.");
         }
@@ -41,7 +43,8 @@ public sealed class WorkspaceInject(IDigitalBrain brain, IGrainFactory grains) :
 
         var command = commandId ?? CommandId.New();
         var inbox = brain.Get<IComposer>(IComposer.DefaultInstanceName);
-        var correlation = CorrelationId.New();
+        // A retried accepted command retains its causal identity across transport retries.
+        var correlation = new CorrelationId(command.Value);
         var session = grains.GetGrain<IBrainNeuron>(IBrainNeuron.ForOwner(brain.Owner).ToGrainId());
         await session.SendWithCorrelation(
                 inbox.Id,

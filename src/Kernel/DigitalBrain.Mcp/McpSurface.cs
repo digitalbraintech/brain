@@ -10,8 +10,8 @@ internal static class McpSurface
     public const string ReadActivities = "read_activities";
     public const string Subscribe = "subscribe";
     public const string Unsubscribe = "unsubscribe";
-    public const string PublishPost = "publish_post";
     public const string SendNote = "send_note";
-    public const string SaveScript = "save_script";
-    public const string EnableBehavior = "enable_behavior";
+    public const string SaveApplication = "save_application";
+    public const string ValidateApplication = "validate_application";
+    public const string ActivateApplication = "activate_application";
 }

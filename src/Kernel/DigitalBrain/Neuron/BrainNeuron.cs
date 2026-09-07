@@ -5,7 +5,6 @@ using DigitalBrain.Abstractions.Neurons;
 using DigitalBrain.Abstractions.Signals;
 using DigitalBrain.Abstractions.Synapses;
 using Microsoft.Extensions.DependencyInjection;
-using Orleans.BroadcastChannel;
 using Orleans.Journaling;
 
 namespace DigitalBrain.Core;
@@ -30,20 +29,10 @@ internal sealed class BrainNeuron : Neuron, IBrainNeuron
             return;
         }
 
-        var activated = await RecordOutgoingAsync(new DigitalBrainActivated(Id.Owner))
-            .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
-
-        var writer = ServiceProvider
-            .GetRequiredService<IClusterClient>()
-            .GetBroadcastChannelProvider(DigitalBrainNames.BroadcastChannelProvider)
-            .GetChannelWriter<SignalDelivery>(ChannelId.Create(
-                DigitalBrainNames.ActivationChannelNamespace,
-                $"{Id.Owner.Value}/{DigitalBrainNames.ActivationSubscriberName}"));
-        await writer.Publish(activated)
-            .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
-
+        // The initialization marker and outgoing fact commit in one durable-grain
+        // journal write. Consumers can recover the retained fact after a restart.
         _activationPublished.Value = true;
-        await WriteStateAsync().ConfigureAwait(true);
+        await RecordOutgoingAsync(new DigitalBrainActivated(Id.Owner)).ConfigureAwait(true);
     }
 
     public Task<SignalDeliveryResult> Send(NeuronId receiver, Signal signal, CancellationToken cancellationToken = default)

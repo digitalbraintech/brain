@@ -4,6 +4,7 @@ using DigitalBrain.Abstractions.Identity;
 using DigitalBrain.Abstractions.Journals;
 using DigitalBrain.Abstractions.Neurons;
 using DigitalBrain.Abstractions.Signals;
+using DigitalBrain.Abstractions.Scripting;
 using DigitalBrain.Abstractions.Synapses;
 
 namespace DigitalBrain.Abstractions;
@@ -16,6 +17,14 @@ public sealed partial class DigitalBrainClient : IDigitalBrain, INeuronClient
         => _transport = transport;
 
     public OwnerId Owner => _transport.Owner;
+    PrincipalId? INeuronClient.Principal => _transport.CurrentPrincipal;
+    public BrainRoot Root => new(Owner, _transport.CurrentPrincipal
+        ?? throw new InvalidOperationException("Root event ports require an authenticated principal."));
+
+    internal ActorContext? ConnectionActor => _transport.ConnectionActor;
+
+    internal DigitalBrainClient CreateSibling(OwnerId owner, ActorContext actor)
+        => new(_transport.CreateSibling(owner, actor));
 
     [EditorBrowsable(EditorBrowsableState.Never)]
     public static DigitalBrainClient Connect(IGrainFactory grains, string owner)
@@ -30,9 +39,6 @@ public sealed partial class DigitalBrainClient : IDigitalBrain, INeuronClient
 
     public Task ActivateAsync(CancellationToken cancellationToken = default)
         => _transport.ActivateAsync(cancellationToken);
-
-    public Task<int> PublishAsync(Signal signal, CancellationToken cancellationToken = default)
-        => _transport.PublishAsync(signal, cancellationToken);
 
     public NeuronReference<TNeuron> Get<TNeuron>(string name = "default")
         where TNeuron : INeuron
@@ -60,6 +66,7 @@ public sealed partial class DigitalBrainClient : IDigitalBrain, INeuronClient
 
     public async ValueTask DisposeAsync()
     {
+        Interlocked.Exchange(ref _workerScope, null)?.Dispose();
         if (Interlocked.Exchange(ref _host, null) is not { } host)
         {
             return;

@@ -18,6 +18,5 @@
     <ProjectReference Include="../DigitalBrain.Aspire.Hosting/DigitalBrain.Aspire.Hosting.csproj" IsAspireProjectResource="false" />
     <ProjectReference Include="../../Kernel/DigitalBrain.Silo/DigitalBrain.Silo.csproj" />
     <ProjectReference Include="../../Kernel/DigitalBrain.Mcp/DigitalBrain.Mcp.csproj" />
-    <ProjectReference Include="../../Kernel/DigitalBrain.Scripting/DigitalBrain.Scripting.csproj" />
   </ItemGroup>
 </Project>

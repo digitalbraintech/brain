@@ -28,8 +28,8 @@ internal static class ChatTurnStream
         [EnumeratorCancellation] CancellationToken requestAborted)
     {
         using var budget = new CancellationTokenSource(TurnBudget);
-        var ino = brain.Get<IAssistant>("assistant");
-        var before = await ino.ReadJournalAsync(JournalKind.Outgoing, long.MaxValue, budget.Token)
+        var composer = brain.Get<IComposer>(IComposer.DefaultInstanceName);
+        var before = await composer.ReadJournalAsync(JournalKind.Outgoing, long.MaxValue, budget.Token)
             .ConfigureAwait(false);
         var command = await inject.InjectUserMessage(workspaceName, text, actor, budget.Token)
             .ConfigureAwait(false);
@@ -38,7 +38,7 @@ internal static class ChatTurnStream
             HttpSurfacePaths.ChatAcceptedEvent);
 
         using var observer = CancellationTokenSource.CreateLinkedTokenSource(requestAborted, budget.Token);
-        await using var pages = ino.WatchJournalAsync(JournalKind.Outgoing, before.ResumeSequence, observer.Token)
+        await using var pages = composer.WatchJournalAsync(JournalKind.Outgoing, before.ResumeSequence, observer.Token)
             .GetAsyncEnumerator(observer.Token);
         while (true)
         {

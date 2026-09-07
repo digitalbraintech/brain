@@ -17,7 +17,7 @@ internal sealed class BrainGraphProjection(IBrainGraphSource source, BrainGraphM
     private readonly BrainGraphMetadata _metadata = presentationMetadata ?? new([]);
     internal const int MaxActivity = 64;
     private static readonly TimeSpan ReadTimeout = TimeSpan.FromSeconds(5);
-    internal const string SnapshotScope = "One brain, saved behaviors, involved neurons, and their source-owned subscriptions. Select an activity to follow its causal execution.";
+    internal const string SnapshotScope = "One brain, authored applications, involved neurons, and their source-owned subscriptions. Select an activity to follow its causal execution.";
 
     public async Task<BrainGraphSnapshot> ReadAsync(
         string chatName, ActorContext actor, CancellationToken cancellationToken)
@@ -37,20 +37,6 @@ internal sealed class BrainGraphProjection(IBrainGraphSource source, BrainGraphM
         Discover(NeuronId.For<IActivitySource>(source.Owner, IActivitySource.DefaultInstanceName));
         Discover(NeuronId.For<IActivities>(source.Owner, IActivities.DefaultInstanceName));
         Discover(NeuronId.For<IUIRenderer>(source.Owner, ISurface.DefaultInstanceName));
-        // Saved behaviors are real, durable participants. Their state is read below;
-        // untouched drafts stay in the library until enabled or invoked.
-        try
-        {
-            foreach (var behavior in await source.ReadBehaviorsAsync(actor.PrincipalId, cancellationToken)
-                         .WaitAsync(ReadTimeout, cancellationToken).ConfigureAwait(false))
-            {
-                Discover(behavior);
-            }
-        }
-        catch (Exception) when (!cancellationToken.IsCancellationRequested)
-        {
-            unavailable.Add(NeuronId.For<IBehaviors>(source.Owner, "default"));
-        }
         var reads = new Dictionary<NeuronId, BrainGraphNeuronRead>();
         var truncated = false;
         while (pending.TryDequeue(out var neuron))
@@ -136,22 +122,12 @@ internal sealed class BrainGraphProjection(IBrainGraphSource source, BrainGraphM
             var localName = PrincipalPartition.TryParse(neuron.Name, out _, out var local) ? local : neuron.Name;
             var lastStatus = Status(read.Outgoing.Delta
                 .Where(delivery => VisibleDelivery(delivery, privateNeuron, actor.PrincipalId)));
-            var program = read.Behavior?.Active ?? read.Behavior?.Draft;
-            if (read.Behavior is { } behavior)
-            {
-                metadata = metadata with { Label = localName, Module = "Behaviors", IconKey = "document",
-                    HandledSignals = program?.InputSignalTypes ?? [] };
-                lastStatus = behavior.PendingCount > 0 ? "Running" : behavior.Enabled ? "Active"
-                    : program?.Validation == BehaviorValidation.Invalid ? "Failed" : "Disabled";
-            }
             nodes.Add(new(InstanceId(neuron), neuron.Type, localName, metadata.Label, metadata.Module,
-                read.Behavior is { Active: null } ? "library" : participants.Contains(neuron) ? "participant" : "observed",
+                participants.Contains(neuron) ? "participant" : "observed",
                 unavailable.Contains(neuron) ? "Unavailable" : lastStatus, metadata.HandledSignals,
                 read.Incoming.ResumeSequence, read.Outgoing.ResumeSequence,
                 neuronActivity.LastOrDefault()?.Timestamp, metadata.IconKey,
-                program?.OutputSignalTypes, read.Behavior?.Active?.Revision, read.Behavior?.Draft?.Revision,
-                IsInfrastructureType(neuron.Type),
-                (int)(program?.InputPolicy ?? BehaviorInputPolicy.EveryEvent)));
+                IsInfrastructureType(neuron.Type)));
 
             foreach (var edge in read.Synapses)
             {
@@ -275,7 +251,7 @@ internal sealed class BrainGraphProjection(IBrainGraphSource source, BrainGraphM
         => PrincipalPartition.OwnsInstance(principal, neuron.Name) || neuron == execution;
 
     private static bool IsInfrastructureType(string type)
-        => type is "chat-turn-worker" or "sessionneuron" or "behaviors" or "execution"
+        => type is "chat-turn-worker" or "sessionneuron" or "execution"
             or "usermessages" or "surface-boot" or "uirenderer" or "chat";
 
     private static bool ObservesSharedComposition(NeuronId neuron)

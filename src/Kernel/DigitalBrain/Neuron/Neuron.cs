@@ -49,9 +49,9 @@ public abstract class Neuron :
     protected SignalDelivery? CurrentDelivery => _handling;
 
     /// <summary>Registers and settles durable work which continues after its input handler returns.</summary>
-    protected Task ReportActivityAsync(SignalDelivery delivery, string operationId, string phase,
-        string? detail = null, string? behaviorRevision = null)
-        => _activities.ReportAsync(delivery, operationId, phase, Id, detail, behaviorRevision);
+    protected Task ReportActivityAsync(
+        SignalDelivery delivery, string operationId, string phase, string? detail = null)
+        => _activities.ReportAsync(delivery, operationId, phase, Id, detail);
 
     public sealed override async Task OnActivateAsync(CancellationToken cancellationToken)
     {
@@ -267,9 +267,10 @@ public abstract class Neuron :
     // An outbox persists this envelope with its work before attempting delivery.
     protected SignalDelivery CreateDelivery(
         Signal signal, SignalDelivery? cause = null, SignalId? signalId = null, long? sourceEpoch = null,
+        CorrelationId? correlation = null,
         string? sourceStream = null, long? streamGeneration = null)
         => SignalDelivery.Create(signal, Id, _components.Journals.OutgoingNextSequence,
-            TimeProvider, cause ?? _handling,
+            TimeProvider, cause ?? _handling, correlation,
             principal: VerifiedActor.Current?.PrincipalId ?? cause?.Principal ?? _handling?.Principal,
             signalId: signalId, sourceEpoch: sourceEpoch,
             sourceStream: sourceStream, streamGeneration: streamGeneration);

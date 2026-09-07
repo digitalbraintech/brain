@@ -8,10 +8,13 @@ using DigitalBrain.Core;
 using DigitalBrain.Product.Interactions;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
+using Orleans.Concurrency;
 
 namespace DigitalBrain.AI;
 
 [GrainType(IAgentKernel.GrainTypeName)]
+[StatelessWorker(1)]
+[Reentrant]
 internal sealed class AgentKernel(IChatClient chatClient, IGrainFactory grains, IServiceProvider services)
     : Grain, IAgentKernel
 {
@@ -79,7 +82,7 @@ internal sealed class AgentKernel(IChatClient chatClient, IGrainFactory grains, 
 
             IReadOnlyList<ChatMessage> request =
             [
-                new ChatMessage(ChatRole.System, InoInstructions),
+                new ChatMessage(ChatRole.System, DigitalBrain.Assistant.Assistant.InstructionsText),
                 .. messages
             ];
             await using var stream = chatClient.GetStreamingResponseAsync(request, options, cancellationToken)
@@ -127,13 +130,6 @@ internal sealed class AgentKernel(IChatClient chatClient, IGrainFactory grains, 
                 .ConfigureAwait(true);
         }
     }
-
-    private const string InoInstructions =
-        """
-        You are DigitalBrain, the owner's personal assistant. A neuron fires a typed signal along
-        a synapse. The owner programs the brain with C# scripts; a saved, running script is a behavior.
-        Use clear language and take the requested action with the tools available in this turn.
-        """;
 
     private sealed class KernelTurnRequests(
         IAssistantTurn turn,

@@ -60,7 +60,7 @@ internal sealed class ActivityState
             status, root.Timestamp, latest.Timestamp, participants,
             Events.Select(f => new ActivityEventView(f.OperationId, f.SignalId.ToString(), f.CausationId?.ToString(),
                 Instance(f.Source), f.Target is { } target ? Instance(target) : null, f.SignalType, f.Phase,
-                f.Timestamp, f.BehaviorRevision, f.Detail)).ToArray(), root.CommandId,
+                f.Timestamp, f.Detail)).ToArray(), root.CommandId,
             latest.Detail ?? (status == "observed" ? "Observed signal; no tracked execution has settled it." : null), root.Principal, Version);
     }
 

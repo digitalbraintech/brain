@@ -12,6 +12,7 @@
          consumers resolve the version this assembly compiles against on every OS, instead
          of inheriting it from the Windows-only Foundry Local graph. -->
     <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
+    <PackageReference Include="Microsoft.Extensions.Http" />
     <PackageReference Include="Microsoft.Extensions.AI" />
     <PackageReference Include="Microsoft.Extensions.AI.OpenAI" />
     <PackageReference Include="Anthropic" />
@@ -25,14 +26,16 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="../../../../docs/examples/github-pr-review.csx" LogicalName="DigitalBrain.Examples.github-pr-review.csx" />
-    <EmbeddedResource Include="../../../../docs/examples/personal-code-review.csx" LogicalName="DigitalBrain.Examples.personal-code-review.csx" />
-  </ItemGroup>
-  <ItemGroup>
     <ProjectReference Include="../../../Product/DigitalBrain.Product.Contracts/DigitalBrain.Product.Contracts.csproj" />
     <ProjectReference Include="../Contracts/DigitalBrain.Modules.AI.Contracts.csproj" />
+    <ProjectReference Include="../Sdk/DigitalBrain.Modules.AI.Sdk.csproj" />
     <ProjectReference Include="../../../Kernel/DigitalBrain/DigitalBrain.csproj" />
     <ProjectReference Include="../../../Kernel/DigitalBrain.Sdk/DigitalBrain.Sdk.csproj" />
     <ProjectReference Include="../../Memory/Contracts/DigitalBrain.Modules.Memory.Contracts.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>DigitalBrain.AI.Tests</_Parameter1>
+    </AssemblyAttribute>
   </ItemGroup>
 </Project>

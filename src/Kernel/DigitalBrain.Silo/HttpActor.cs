@@ -1,5 +1,6 @@
 using DigitalBrain.Abstractions;
 using DigitalBrain.Abstractions.Identity;
+using DigitalBrain.Core;
 
 namespace DigitalBrain.Kernel;
 
@@ -11,5 +12,5 @@ internal static class HttpActor
         new PrincipalId(new Guid("0000dead-0000-0000-0000-000000000001")),
         "owner");
 
-    public static ActorContext Current => Owner;
+    public static ActorContext Current => VerifiedActor.Current ?? Owner;
 }

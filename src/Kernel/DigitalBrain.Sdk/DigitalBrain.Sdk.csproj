@@ -17,4 +17,12 @@
     <ProjectReference Include="../DigitalBrain.Contracts/DigitalBrain.Contracts.csproj" />
     <ProjectReference Include="../DigitalBrain/DigitalBrain.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="DigitalBrain.Simulation.Tests" />
+    <InternalsVisibleTo Include="DigitalBrain.AI.Tests" />
+    <InternalsVisibleTo Include="DigitalBrain.Scripting" />
+    <InternalsVisibleTo Include="DigitalBrain.Testing" />
+    <InternalsVisibleTo Include="DigitalBrain.Modules.AI" />
+    <InternalsVisibleTo Include="DigitalBrain.Modules.AI.Sdk" />
+  </ItemGroup>
 </Project>

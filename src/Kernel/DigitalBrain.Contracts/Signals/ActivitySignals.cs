@@ -19,8 +19,7 @@ public sealed record ActivityExecutionChanged(
     [property: Id(9)] DateTimeOffset Timestamp,
     [property: Id(10)] string? Title = null,
     [property: Id(11)] string? CommandId = null,
-    [property: Id(12)] string? Detail = null,
-    [property: Id(13)] string? BehaviorRevision = null) : Signal, IActivityTelemetry;
+    [property: Id(12)] string? Detail = null) : Signal, IActivityTelemetry;
 
 [GenerateSerializer, Alias("db.read-activities")]
 public sealed record ReadActivities([property: Id(0)] int Limit = 100) : Signal<ActivitiesSnapshot>, IActivityTelemetry;
@@ -31,6 +30,7 @@ public sealed record ActivitiesSnapshot(
     [property: Id(1)] ActivityView[] Activities) : Signal, IActivityTelemetry;
 
 [GenerateSerializer, Alias("db.activity-changed")]
+[DigitalBrain.Abstractions.Scripting.ApplicationJsonContract("activity.changed", 1)]
 public sealed record ActivityChanged([property: Id(0)] ActivityView Activity) : Signal, IActivityTelemetry;
 
 [GenerateSerializer, Alias("db.activity-view")]
@@ -60,5 +60,4 @@ public sealed record ActivityEventView(
     [property: Id(5)] string SignalType,
     [property: Id(6)] string Phase,
     [property: Id(7)] DateTimeOffset Timestamp,
-    [property: Id(8)] string? BehaviorRevision = null,
     [property: Id(9)] string? Detail = null);

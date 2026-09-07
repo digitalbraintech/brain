@@ -31,6 +31,9 @@ var builder = DistributedApplication.CreateBuilder(args);
 // the host explicitly configures the same opt-in.
 var captureGenAiContent = builder.Configuration.GetValue<bool?>("DigitalBrain:AI:Telemetry:EnableSensitiveData")
     ?? (builder.Environment.IsDevelopment() && builder.ExecutionContext.IsRunMode);
+var fakesEnabled = string.Equals(builder.Configuration[DigitalBrainNames.Fakes], "true", StringComparison.OrdinalIgnoreCase)
+    || string.Equals(builder.Configuration[DigitalBrainNames.Fakes], "1", StringComparison.OrdinalIgnoreCase)
+    || string.Equals(builder.Configuration[DigitalBrainNames.Mode], DigitalBrainNames.TestingMode, StringComparison.Ordinal);
 
 var brain = builder.AddDigitalBrain(ProductSurfaceResources.Brain)
     .AddModule<AIModule>(ai =>
@@ -70,6 +73,10 @@ var brain = builder.AddDigitalBrain(ProductSurfaceResources.Brain)
         // ai.WithDefaultEmbedding<OllamaModels.IEmbeddingGemma>();
 
         ai.WithVoiceToText<IWhisperTiny>();
+        if (!fakesEnabled)
+        {
+            ai.WithTavilySearch();
+        }
     })
     .AddModule<MemoryModule>(memory => memory.WithQdrant())
     .AddModule<TimeModule>()
@@ -85,9 +92,6 @@ var brain = builder.AddDigitalBrain(ProductSurfaceResources.Brain)
         ui.WithWindowHost();
     });
 
-var fakesEnabled = string.Equals(builder.Configuration[DigitalBrainNames.Fakes], "true", StringComparison.OrdinalIgnoreCase)
-    || string.Equals(builder.Configuration[DigitalBrainNames.Fakes], "1", StringComparison.OrdinalIgnoreCase)
-    || string.Equals(builder.Configuration[DigitalBrainNames.Mode], DigitalBrainNames.TestingMode, StringComparison.Ordinal);
 if (fakesEnabled)
 {
     brain.WithDigitalBrainFakes();
@@ -131,12 +135,18 @@ var kernel = builder.AddProject<Projects.DigitalBrain_Silo>(ProductSurfaceResour
                 builder.Configuration["DigitalBrain:Workspace:RepositoryPath"]
                     ?? Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "../../.."));
             context.EnvironmentVariables["DigitalBrain__Workspace__Owner"] = ShellHostingExtensions.DefaultOwner;
+            context.EnvironmentVariables["DigitalBrain__StartupApplication__Source"] =
+                builder.Configuration["DigitalBrain:StartupApplication:Source"]
+                    ?? Path.GetFullPath(Path.Combine(
+                        builder.AppHostDirectory,
+                        "../../Kernel/DigitalBrain.Scripting/scripts/start.cs"));
         }
     });
 
 var mcp = builder.AddProject<Projects.DigitalBrain_Mcp>(ProductSurfaceResources.Mcp)
     .WithMcpServer(ProductSurfaceResources.McpPath, ProductSurfaceResources.McpHttpEndpointName)
     .WithReference(brain.AsClient())
+    .WithReference(kernel)
     .WithEnvironment(
         ShellHostingExtensions.OwnerEnvironmentVariable,
         ShellHostingExtensions.DefaultOwner)
@@ -155,18 +165,8 @@ var mcp = builder.AddProject<Projects.DigitalBrain_Mcp>(ProductSurfaceResources.
     .WithHttpHealthCheck("/health", endpointName: ProductSurfaceResources.McpHttpEndpointName)
     .WaitFor(kernel);
 
-var scripting = builder.AddProject<Projects.DigitalBrain_Scripting>(ProductSurfaceResources.Scripting)
-    .WithReference(brain.AsClient())
-    .WithEnvironment(
-        ShellHostingExtensions.OwnerEnvironmentVariable,
-        ShellHostingExtensions.DefaultOwner)
-    .WithEnvironment(context =>
-    {
-        if (developmentClusterId is not null)
-        {
-            context.EnvironmentVariables["Orleans__ClusterId"] = developmentClusterId;
-        }
-    })
-    .WaitFor(kernel);
+// Endpoint injection adds no WaitFor(mcp): the kernel must start before the MCP client
+// can connect back. Assistant tool discovery opens the connection lazily per session.
+kernel.WithEnvironment("DigitalBrain__Mcp__Endpoint", mcp.GetEndpoint(ProductSurfaceResources.McpHttpEndpointName));
 
 builder.Build().Run();

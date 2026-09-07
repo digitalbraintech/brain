@@ -19,15 +19,13 @@ public readonly struct NeuronReference<TNeuron> : IEquatable<NeuronReference<TNe
     }
 
     public NeuronId Id => NeuronId.For<TNeuron>(_client.Owner, _name);
+    internal string ApplicationScopeId => $"{_client.Owner}/{_client.Principal
+        ?? throw new InvalidOperationException("Typed event ports require an authenticated principal.")}";
 
-    public async Task<IReadOnlyList<string>> PublishedSignalTypesAsync(CancellationToken cancellationToken = default)
+    public Task<IReadOnlyList<string>> PublishedSignalTypesAsync(CancellationToken cancellationToken = default)
     {
-        if (typeof(TNeuron) == typeof(IBehavior))
-        {
-            var read = await _client.SendRequestAsync<BehaviorRead>(Id, new ReadBehavior(), cancellationToken).ConfigureAwait(false);
-            return (read.Behavior.Draft ?? read.Behavior.Active)?.OutputSignalTypes ?? [];
-        }
-        return [];
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult<IReadOnlyList<string>>([]);
     }
 
     public Task SubscribeAsync<TSignal>(INeuronReference source, CancellationToken cancellationToken = default)

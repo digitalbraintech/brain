@@ -1,122 +1,57 @@
-# Programmable behaviors: validation record
+# Programmable applications: validation record
 
-Date: 5 September 2026. Workspace: `D:\digitalbrain`. Changes are uncommitted.
+7 September 2026. Implementation is in progress on `codex/day-zero-scripting`; changes are uncommitted.
 
-## Implemented scope
+The design and remaining work are recorded in [the specification](superpowers/specs/2026-09-07-file-based-scripting-design.md) and [implementation plan](superpowers/plans/2026-09-07-programmable-brain-tdd.md). Earlier totals from the removed behavior runtime do not verify this replacement.
 
-- Typed SDK composition addresses real neurons with `Get<T>()`, saves individual
-  `IBehavior` programs and establishes source-owned subscriptions.
-- The scripting host compiles and executes saved C# outside neuron delivery turns.
-  Drafts, immutable active revisions, accepted inputs, leases, request checkpoints,
-  retries and output delivery belong to the individual behavior.
-- Reusable SDK webhook ingress durably accepts authenticated receipts before HTTP
-  success. Provider modules supply domain facts and connection policy.
-- The GitHub path resolves authorized repository URLs, resumes setup, verifies
-  signed webhook reachability and discovers required checks before activation.
-  The saved review script owns CI gating and concurrent reviewer policy.
-- Behavior Studio edits these definitions and displays actual subscriptions and
-  observed activity. The former admission runtime and migration adapters are removed.
+## What the tests exercise
 
-## Automated verification
+Tests use the production compiler, application kernel, explicit routing, journals and worker host. Real compiled-file tests cover publication and process supervision. External model and search responses are controlled; the application runtime is not replaced by a mock.
 
-The final cleanup builds completed with zero warnings and zero errors.
+Observed passing focused checks include:
 
-| Suite | Result |
-| --- | --- |
-| Substrate | 112 / 112 passed |
-| Simulation | 263 / 263 passed |
-| Scripting | 30 / 30 passed |
-| Live E2E | 44 / 44 passed |
-| Aspire hosting | 62 / 62 passed |
-| Flutter core | 58 / 58 passed |
-| Flutter kit | 68 / 68 passed |
-| Flutter shell | 60 / 60 passed; analysis reported no issues |
+- Assistant template, save, validate, activate and invoke through the real process supervisor.
+- Chat matching and principal isolation: eight cases.
+- Reusable agent composition, including chat-triggered brainstorm and reply to the originating conversation: five cases.
+- Revision-pinned child graphs, exactly one RunAsync boundary, explicit initialization and completion-only UI effects.
+- Durable delay across restart, sequential delays, unrelated-scope progress and neuron event waiting across restart.
+- UI ComponentAdded commit/retry recovery and authenticated button ingress: four HTTP cases.
+- Tavily HTTP behavior and Aspire secret parameter wiring: seven cases. These use sentinel credentials, not a live search account.
 
-The simulation run uses four test threads and scripting uses two. An earlier
-simulation run exceeded four short deadlines during concurrent compilation;
-the complete rerun passed without source changes, skipped cases or relaxed
-assertions. The live E2E suite verifies actual save/compile/execute/output graph
-events, observer lifetime through garbage collection, unavailable-node recovery,
-and the isolated kernel port. Desktop results are still being collected.
+The latest broad Simulation run passed **93/93**, including graph worker failure, recorded values, cancellation, parent/child cancellation across restart, and application-event delivery into neuron inputs. Substrate passed **11/11**. The solution currently builds with zero warnings and errors. Authoring passed **10/10**, AI passed **17/17**, and Flutter shell passed **9/9**; subsequent expectation-tool checks passed individually.
 
-The regression suite exercises duplicate receipts and conflicting identities,
-partial recipient failure, restart recovery, principal isolation, interrupted
-subscribe/unsubscribe, revoked source authority, active revision replacement,
-invalid drafts, compiler/runtime fingerprint changes, changing PR heads and base
-commits, strict CI evidence, actual concurrent agents, completed request recovery,
-and duplicate-free chat publication after transcript retention.
+## Current work
 
-The focused runtime suite passed 15 tests after the last cancellation correction.
-It includes output paused between a downstream behavior and its recipient, a
-self-subscription, a cycle, and two independent cancellation roots released at the
-same outgoing-fence barrier. Each cancellation independently traverses the required
-recipient fences before acknowledgment; another traversal cannot clear its work
-and cause premature success. Normal signal handlers remain serialized.
+Multi-file source bundles retain siblings, use one optimistic source revision, and preserve owner edits during startup. Assistant, HTTP, MCP and Flutter tests exercise the shared authoring path. Startup uses that same service and supervision path. The obsolete behavior execution contracts and consumers have been removed.
 
-## Native Windows Flutter verification
+An initial Aspire smoke check saved a chat program, ran its scenario, activated it, and received one `pong` through `/owner/commands`. After a complete stop/restart, another `/ping` received `pong` without recreating the program. That check exposed old journal records referring to deleted grains; the matching v2 state/journal namespace configuration has now also been exercised live.
 
-The native client is exercised through the Computer plugin. The first pass used
-Testing mode with controlled provider/model implementations. The later cleanup
-pass starts the normal development AppHost against its existing persistent volume.
-Neither pass substitutes for live provider authorization and delivery checks.
+The subsequent MCP runtime check used `aspire start --isolated` in Testing mode and actual MCP initialize/tools/call requests to the discovered MCP endpoint. It discovered the catalog and template, saved `mcp-runtime-chat`, recorded an independent expectation, compiled it, passed its chat scenario and activated it. `/runtime-check` returns `Your saved behavior is running.` After a complete Aspire stop/start, MCP recovered the earlier reply, a new command returned the same expected text, and retrying that command left exactly one correlated Responded journal entry. The scenario report retained the same source, artifact and expectation revisions. No matching failure/obsolete-behavior errors appeared in the inspected final kernel logs. Aspire remains running for inspection.
 
-The first desktop pass found an unavailable persisted Aspire integration causing
-the graph event stream to fail. Projection and observer failures are now isolated
-per neuron, with an unavailable state and recovery on the observer lease. The
-remaining graph can continue to display healthy neurons and their real edges.
+This live check found and fixed two integration gaps: shared HTTP defaults omitted service discovery, and MCP chat observed the obsolete assistant-only reply journal. Regression tests first failed and then passed using a real HTTP listener and a real authored chat handler. The latest full Authoring run passed **12/12** (`.test-results/authoring-runtime-final.log`). The other suite totals above predate these two integration fixes. MCP protocol evidence is retained under `.test-results/mcp-*-result.json`; raw Aspire diagnostics are ignored and must not be published because they can contain credentials.
 
-The pass also found a stale “awaiting compilation” message after successful
-compilation. Studio now updates that message without replacing unsaved source.
-New behavior source demonstrates `ConnectAsync(args)` and `Input<Note>()`.
+Full current backend regressions, final independent review and further browser checks remain required. Interactive secret onboarding has not been verified.
 
-Normal `aspire start --no-build` returned the dashboard at
-`https://localhost:17197` and the kernel reached HTTP 200 / Healthy. The native
-client retained the existing conversation, the valid `c` draft and the
-`github-pr-review` draft with configuration diagnostics.
+## Assistant self-MCP and immediate chat failures
 
-The existing-volume check found deleted signal aliases in historical journal
-entries for the assistant, session and old behavior registry. Those reads made
-Ino appear unavailable, despite current definitions loading. The generic historical
-journal reader now preserves unknown entries as non-Signal metadata, keeping their
-original stored bytes and sequence positions. Three focused regressions pass for
-the actual removed alias, reactivation, mixed/unknown-only reads and watches,
-byte preservation, known corruption and an unknown alias followed by truncation.
-The fallback recognizes an explicit unresolved Orleans type header at the failed
-read position and validates the complete framing. Ordinary live deserialization
-remains strict. The full substrate (112), simulation (263) and live E2E (44)
-suites passed with this correction. The native recheck is pending.
-No local repository/webhook blobs
-were present, so this pass cannot prove readability of previously migrated
-GitHub receipt payloads.
+The latest full Authoring run passed **19/19** (`.test-results/authoring-self-mcp-final4.log`), including real HTTP MCP authoring, missing-route errors, provider failure notification, shipped startup reapply, and startup routing with both connection-bound and ambient verified identities. AI passed **16/16** and focused Simulation chat/routing checks passed **10/10** before the final SDK identity correction. The final solution build passed with zero warnings/errors (`.test-results/build-self-mcp-final2.log`). These are distinct checks; older broad suite totals above are not fresh validation of every change.
 
-Native lifecycle and restart checks are in progress.
+In Development mode with fakes disabled, the actual UI command endpoint received “List my saved C# behaviors and briefly explain what each does. Use your tools.” The configured gpt-5.6-luna model replied in **11.48 seconds**, correctly explaining `start` and `mcp-runtime-chat`. Trace `1273f9660232a72485ade7d0d80cb356` records `execute_tool list_applications` and two `execute_tool read_application` calls through the discovered MCP tools. Evidence: `.test-results/self-mcp-ui-chat.sse`, `self-mcp-tool-traces.json`, and the compact `self-mcp-tool-summary.json`. This verifies real Aspire endpoint injection, DI, HTTP MCP discovery/invocation and model response through the UI backend; it is not a browser rendering check.
 
-## Aspire coexistence
+The retained `start` source was explicitly updated through MCP, validated and activated, preserving its sibling scripts. The installer still preserves saved owner edits. Runtime validation exposed typed ports ignoring the ambient verified principal; the regression failed before the SDK correction and passed afterward.
 
-Normal `aspire start --no-build` was launched while the isolated E2E AppHost was
-live (test PID 28224, DCP PID 20920, kernel port 15417). The CLI selected the normal
-AppHost PID 35604 and returned `https://localhost:17197`, while the test kernel
-returned HTTP 200. The E2E suite completed 44/44 and cleaned up its own host;
-normal startup remained independent. Its first 45-second kernel wait expired
-while dependencies and the kernel process were starting; the next readiness check
-returned Healthy immediately. The native app uses the normal kernel on port 5080.
+Rebuilding the SDK left an older saved application artifact unavailable. An already-admitted `/runtime-check` command waited instead of reporting worker unavailability. Revalidating the unchanged source, rerunning its unchanged acceptance expectation, and activating the rebuilt artifact succeeded. **Worker-unavailability admission/terminal handling remains a separate gap**; immediate missing-route and assistant/provider failures are covered, but do not imply all unavailable-worker cases terminate promptly. The accepted source and expectation hashes stayed unchanged; the new artifact is `7296ca31c93a262bc9dccbc560981ed59fb1e28b59127f008ef525d42715e3f5`.
 
-## External prerequisites and limits
+The final restart temporarily encountered an unavailable Docker Linux engine; `docker desktop start` restored it. After restarting through Aspire, kernel, MCP and Flutter were Running. `/runtime-check` returned `Your saved behavior is running.` through `/owner/commands` (command `7fd53401e4814726ae65d3d0932e71f7`). `/hello` received an assistant response saying no saved behavior could be determined, rather than hanging (command `46b267001c4d44d59b9cd54dd3ba973f`). Evidence is retained in `.test-results/self-mcp-saved-behavior.sse` and `self-mcp-hello.sse`. The app is left running.
 
-No live GitHub OAuth authorization, App installation, public webhook registration,
-or real GitHub PR review was performed during these local checks. The operator
-must supply the App configuration and public callback/webhook origins described
-in [the setup guide](github-pr-review.md). The user then connects the requested
-repository. Studio and Ino retain a draft until the connection, signed-delivery
-proof and required-check evidence are ready.
+Deterministic tests establish behavior for the exercised inputs and recovery boundaries; they do not prove that a model will translate every new natural-language request correctly. Immutable expectation records, scenario execution, and assistant/MCP recording tools now work. Mandatory adoption across every authoring surface, complete user-intent provenance, multi-step/provider scenarios, limits, dynamic creation, graph consistency and retention remain unfinished.
 
-The generic source abstraction supports additional providers. The current
-`IXAccount` source can publish typed `NewPost` facts, but a live authenticated X
-stream or polling adapter is not implemented. It must not be presented as a live
-monitor of an arbitrary account.
+## Fundamental remaining guarantees
 
-Saved C# is trusted local application code. The standalone SDK client connects to
-the configured Orleans cluster using application infrastructure credentials.
+1. Every authoring surface must enforce independent accepted expectations before activation, preserve unrelated intent and record its verified origin. Optional expectations still let an application activate without proving the user's instruction.
+2. Dynamically created child applications need recoverable creation/validation/activation identities and bounded authority. This closes the gap between manually saved composition and reliable on-demand self-programming.
+3. Wait deadlines, execution budgets and remaining lifecycle semantics must be explicit and durable. Parent/child command cancellation is implemented, but does not establish every agent/neuron cancellation boundary.
+4. Dependency updates need atomic graph activation and complete source provenance, so recovery cannot expose a partially updated composition.
+5. Multi-step chat/UI/provider scenarios must exercise the same external boundaries as the app. The successful MCP smoke proves one deterministic saved behavior, persistence and retry; it does not prove unseen natural-language translation, live Tavily, interactive credential onboarding or browser rendering.
 
-See [the implementation contract](programmable-behaviors-implementation.md) and
-[the getting-started guide](GETTING_STARTED.md) for the public API and workflow.
+SDK packaging and artifact retention are operational follow-through after those programming guarantees. Final review remains required.

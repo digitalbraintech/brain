@@ -33,10 +33,15 @@ public abstract partial class Agent : Neuron, IAgent
     {
         ArgumentNullException.ThrowIfNull(signal);
         cancellationToken.ThrowIfCancellationRequested();
-        var reply = await AskDurablyAsync(signal, cancellationToken)
+        var reply = await HandleApplicationAsync(signal, cancellationToken).ConfigureAwait(true)
+            ?? await AskDurablyAsync(signal, cancellationToken)
             .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
         await ReplyAsync(reply).ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
     }
+
+    protected virtual Task<AgentReply?> HandleApplicationAsync(
+        AgentRequest signal, CancellationToken cancellationToken)
+        => Task.FromResult<AgentReply?>(null);
 
     private IAgentKernel Kernel
         => GrainFactory.GetGrain<IAgentKernel>(IAgentKernel.IdFor(Id.Owner));

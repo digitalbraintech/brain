@@ -1,23 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
     <RootNamespace>DigitalBrain.Scripting</RootNamespace>
-    <Description>Out-of-process startup scripting worker for DigitalBrain.</Description>
+    <Description>Immutable file application compilation and authoring for DigitalBrain.</Description>
   </PropertyGroup>
-  <ItemGroup>
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" />
-    <PackageReference Include="Microsoft.CodeAnalysis.Workspaces.Common" VersionOverride="5.9.0" />
-  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../DigitalBrain.Contracts/DigitalBrain.Contracts.csproj" />
     <ProjectReference Include="../DigitalBrain.Sdk/DigitalBrain.Sdk.csproj" />
-    <ProjectReference Include="../../Aspire/DigitalBrain.Aspire/DigitalBrain.Aspire.csproj" />
-    <ProjectReference Include="../../Modules/UI/DigitalBrain.Modules.UI.Contracts/DigitalBrain.Modules.UI.Contracts.csproj" />
-    <ProjectReference Include="../../Modules/AI/Contracts/DigitalBrain.Modules.AI.Contracts.csproj" />
-    <ProjectReference Include="../../Modules/Microsoft/Contracts/DigitalBrain.Modules.Microsoft.Contracts.csproj" />
-    <ProjectReference Include="../../Modules/Google/Contracts/DigitalBrain.Modules.Google.Contracts.csproj" />
-    <ProjectReference Include="../../Modules/Salesforce/Contracts/DigitalBrain.Modules.Salesforce.Contracts.csproj" />
-    <ProjectReference Include="../../Modules/Time/Contracts/DigitalBrain.Modules.Time.Contracts.csproj" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="DigitalBrain.Simulation.Tests" />

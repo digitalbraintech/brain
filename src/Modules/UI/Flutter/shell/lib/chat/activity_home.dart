@@ -149,10 +149,32 @@ extension _ActivityHome on _GraphHomeScreenState {
         'brain-graph' => _activityGraph(component),
         'chat' => _activityChat(component),
         'activity-list' => _taskManager(),
+        'button' => _controlButton(component),
         _ => Center(
           child: Text('Component “${component.kind}” is not installed.'),
         ),
       };
+
+  Widget _controlButton(SurfaceComponent component) {
+    final controlId = component.key;
+    final intent = component.properties['intent'];
+    final enabled =
+        component.properties['enabled'] != 'false' &&
+        controlId != null &&
+        controlId.isNotEmpty &&
+        intent != null &&
+        intent.isNotEmpty &&
+        widget.surfaceKey != null &&
+        widget.onActivateControl != null;
+    return FilledButton(
+      key: ValueKey('surface-control-${controlId ?? "missing"}'),
+      onPressed: enabled
+          ? () =>
+                widget.onActivateControl!(widget.surfaceKey!, controlId, intent)
+          : null,
+      child: Text(component.properties['label'] ?? controlId ?? 'Control'),
+    );
+  }
 
   Widget _componentSplit(SurfaceComponent component) {
     if (component.children.isEmpty) return const SizedBox.shrink();
@@ -180,7 +202,7 @@ extension _ActivityHome on _GraphHomeScreenState {
           flex: ((1 - fraction) * 1000).round(),
           child: _renderComponent(component.children.last),
         );
-        if (vertical && _editingBehavior != null) {
+        if (vertical && _editingApplication != null) {
           final chat = component.children
               .where((child) => child.kind == 'chat')
               .firstOrNull;
@@ -315,8 +337,8 @@ extension _ActivityHome on _GraphHomeScreenState {
               ),
               if (widget.behaviorStudio != null)
                 IconButton(
-                  key: const Key('behavior_library'),
-                  tooltip: 'Behaviors',
+                  key: const Key('application_library'),
+                  tooltip: 'Applications',
                   icon: const Icon(Icons.code, size: 18),
                   onPressed: () => _update(() {
                     _systemGraph = true;
@@ -667,13 +689,15 @@ extension _ActivityHome on _GraphHomeScreenState {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  _editingBehavior == null ? 'With Ino' : _editingBehavior!,
+                  _editingApplication == null
+                      ? 'With Ino'
+                      : _editingApplication!,
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
               ),
-              if (_editingBehavior != null)
+              if (_editingApplication != null)
                 TextButton(
-                  onPressed: () => _update(() => _editingBehavior = null),
+                  onPressed: () => _update(() => _editingApplication = null),
                   child: const Text('Back to input'),
                 )
               else
@@ -693,9 +717,9 @@ extension _ActivityHome on _GraphHomeScreenState {
         ),
         Expanded(
           child: IndexedStack(
-            index: _editingBehavior == null
+            index: _editingApplication == null
                 ? 0
-                : _openBehaviors.indexOf(_editingBehavior!) + 1,
+                : _openApplications.indexOf(_editingApplication!) + 1,
             children: [
               Column(
                 children: [
@@ -743,13 +767,11 @@ extension _ActivityHome on _GraphHomeScreenState {
                 ],
               ),
               if (widget.behaviorStudio != null)
-                for (final name in _openBehaviors)
-                  BehaviorEditor(
+                for (final name in _openApplications)
+                  ApplicationEditor(
                     key: ValueKey(name),
                     api: widget.behaviorStudio!,
-                    name: name,
-                    changes: _brain,
-                    readGraph: () => _brain.snapshot,
+                    applicationKey: name,
                   ),
             ],
           ),

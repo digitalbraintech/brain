@@ -22,8 +22,6 @@ public static class DigitalBrainNames
     // subscriber's grain key ("{owner}/{name}"), so implicit channel subscribers activate as
     // regular owner-bound neurons.
     public const string BroadcastChannelProvider = "db.broadcast";
-    public const string ActivationChannelNamespace = "db.activation";
-    public const string ActivationSubscriberName = "default";
 
     public const string Owner = "DigitalBrain:Owner";
     public const string Modules = "DigitalBrain:Modules";
