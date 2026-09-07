@@ -66,7 +66,10 @@ public sealed class BrainSteps(BrainWorld world)
 
     [Then(@"""(.*)"" (incoming|outgoing) journal has (\d+) entries")]
     public async Task ThenJournalCount(string name, string kind, int count)
-        => Assert.Equal(count, (await Journal(name, Kind(kind))).Delta.Count);
+    {
+        var read = await Journal(name, Kind(kind));
+        Assert.Equal(count, read.ResetSnapshot?.RetainedCount ?? read.Delta.Count);
+    }
 
     [Then(@"the latest ""(.*)"" incoming entry has source ""(.*)""")]
     public async Task ThenLatestSource(string name, string source)
