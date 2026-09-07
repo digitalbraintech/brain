@@ -17,8 +17,6 @@ public sealed partial class DigitalBrainClient : IDigitalBrain, INeuronClient
 
     public OwnerId Owner => _transport.Owner;
     PrincipalId? INeuronClient.Principal => _transport.CurrentPrincipal;
-    public BrainRoot Root => new(Owner, _transport.CurrentPrincipal
-        ?? throw new InvalidOperationException("Root event ports require an authenticated principal."));
 
     internal ActorContext? ConnectionActor => _transport.ConnectionActor;
 

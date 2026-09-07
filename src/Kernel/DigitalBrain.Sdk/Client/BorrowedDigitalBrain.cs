@@ -12,7 +12,6 @@ internal sealed class BorrowedDigitalBrain(IDigitalBrain inner) : IDigitalBrain
     internal IDigitalBrain Inner { get; } = inner;
 
     public OwnerId Owner => Inner.Owner;
-    public BrainRoot Root => Inner.Root;
     public Task ActivateAsync(CancellationToken cancellationToken = default) => Inner.ActivateAsync(cancellationToken);
     public NeuronReference<TNeuron> Get<TNeuron>(string name = "default") where TNeuron : INeuron
         => Inner.Get<TNeuron>(name);

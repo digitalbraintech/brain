@@ -13,7 +13,6 @@ namespace DigitalBrain.Abstractions;
 public interface IDigitalBrain : IAsyncDisposable
 {
     OwnerId Owner { get; }
-    BrainRoot Root { get; }
 
     Task ActivateAsync(CancellationToken cancellationToken = default);
 
