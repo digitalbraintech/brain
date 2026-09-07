@@ -11,16 +11,15 @@ using Xunit;
 namespace DigitalBrain.Substrate.Tests;
 
 [Binding]
-public sealed class MembraneSteps
+public sealed class MembraneSteps(BrainWorld world)
 {
-    private BrainSimulation? _brain;
     private DeliveryOutcome? _lastOutcome;
     private int _lastBroadcastCount;
 
     [Given("a running brain")]
     public async Task GivenARunningBrain()
     {
-        _brain = await BrainSimulation.StartAsync(new() { Modules = new([]) });
+        world.Simulation = await BrainSimulation.StartAsync(new() { Modules = new([]) });
     }
 
     [Given(@"timeline ""(.*)"" can handle NewPost")]
@@ -182,15 +181,14 @@ public sealed class MembraneSteps
     [AfterScenario]
     public async Task AfterScenario()
     {
-        if (_brain is not null)
+        if (world.Simulation is not null)
         {
-            await _brain.DisposeAsync();
-            _brain = null;
+            await world.Simulation.DisposeAsync();
+            world.Simulation = null;
         }
     }
 
-    private BrainSimulation Brain
-        => _brain ?? throw new InvalidOperationException("Given a running brain first.");
+    private BrainSimulation Brain => world.Brain;
 
     private IAccount Account(string name)
         => Brain.Grains.GetGrain<IAccount>(AccountId(name).ToGrainId());
