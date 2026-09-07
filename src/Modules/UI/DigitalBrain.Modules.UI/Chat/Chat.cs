@@ -1,6 +1,5 @@
 using DigitalBrain.Product.Identity;
 using DigitalBrain.Abstractions;
-using DigitalBrain.Execution;
 using DigitalBrain.Abstractions.Identity;
 using DigitalBrain.Product.Interactions;
 using DigitalBrain.Abstractions.Neurons;
@@ -356,13 +355,13 @@ internal sealed class Chat : Neuron, IChat, IChatKernel
         return Task.CompletedTask;
     }
 
-    public Task<ExecutionId?> LoadActiveExecution()
+    public Task<Guid?> LoadActiveExecution()
         => Task.FromResult(LoadFocus().ActiveExecutionId);
 
-    private void SaveActiveExecution(ExecutionId? id)
+    private void SaveActiveExecution(Guid? id)
     {
         var focus = LoadFocus();
-        var related = new List<ExecutionId>(focus.RelatedExecutionIds);
+        var related = new List<Guid>(focus.RelatedExecutionIds);
         if (focus.ActiveExecutionId is { } previous && previous != id)
         {
             related.RemoveAll(existing => existing == previous);

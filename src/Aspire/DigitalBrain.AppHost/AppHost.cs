@@ -4,7 +4,6 @@ using DigitalBrain.AI;
 using DigitalBrain.AI.Aspire.Hosting;
 using DigitalBrain.AI.FoundryLocal;
 using DigitalBrain.Aspire.Hosting;
-using DigitalBrain.Execution;
 using DigitalBrain.Memory;
 using DigitalBrain.Memory.Aspire.Hosting;
 using DigitalBrain.Time;
@@ -73,7 +72,6 @@ var brain = builder.AddDigitalBrain(ProductSurfaceResources.Brain)
     })
     .AddModule<MemoryModule>(memory => memory.WithQdrant())
     .AddModule<TimeModule>()
-    .AddModule<ExecutionModule>()
     .AddModule<UIModule>(ui =>
     {
         ui.WithWindowHost();

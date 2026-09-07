@@ -1,8 +1,6 @@
-using DigitalBrain.Execution;
-
 namespace DigitalBrain.UI;
 
 [GenerateSerializer]
 internal sealed record ChatExecutionFocus(
-    [property: Id(0)] ExecutionId? ActiveExecutionId,
-    [property: Id(1)] List<ExecutionId> RelatedExecutionIds);
+    [property: Id(0)] Guid? ActiveExecutionId,
+    [property: Id(1)] List<Guid> RelatedExecutionIds);

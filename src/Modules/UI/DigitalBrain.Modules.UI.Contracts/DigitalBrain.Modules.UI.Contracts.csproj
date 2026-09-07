@@ -8,7 +8,6 @@
     <PackageReference Include="Microsoft.Extensions.AI.Abstractions" />
     <ProjectReference Include="../../../Product/DigitalBrain.Product.Contracts/DigitalBrain.Product.Contracts.csproj" />
     <ProjectReference Include="../../AI/Contracts/DigitalBrain.Modules.AI.Contracts.csproj" />
-    <ProjectReference Include="../../Execution/Contracts/DigitalBrain.Modules.Execution.Contracts.csproj" />
     <ProjectReference Include="../../../Kernel/DigitalBrain.Contracts/DigitalBrain.Contracts.csproj" />
     <None Include="flutter-wire-contracts.golden.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

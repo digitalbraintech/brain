@@ -14,7 +14,6 @@
     <ProjectReference Include="../DigitalBrain.Modules.UI.Contracts/DigitalBrain.Modules.UI.Contracts.csproj" />
     <ProjectReference Include="../../AI/Contracts/DigitalBrain.Modules.AI.Contracts.csproj" />
     <ProjectReference Include="../../Memory/Contracts/DigitalBrain.Modules.Memory.Contracts.csproj" />
-    <ProjectReference Include="../../Execution/Contracts/DigitalBrain.Modules.Execution.Contracts.csproj" />
     <ProjectReference Include="../../../Kernel/DigitalBrain/DigitalBrain.csproj" />
   </ItemGroup>
 

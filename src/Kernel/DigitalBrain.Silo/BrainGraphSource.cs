@@ -4,8 +4,6 @@ using DigitalBrain.Abstractions.Journals;
 using DigitalBrain.Abstractions.Neurons;
 using DigitalBrain.Abstractions.Signals;
 using DigitalBrain.Abstractions.Synapses;
-using DigitalBrain.Chat;
-using DigitalBrain.Execution;
 
 namespace DigitalBrain.Kernel;
 
@@ -30,11 +28,11 @@ internal sealed class BrainGraphSource(IGrainFactory grains, IDigitalBrain brain
 
     public OwnerId Owner => brain.Owner;
 
-    public async Task<NeuronId?> ReadActiveExecutionAsync(NeuronId chat, CancellationToken cancellationToken)
+    public Task<NeuronId?> ReadActiveExecutionAsync(NeuronId chat, CancellationToken cancellationToken)
     {
-        var execution = await grains.GetGrain<IChatKernel>(chat.ToGrainId())
-            .LoadActiveExecution().WaitAsync(cancellationToken).ConfigureAwait(false);
-        return execution is { } id ? NeuronId.For<IExecution>(Owner, id.ToString()) : null;
+        cancellationToken.ThrowIfCancellationRequested();
+        _ = chat;
+        return Task.FromResult<NeuronId?>(null);
     }
 
     public async Task<BrainGraphNeuronRead> ReadAsync(NeuronId neuron, CancellationToken cancellationToken)

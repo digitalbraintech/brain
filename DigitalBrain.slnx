@@ -34,10 +34,6 @@
     <Project Path="src/Kernel/DigitalBrain.Sdk/DigitalBrain.Sdk.csproj" />
     <Project Path="src/Kernel/DigitalBrain/DigitalBrain.csproj" />
   </Folder>
-  <Folder Name="/Modules/Execution/">
-    <Project Path="src/Modules/Execution/Contracts/DigitalBrain.Modules.Execution.Contracts.csproj" />
-    <Project Path="src/Modules/Execution/Execution/DigitalBrain.Modules.Execution.csproj" />
-  </Folder>
   <Folder Name="/Solution Items/">
     <File Path=".editorconfig" />
     <File Path="Directory.Packages.props" />

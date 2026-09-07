@@ -1,5 +1,3 @@
-using DigitalBrain.Execution;
-
 namespace DigitalBrain.Chat;
 
 // In-silo return-value surface. Owners and scripts use IChat + SendAsync/RequestAsync.
@@ -11,5 +9,5 @@ public interface IChatKernel : IGrainWithStringKey
 
     Task<IReadOnlyList<ChatTurnSnapshot>> LoadTurnSnapshots();
 
-    Task<ExecutionId?> LoadActiveExecution();
+    Task<Guid?> LoadActiveExecution();
 }
