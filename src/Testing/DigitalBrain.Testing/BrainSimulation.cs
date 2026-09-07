@@ -4,8 +4,6 @@ using DigitalBrain.Core;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using Orleans.Configuration;
 using Orleans.Hosting;
 using Orleans.Journaling;
 using Orleans.Storage;
@@ -47,17 +45,6 @@ public sealed class BrainSimulation : IAsyncDisposable
 
     public IGrainFactory Grains { get; }
     public IDigitalBrain Brain { get; }
-
-    public ExternalOrleansGateway ExternalGateway
-    {
-        get
-        {
-            var endpoint = SiloServices.GetRequiredService<IOptions<EndpointOptions>>().Value;
-            var cluster = SiloServices.GetRequiredService<IOptions<ClusterOptions>>().Value;
-            return new(endpoint.AdvertisedIPAddress.ToString(), endpoint.GatewayPort,
-                cluster.ClusterId, cluster.ServiceId);
-        }
-    }
 
     public static async Task<BrainSimulation> StartAsync(BrainSimulationOptions options)
     {
