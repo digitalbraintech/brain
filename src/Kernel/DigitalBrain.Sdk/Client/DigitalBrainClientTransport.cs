@@ -76,13 +76,6 @@ internal sealed partial class DigitalBrainClientTransport
             _connectionActor is not null ? ScopeName(name) : name).ToGrainId());
     }
 
-    private static bool IsOwnerGlobalNeuron(Type neuronType)
-    {
-        var type = NeuronId.GrainTypeNameOf(neuronType);
-        return type.Equals("usermessages", StringComparison.OrdinalIgnoreCase)
-            || type.Equals("assistant", StringComparison.OrdinalIgnoreCase);
-    }
-
     private string ScopeName(string name)
     {
         var principal = _connectionActor?.PrincipalId ?? VerifiedActor.Current?.PrincipalId;

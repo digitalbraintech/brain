@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DigitalBrain · Architecture status</title>
+<style>
+:root{color-scheme:dark;--bg:#171819;--panel:#1d1e20;--line:#333538;--text:#eeeeef;--muted:#969a9f;--green:#a1d8b0;--red:#e8a0a0;--accent:#bbb4ff;--warn:#e6c98a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.55 system-ui,sans-serif}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;border-radius:8px}
+button:hover{background:#303237}button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.app{min-height:100vh;display:grid;grid-template-columns:240px minmax(0,1fr)}
+aside{background:#202022;border-right:1px solid var(--line);padding:22px 14px}
+.brand{font-size:19px;font-weight:650;letter-spacing:-.5px;padding:0 10px 24px}
+.brand span{color:var(--accent)}
+nav button{display:block;width:100%;text-align:left;padding:10px 12px;margin:3px 0}
+nav button.active{background:#343437}
+.eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:1.4px;color:var(--muted);margin:22px 12px 8px}
+main{padding:28px 36px 80px;max-width:980px}
+.badge{font-size:10px;padding:4px 8px;border:1px solid #5c5540;color:#cbc3a0;border-radius:5px;letter-spacing:.6px}
+h1{font-size:28px;font-weight:560;letter-spacing:-.6px;margin:8px 0 12px}
+h2{font-size:18px;font-weight:560;letter-spacing:-.3px;margin:32px 0 10px}
+p,li{color:#d4d5d8}
+.muted{color:var(--muted)}
+.card{border:1px solid var(--line);background:var(--panel);border-radius:12px;padding:16px 18px;margin:10px 0}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.pill{border:1px solid #4b465e;background:#2e293b;border-radius:5px;font-size:10px;padding:3px 7px;color:#c7bfff}
+.pill.keep{border-color:#355344;background:#24332a;color:var(--green)}
+.pill.trash{border-color:#5a3535;background:#332424;color:var(--red)}
+.pill.warn{border-color:#5a4d2e;background:#332e22;color:var(--warn)}
+.pill.lie{border-color:#5a3535;background:#3a2222;color:#ffc9c9}
+label.item{display:grid;grid-template-columns:22px 1fr;gap:10px;align-items:start;padding:12px 0;border-bottom:1px solid var(--line)}
+label.item:last-child{border-bottom:0}
+label.item input{margin-top:4px}
+.choice{display:grid;gap:8px;margin-top:8px}
+.choice button{text-align:left;border:1px solid var(--line);padding:10px 12px}
+.choice button.picked{border-color:var(--accent);background:#2b2838}
+.kv{display:grid;grid-template-columns:160px 1fr;gap:8px 16px;font-size:13px}
+.kv span:first-child{color:var(--muted)}
+code{font:12px/1.4 ui-monospace,Consolas,monospace;background:#2a2c2f;padding:1px 5px;border-radius:4px}
+.footer{position:sticky;bottom:0;background:#1a1b1d;border-top:1px solid var(--line);padding:12px 36px;display:flex;justify-content:space-between;gap:16px;align-items:center}
+.toast{position:fixed;bottom:70px;left:50%;transform:translateX(-50%);background:#44414d;border:1px solid #81778f;border-radius:10px;padding:10px 20px;font-size:12px;z-index:20}
+.toast[hidden]{display:none}
+section[hidden]{display:none}
+@media(max-width:800px){.app{grid-template-columns:1fr}aside{display:none}main{padding:20px 16px 96px}.kv{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="app">
+<aside>
+  <div class="brand"><span>◈</span> DigitalBrain</div>
+  <div class="eyebrow">Architecture</div>
+  <nav>
+    <button data-go="status" class="active">Status</button>
+    <button data-go="keep">Keep</button>
+    <button data-go="trash">Trash groups</button>
+    <button data-go="lies">Implementation lies</button>
+    <button data-go="decisions">Your decisions</button>
+    <button data-go="order">Repair order</button>
+  </nav>
+  <p class="eyebrow">This page</p>
+  <p class="muted" style="padding:0 12px;font-size:12px">Local prototype. No backend. Confirms the approved spec; it does not reopen three competing architectures.</p>
+</aside>
+<main>
+<section id="status">
+  <div class="row"><span class="badge">LEAD ARCHITECT · 2026-09-07</span><span class="pill warn">UNCOMMITTED TREE</span></div>
+  <h1>Context communication is the architecture. The tree is not done.</h1>
+  <p>The approved spec is <code>docs/superpowers/specs/2026-09-07-context-communication-design.md</code>. Scripts implement one typed handler. Durable executions own progress. <code>IContext</code> is authorized access to that execution. Ordinary C# makes business decisions. Activation is one atomic, tested installation.</p>
+  <div class="card">
+    <div class="kv">
+      <span>Branch</span><span><code>codex/day-zero-scripting</code>, 1 commit ahead of origin, large uncommitted redesign</span>
+      <span>Safety net</span><span>Only <code>tests/DigitalBrain.Substrate.Tests</code> remains in the solution. AI, authoring and simulation test projects are deleted in the working tree.</span>
+      <span>Shipped boot</span><span><code>scripts/start.cs</code> still uses <code>brain.Application("start")</code></span>
+      <span>Definition path</span><span><code>AddDefinitionAuthoring</code> still calls <code>AddApplicationAuthoring</code></span>
+      <span>Acceptance</span><span><code>RunScenariosAsync</code> writes <code>passed:true</code> with empty results. Activation can proceed without expectations.</span>
+      <span>UI concept</span><span><a href="chat-context.html" style="color:var(--accent)">chat-context.html</a> — simulated chat, graph, evidence, activity</span>
+    </div>
+  </div>
+  <h2>What I will not reopen</h2>
+  <p>Q1–Q26 in the spec are settled. I will not run a three-way architecture contest. Weight and decay do not belong in foundational routing. There is no <code>brain.Application</code> in the target programming model. The first product milestone is still the assistant-authored brainstorm experience in Flutter, proved by TDD.</p>
+</section>
+
+<section id="keep" hidden>
+  <h1>Keep</h1>
+  <p>These are the substrate and product surfaces. New work composes them; it does not replace them with a second runtime.</p>
+  <div class="card">
+    <label class="item"><input type="checkbox" checked disabled><div><b>Typed membrane</b><div class="muted"><code>IDigitalBrain.Get</code>, <code>NeuronReference.SendAsync</code>, <code>IHandle&lt;T&gt;</code>. Compile-time permission to receive. IHandle is capability, not a subscription.</div></div></label>
+    <label class="item"><input type="checkbox" checked disabled><div><b>Source-owned synapses</b><div class="muted">Broadcast follows the source neuron's synapses of that signal type. Explicit <code>Innate</code> and <code>Bound</code> routes stay. <code>SubscribeTo</code> writes a Bound synapse.</div></div></label>
+    <label class="item"><input type="checkbox" checked disabled><div><b>Delivery envelope</b><div class="muted">Journals store <code>SignalDelivery</code>, not a growing domain snapshot. Signal id, correlation, caller, sequence remain.</div></div></label>
+    <label class="item"><input type="checkbox" checked disabled><div><b>One agent contract</b><div class="muted"><code>IAgent</code>, <code>AgentRequest</code>, <code>AgentReply</code> for research, proposal, criticism, synthesis. No workflow-stage payload types.</div></div></label>
+    <label class="item"><input type="checkbox" checked disabled><div><b>Owner / principal identity</b><div class="muted">Neurons refuse foreign owners. Script workers redeem a leased execution capability; an execution id alone is not authority.</div></div></label>
+    <label class="item"><input type="checkbox" checked disabled><div><b>Flutter chat + UI kit</b><div class="muted">Chat command ingress, entity-backed kit components, activity inspector. The HTML prototype is the interaction concept, not a second app.</div></div></label>
+  </div>
+</section>
+
+<section id="trash" hidden>
+  <h1>Trash groups</h1>
+  <p>Tick to confirm deletion <i>after</i> the replacement path is proven. Do not delete the last copy of a behavior guarantee until a replacement test exists.</p>
+  <div class="card">
+    <label class="item"><input type="checkbox" data-trash="application-wrapper"><div><b>Application programming wrapper</b> <span class="pill trash">TARGET TRASH</span><div class="muted"><code>brain.Application</code>, apply-time composition, application ports, application operation facades. Shipped <code>start.cs</code> / <code>ui.cs</code> / <code>activities.cs</code> still live here.</div></div></label>
+    <label class="item"><input type="checkbox" data-trash="text-triggers"><div><b>Kernel text matching</b> <span class="pill trash">TARGET TRASH</span><div class="muted"><code>OnUserMessageContaining</code>, <code>ApplicationTextTrigger</code>, <code>ApplicationCatalog</code> overlap. Matching belongs in ordinary router C#.</div></div></label>
+    <label class="item"><input type="checkbox" data-trash="weight-routing"><div><b>Weight / decay / learned routing as foundation</b> <span class="pill trash">TARGET TRASH</span><div class="muted"><code>NeuronSynapses</code> still orders and prunes by decayed weight. <code>Learned</code> and <code>Discovered</code> kinds remain. Spec: subscriptions are explicit; adaptive routing is a later policy handler.</div></div></label>
+    <label class="item"><input type="checkbox" data-trash="dual-authoring"><div><b>Dual authoring stack</b> <span class="pill warn">STILL WIRED</span><div class="muted">Definition authoring is registered on top of application authoring. Old MCP application tools and new definition tools can coexist until the definition path is honest.</div></div></label>
+    <label class="item"><input type="checkbox" data-trash="docs-authority"><div><b>Stale architecture docs as authority</b> <span class="pill warn">DOCS</span><div class="muted"><code>docs/ARCHITECTURE.md</code> (2026-09-05) still describes applications, weighted pruning, and CONTEXT.md as current. Spec of 2026-09-07 supersedes it.</div></div></label>
+    <label class="item"><input type="checkbox" data-trash="deleted-tests"><div><b>Already-deleted test projects</b> <span class="pill warn">WORKING TREE</span><div class="muted">AI, Authoring, and Simulation test projects are gone from the solution. Spec said retain isolation, persistence, cancellation, fencing guarantees. Confirm they stay deleted only if those guarantees move into new tests first.</div></div></label>
+  </div>
+</section>
+
+<section id="lies" hidden>
+  <h1>Implementation lies</h1>
+  <p>These are not architecture debates. They must not stay green.</p>
+  <div class="card">
+    <p><span class="pill lie">1</span> <b>Fabricated acceptance.</b> <code>DefinitionAuthoringService.RunScenariosAsync</code> returns <code>Passed=true</code> and <code>{"passed":true,"results":[]}</code> without executing expectations. Activation then treats missing expectations as allowed.</p>
+    <p><span class="pill lie">2</span> <b>Activation is not one commit.</b> Each definition is marked active, then the registry is committed, then subscriptions are applied. Interruption can expose a partial set. Removed subscriptions are not removed.</p>
+    <p><span class="pill lie">3</span> <b>Control APIs that do not control.</b> <code>RetryExecutionAsync</code> only reads. <code>RunAgainAsync</code> returns a new id without admitting work.</p>
+    <p><span class="pill lie">4</span> <b>Process bootstrap loses capability.</b> <code>Context.ConnectAsync</code> stores the worker capability in <code>AsyncLocal</code> inside an awaited method; the caller does not retain it. Replay also mints a fresh caller and <code>SignalId</code>.</p>
+    <p><span class="pill lie">5</span> <b>Supervisor is serial and forgetful.</b> It waits for one script process before claiming another. <code>ClaimPending</code> removes work before a durable ack.</p>
+    <p class="muted">Full review: <code>docs/superpowers/reviews/2026-09-07-context-implementation-review.md</code>. I will not re-approve settled semantics to make these easier.</p>
+  </div>
+</section>
+
+<section id="decisions" hidden>
+  <h1>Decisions only you can make</h1>
+  <p>Kernel architecture is frozen. These are product-boundary calls from the neuron/API grilling. Recommendations are mine; picks are yours.</p>
+  <div class="card">
+    <h2>1. Evidence contribution</h2>
+    <p class="muted">Shared evidence for an interaction versus execution control for a handler.</p>
+    <div class="choice" data-decision="evidence">
+      <button data-value="separate">Separate contracts, even if hosted together <span class="pill keep">RECOMMENDED</span><div class="muted">Evidence is append-only contribution with author/cause. Execution context is leased control. Publishing evidence does not complete or cancel work.</div></button>
+      <button data-value="one-owner">One owning participant with two capabilities<div class="muted">A single participant exposes both evidence publish and execution control. Simpler surface, easier to smuggle control into evidence.</div></button>
+    </div>
+  </div>
+  <div class="card">
+    <h2>2. IGit first slice</h2>
+    <p class="muted">Git is an API proving example, not permission for hidden stage/commit/push. Workspace file observation is not Git.</p>
+    <div class="choice" data-decision="igit">
+      <button data-value="read">Typed read/observe first <span class="pill keep">RECOMMENDED</span><div class="muted">Status, diff, history. Writes wait for an explicit later slice. <code>IWorkspace</code> owns non-Git file change. <code>CodeChanged</code> is not a Git event.</div></button>
+      <button data-value="write">Include explicit writes now<div class="muted">Stage/commit/push as typed commands from day one. Larger blast radius before the evidence/execution split is proven.</div></button>
+    </div>
+  </div>
+  <div class="card">
+    <h2>3. Inspector</h2>
+    <p class="muted">The chat prototype currently uses separate Graph / Context / Activity tabs.</p>
+    <div class="choice" data-decision="inspector">
+      <button data-value="tabs">Separate tabs in one right inspector <span class="pill keep">RECOMMENDED</span><div class="muted">Matches the prototype. Execution graph, evidence stream, and activity history have different lifetimes.</div></button>
+      <button data-value="combined">One graph that also contains evidence nodes<div class="muted">Richer picture, easier to confuse a contribution with a child execution.</div></button>
+    </div>
+  </div>
+  <div class="card">
+    <h2>4. Authored C# isolation</h2>
+    <p class="muted">A context credential is not an OS sandbox. This is an implementation-policy call from the review.</p>
+    <div class="choice" data-decision="sandbox">
+      <button data-value="mediated">Trusted host process; only mediated operations get context guarantees <span class="pill keep">RECOMMENDED FOR MILESTONE 1</span><div class="muted">Raw HTTP, disk, clock, and randomness remain possible in C# and are documented as unguaranteed. Prove the mediated path first.</div></button>
+      <button data-value="os">OS-sandbox every authored process now<div class="muted">Correct long-term posture. It is not the first milestone and must not delay honest acceptance.</div></button>
+    </div>
+  </div>
+</section>
+
+<section id="order" hidden>
+  <h1>Repair order</h1>
+  <p>I will not mark the brainstorm milestone complete from compile-only or activation-acknowledgement evidence.</p>
+  <div class="card">
+    <ol>
+      <li>Restore a failing acceptance test for the full owner journey. First regression: an intentionally wrong reply must fail scenarios and block activation. No fabricated green.</li>
+      <li>Prove real-process echo and parent/child script execution. Fix bootstrap capability, recoverable scheduling, terminal outcomes.</li>
+      <li>Durable operation identities, lease renewal, parent/correlation propagation, revision closure.</li>
+      <li>Real scenario isolation and one atomic activation/wiring commit, with exact revision checks.</li>
+      <li>HTTP MCP management end-to-end, then the assistant-authored brainstorm/search/restart test.</li>
+      <li>Remove the application wrapper, text triggers, and duplicate authoring tools as the replacement path becomes the only path. Adapt useful guarantees; do not restore compatibility layers.</li>
+      <li>Live Aspire + DigitalBrain MCP + Flutter gate. Record limitations honestly.</li>
+    </ol>
+  </div>
+  <p class="muted">Until you tick trash groups and pick the four decisions, I will implement along the recommended options and I will not delete the application stack.</p>
+</section>
+</main>
+</div>
+<div class="footer">
+  <span class="muted" id="summary">No trash groups confirmed · no product decisions picked</span>
+  <button id="copy">Copy decisions</button>
+</div>
+<div class="toast" id="toast" hidden></div>
+<script>
+const $ = s => document.querySelector(s);
+const picks = {};
+function go(id){
+  document.querySelectorAll('main > section').forEach(s => s.hidden = s.id !== id);
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('active', b.dataset.go === id));
+}
+function summary(){
+  const trash = [...document.querySelectorAll('[data-trash]:checked')].map(i => i.dataset.trash);
+  const decided = Object.keys(picks);
+  $('#summary').textContent =
+    `${trash.length} trash group(s) confirmed · ${decided.length}/4 product decisions picked`;
+}
+function toast(text){
+  $('#toast').textContent = text;
+  $('#toast').hidden = false;
+  clearTimeout(toast.t);
+  toast.t = setTimeout(() => $('#toast').hidden = true, 4000);
+}
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => go(b.dataset.go));
+document.querySelectorAll('[data-trash]').forEach(i => i.onchange = summary);
+document.querySelectorAll('.choice').forEach(group => {
+  group.querySelectorAll('button').forEach(btn => {
+    btn.onclick = () => {
+      group.querySelectorAll('button').forEach(b => b.classList.remove('picked'));
+      btn.classList.add('picked');
+      picks[group.dataset.decision] = btn.dataset.value;
+      summary();
+    };
+  });
+});
+$('#copy').onclick = async () => {
+  const trash = [...document.querySelectorAll('[data-trash]:checked')].map(i => i.dataset.trash);
+  const text = JSON.stringify({trash, picks, recommendedIfOmitted:{
+    evidence:'separate', igit:'read', inspector:'tabs', sandbox:'mediated'
+  }}, null, 2);
+  await navigator.clipboard.writeText(text);
+  toast('Copied local picks. This page did not send them anywhere.');
+};
+summary();
+</script>
+</body>
+</html>
