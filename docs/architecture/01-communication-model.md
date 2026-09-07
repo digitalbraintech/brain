@@ -6,7 +6,16 @@ Status: approved 2026-09-08. Supersedes the vocabulary in `CONTEXT.md` where the
 
 **Neuron.** A durable actor with one receive slot: `Task Receive(Signal)`. It has no
 return value. If it has something to say, it Fires. A neuron owns its outgoing
-synapses and two bounded journals (incoming, outgoing).
+synapses, two bounded journals (incoming, outgoing), and the latest signal of each type
+it has received, kept durably outside the journal window. That last item is its state in
+the most literal sense: what was last said to it.
+
+**Read.** Not a verb of communication. State, synapses, and journals are queries: nothing
+moves, nothing is journaled, no synapse is involved.
+
+**Membrane.** A signal payload is capped at 64 KB. Larger signals are rejected before
+delivery with no journal entry on either end. Latest-per-type is unbounded in count, so the
+cap is what keeps any neuron's durable footprint in the low megabytes.
 
 **Synapse.** A directed edge `A -> B` for one signal type `T`, stored on `A`. It is the
 only routing fact in the system. Whether `B` receives `T` from `A` is decided entirely by
@@ -28,7 +37,7 @@ neurons that Fire too.
 ## Request/reply is a pattern, not a primitive
 
 `A` fires `Question` along `A -> B`. `B` fires `Answer` along `B -> A`. The envelope
-carries correlation. "Ask and wait" is an SDK/MCP convenience: poll the caller's incoming
+carries correlation. "Ask and wait" is a client convenience (`read` with a timeout): poll the caller's incoming
 journal for the next signal with that correlation, with a timeout. A conversation
 therefore needs synapses in both directions, created explicitly.
 
