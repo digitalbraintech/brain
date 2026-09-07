@@ -3,12 +3,6 @@
     <Project Path="src/Product/DigitalBrain.Product.Contracts/DigitalBrain.Product.Contracts.csproj" />
   </Folder>
   <Folder Name="/Modules/" />
-  <Folder Name="/Modules/AI/">
-    <Project Path="src/Modules/AI/AI/DigitalBrain.Modules.AI.csproj" />
-    <Project Path="src/Modules/AI/Aspire.Hosting/DigitalBrain.Modules.AI.Aspire.Hosting.csproj" />
-    <Project Path="src/Modules/AI/Contracts/DigitalBrain.Modules.AI.Contracts.csproj" />
-    <Project Path="src/Modules/AI/Sdk/DigitalBrain.Modules.AI.Sdk.csproj" />
-  </Folder>
   <Folder Name="/Modules/UI/">
     <Project Path="src/Modules/UI/DigitalBrain.Modules.UI.Aspire.Hosting/DigitalBrain.Modules.UI.Aspire.Hosting.csproj" />
     <Project Path="src/Modules/UI/DigitalBrain.Modules.UI.Contracts/DigitalBrain.Modules.UI.Contracts.csproj" />

@@ -2,7 +2,6 @@ using System.Collections.Concurrent;
 using System.Reflection;
 using DigitalBrain.Abstractions.Neurons;
 using DigitalBrain.Abstractions.Signals;
-using DigitalBrain.AI;
 using DigitalBrain.Core;
 using DigitalBrain.Product.Presentation;
 

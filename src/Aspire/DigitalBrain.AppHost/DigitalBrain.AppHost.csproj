@@ -6,7 +6,6 @@
     <UserSecretsId>digitalbrain-os-apphost-7c3e9a2f-4b81-4d6e-9f0a-1e5c8b2d6a44</UserSecretsId>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../../Modules/AI/Aspire.Hosting/DigitalBrain.Modules.AI.Aspire.Hosting.csproj" IsAspireProjectResource="false" />
     <ProjectReference Include="../../Modules/UI/DigitalBrain.Modules.UI.Aspire.Hosting/DigitalBrain.Modules.UI.Aspire.Hosting.csproj" IsAspireProjectResource="false" />
     <ProjectReference Include="../DigitalBrain.Aspire.Hosting/DigitalBrain.Aspire.Hosting.csproj" IsAspireProjectResource="false" />
     <ProjectReference Include="../../Kernel/DigitalBrain.Silo/DigitalBrain.Silo.csproj" />
