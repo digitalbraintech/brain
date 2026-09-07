@@ -7,7 +7,6 @@ using DigitalBrain.Abstractions.Neurons;
 using DigitalBrain.Abstractions.Signals;
 using DigitalBrain.Abstractions.Synapses;
 using DigitalBrain.Core;
-using DigitalBrain.Sdk.Webhooks;
 
 namespace DigitalBrain.Abstractions;
 
@@ -61,8 +60,7 @@ internal sealed partial class DigitalBrainClientTransport
         ArgumentNullException.ThrowIfNull(client);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         RequireDomainNeuronContract(typeof(TNeuron));
-        if (!IsOwnerGlobalNeuron(typeof(TNeuron)) && (_connectionActor is not null
-            || typeof(IWebhook).IsAssignableFrom(typeof(TNeuron))))
+        if (_connectionActor is not null)
         {
             name = ScopeName(name);
         }

@@ -6,14 +6,12 @@
   </PropertyGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
-    <PackageReference Include="ModelContextProtocol.Core" />
     <PackageReference Include="Microsoft.Orleans.Client" />
     <PackageReference Include="Microsoft.Orleans.Clustering.AzureStorage" />
     <PackageReference Include="Aspire.Azure.Data.Tables" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../../Product/DigitalBrain.Product.Contracts/DigitalBrain.Product.Contracts.csproj" />
     <ProjectReference Include="../DigitalBrain.Contracts/DigitalBrain.Contracts.csproj" />
     <ProjectReference Include="../DigitalBrain/DigitalBrain.csproj" />
   </ItemGroup>

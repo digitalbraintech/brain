@@ -1,7 +1,4 @@
 <Solution>
-  <Folder Name="/Product/">
-    <Project Path="src/Product/DigitalBrain.Product.Contracts/DigitalBrain.Product.Contracts.csproj" />
-  </Folder>
   <Folder Name="/Modules/" />
   <Folder Name="/Modules/DigitalBrain/">
     <Project Path="src/Aspire/DigitalBrain.Aspire.Hosting/DigitalBrain.Aspire.Hosting.csproj" />
@@ -16,7 +13,6 @@
     <File Path="Directory.Packages.props" />
   </Folder>
   <Folder Name="/Testing/">
-    <Project Path="src/Testing/DigitalBrain.Testing.E2E/DigitalBrain.Testing.E2E.csproj" />
     <Project Path="src/Testing/DigitalBrain.Testing/DigitalBrain.Testing.csproj" />
   </Folder>
   <Folder Name="/Tests/">
