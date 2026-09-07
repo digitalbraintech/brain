@@ -41,7 +41,7 @@ public abstract class Neuron : DurableGrain, INeuron, INeuronQuery
 
     // ---- INeuron ----
 
-    public Task<int> Fire(Signal signal, NeuronId? to, CorrelationId? correlation, CancellationToken cancellationToken = default)
+    public Task<FireOutcome> Fire(Signal signal, NeuronId? to, CorrelationId? correlation, CancellationToken cancellationToken = default)
         => FireAsync(signal, to, correlation, cancellationToken);
 
     public async Task Connect(NeuronId target, string signalType)
@@ -96,7 +96,7 @@ public abstract class Neuron : DurableGrain, INeuron, INeuronQuery
 
     // ---- for subclasses ----
 
-    protected async Task<int> FireAsync(
+    protected async Task<FireOutcome> FireAsync(
         Signal signal,
         NeuronId? to = null,
         CorrelationId? correlation = null,
@@ -151,7 +151,7 @@ public abstract class Neuron : DurableGrain, INeuron, INeuronQuery
                 failures);
         }
 
-        return targets.Length;
+        return new FireOutcome(delivery.SignalId, delivery.CorrelationId, targets.Length);
     }
 
     protected new IDisposable RegisterTimer(Func<object, Task> callback, object state, TimeSpan dueTime, TimeSpan period)

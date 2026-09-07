@@ -20,8 +20,8 @@ public sealed class StateSteps(BrainSteps brain)
     }
 
     [When(@"""(.*)"" fires ""(\w+)"" (\{.*\}) at profile ""(.*)""")]
-    public Task FireAtProfile(string from, string type, string body, string profile)
-        => brain.Neuron(from).Fire(Signal.Create(type, body), ProfileId(profile), null);
+    public async Task FireAtProfile(string from, string type, string body, string profile)
+        => _ = await brain.Neuron(from).Fire(Signal.Create(type, body), ProfileId(profile), null);
 
     [When(@"""(.*)"" incoming journal is read (\d+) times")]
     public async Task ReadMany(string name, int times)

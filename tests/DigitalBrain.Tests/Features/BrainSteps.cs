@@ -118,7 +118,7 @@ public sealed class BrainSteps(BrainWorld world)
         _lastError = null;
         try
         {
-            _lastCount = await Neuron(from).Fire(Signal.Create(type, body), to is null ? null : Id(to), null);
+            _lastCount = (await Neuron(from).Fire(Signal.Create(type, body), to is null ? null : Id(to), null)).Delivered;
         }
         catch (Exception error)
         {

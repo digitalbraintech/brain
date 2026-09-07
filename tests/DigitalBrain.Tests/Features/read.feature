@@ -29,6 +29,14 @@ Feature: Read
     And "claude" outgoing journal has 1 entries
     And "claude" has 1 synapses
 
+  Scenario: A journal read numbers its window and reports the running total
+    Given a running brain
+    When session "claude" fires "Note" {"text":"x"} at "run-tests" 2 times
+    And session "elon" fires "Note" {"text":"y"} at "run-tests"
+    And "run-tests" is read for "incoming"
+    Then the read incoming sequences are "1, 2, 3"
+    And the read incoming total recorded is 3
+
   Scenario: A walk from a topic reaches exactly its targets
     Given a running brain
     And "git" is connected to "run-tests" for "Note"

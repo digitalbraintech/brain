@@ -32,6 +32,15 @@ public sealed class OperationSteps(BrainSteps brain)
     public Task SessionFiresEmpty(string session, string type, string to)
         => Try(() => Ops.FireAsync(session, new(type, "", to)));
 
+    [When(@"session ""(.*)"" fires ""(\w+)"" (\{.*\}) at ""(.*)"" (\d+) times")]
+    public async Task SessionFiresMany(string session, string type, string body, string to, int times)
+    {
+        for (var i = 0; i < times; i++)
+        {
+            await Try(() => Ops.FireAsync(session, new(type, body, to)));
+        }
+    }
+
     [When(@"""(.*)"" is read$")]
     public async Task Read(string neuron) => _read = await Ops.ReadAsync(new(neuron));
 
@@ -56,7 +65,11 @@ public sealed class OperationSteps(BrainSteps brain)
 
     [When(@"""(.*)"" incoming is read after (\d+) with a (\d+) second timeout$")]
     public async Task TimedRead(string neuron, long after, int seconds)
-        => _timed = (await Ops.ReadAsync(new(neuron, "incoming", after, seconds))).Incoming;
+    {
+        var watch = Stopwatch.StartNew();
+        _timed = (await Ops.ReadAsync(new(neuron, "incoming", after, seconds))).Incoming;
+        Assert.True(watch.Elapsed >= TimeSpan.FromSeconds(seconds) - TimeSpan.FromMilliseconds(100), "read returned before the deadline");
+    }
 
     [When(@"""(.*)"" incoming is read after (\d+) with a (\d+) second timeout while ""(.*)"" fires ""(\w+)"" (\{.*\}) at ""(.*)"" after (\d+) ms")]
     public async Task TimedReadWhileFiring(string neuron, long after, int seconds, string from, string type, string body, string to, int delayMs)
@@ -114,6 +127,13 @@ public sealed class OperationSteps(BrainSteps brain)
 
     [Then(@"the walk visited ""(.*)""")]
     public void ThenWalk(string expected) => Assert.Equal(expected, string.Join(", ", _walk));
+
+    [Then(@"the read incoming sequences are ""(.*)""")]
+    public void ThenSequences(string expected)
+        => Assert.Equal(expected, string.Join(", ", _read!.Incoming!.Entries.Select(e => e.Sequence.ToString(System.Globalization.CultureInfo.InvariantCulture))));
+
+    [Then(@"the read incoming total recorded is (\d+)")]
+    public void ThenTotalRecorded(long total) => Assert.Equal(total, _read!.Incoming!.TotalRecorded);
 
     [Then(@"the timed read returned (\d+) entries")]
     public void ThenTimed(int count) => Assert.Equal(count, _timed!.Entries.Count);

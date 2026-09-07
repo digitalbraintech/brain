@@ -8,10 +8,11 @@ namespace DigitalBrain.Abstractions.Neurons;
 public interface INeuron : IGrainWithStringKey
 {
     // to == null: along every synapse of signal.Type. to != null: along exactly that synapse,
-    // creating it first if missing. Returns the number of neurons delivered to.
+    // creating it first if missing. Returns the envelope it minted and the number of neurons
+    // delivered to.
     [Alias(nameof(Fire))]
     [ResponseTimeout(NeuronCallTimeouts.LongRunning)]
-    Task<int> Fire(Signal signal, NeuronId? to, CorrelationId? correlation, CancellationToken cancellationToken = default);
+    Task<FireOutcome> Fire(Signal signal, NeuronId? to, CorrelationId? correlation, CancellationToken cancellationToken = default);
 
     [Alias(nameof(Connect))]
     Task Connect(NeuronId target, string signalType);

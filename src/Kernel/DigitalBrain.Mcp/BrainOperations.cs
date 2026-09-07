@@ -16,18 +16,17 @@ public sealed class BrainOperations(IGrainFactory grains)
         var from = Parse(session, nameof(session));
         var signal = Signal.Create(request.Type, request.Body);
         NeuronId? to = request.To is null ? null : Parse(request.To, nameof(request));
-        CorrelationId? correlation = request.Correlation is null ? null : new CorrelationId(Guid.Parse(request.Correlation));
+        var correlation = ParseCorrelation(request.Correlation);
 
-        var delivered = await Neuron(from).Fire(signal, to, correlation, cancellationToken).ConfigureAwait(false);
-        var outgoing = await Query(from).ReadJournal(JournalKind.Outgoing, 0).ConfigureAwait(false);
-        var envelope = outgoing.Delta[^1];
-        return new(envelope.SignalId.ToString(), envelope.CorrelationId.ToString(), delivered);
+        var outcome = await Neuron(from).Fire(signal, to, correlation, cancellationToken).ConfigureAwait(false);
+        return new(outcome.SignalId.ToString(), outcome.CorrelationId.ToString(), outcome.Delivered);
     }
 
     public Task ConnectAsync(ConnectRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
+        // A synapse carries a signal type, so the type must be vocabulary before the edge exists.
         _ = Signal.Create(request.Type, "{}");
         return Neuron(Parse(request.From, nameof(request))).Connect(Parse(request.To, nameof(request)), request.Type);
     }
@@ -50,6 +49,8 @@ public sealed class BrainOperations(IGrainFactory grains)
             throw new ArgumentException($"'{request.What}' is not a view. Use state, synapses, incoming or outgoing, or omit it for all four.", nameof(request));
         }
 
+        // One budget for the whole read: a default read must not wait it out twice.
+        var deadline = DateTimeOffset.UtcNow.AddSeconds(Math.Max(0, request.TimeoutSeconds));
         var all = string.IsNullOrEmpty(what);
         IReadOnlyList<StateEntry>? state = null;
         IReadOnlyList<SynapseEntry>? synapses = null;
@@ -68,24 +69,23 @@ public sealed class BrainOperations(IGrainFactory grains)
 
         if (all || what == "incoming")
         {
-            incoming = await ReadJournalAsync(query, JournalKind.Incoming, request.After, request.TimeoutSeconds, cancellationToken).ConfigureAwait(false);
+            incoming = await ReadJournalAsync(query, JournalKind.Incoming, request.After, deadline, cancellationToken).ConfigureAwait(false);
         }
 
         if (all || what == "outgoing")
         {
-            outgoing = await ReadJournalAsync(query, JournalKind.Outgoing, request.After, request.TimeoutSeconds, cancellationToken).ConfigureAwait(false);
+            outgoing = await ReadJournalAsync(query, JournalKind.Outgoing, request.After, deadline, cancellationToken).ConfigureAwait(false);
         }
 
         return new(Name(id), state, synapses, incoming, outgoing);
     }
 
-    private static async Task<JournalView> ReadJournalAsync(INeuronQuery query, JournalKind kind, long after, int timeoutSeconds, CancellationToken cancellationToken)
+    private static async Task<JournalView> ReadJournalAsync(INeuronQuery query, JournalKind kind, long after, DateTimeOffset deadline, CancellationToken cancellationToken)
     {
-        var deadline = DateTimeOffset.UtcNow.AddSeconds(Math.Max(0, timeoutSeconds));
         while (true)
         {
             var read = await query.ReadJournal(kind, after).ConfigureAwait(false);
-            if (read.Delta.Count > 0 || timeoutSeconds <= 0 || DateTimeOffset.UtcNow >= deadline)
+            if (read.Delta.Count > 0 || DateTimeOffset.UtcNow >= deadline)
             {
                 return new(read.ResumeSequence, [.. read.Delta.Select((d, index) => Entry(read, d, index))], await TotalAsync(query, kind, read).ConfigureAwait(false));
             }
@@ -123,6 +123,18 @@ public sealed class BrainOperations(IGrainFactory grains)
 
     // Plain neurons are named the way callers type them; anything else keeps its "type:name".
     private static string Name(NeuronId id) => id.Type == NeuronId.PlainType ? id.Name : id.ToString();
+
+    private static CorrelationId? ParseCorrelation(string? text)
+    {
+        if (text is null)
+        {
+            return null;
+        }
+
+        return Guid.TryParse(text, out var value)
+            ? new CorrelationId(value)
+            : throw new ArgumentException($"'{text}' is not a correlation id. Pass the GUID returned by an earlier fire, or omit it.", nameof(text));
+    }
 
     private static NeuronId Parse(string text, string parameter)
         => NeuronId.TryParse(text, out var id)
