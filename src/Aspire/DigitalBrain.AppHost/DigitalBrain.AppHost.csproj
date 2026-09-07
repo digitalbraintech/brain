@@ -8,8 +8,6 @@
   <ItemGroup>
     <ProjectReference Include="../../Modules/AI/Aspire.Hosting/DigitalBrain.Modules.AI.Aspire.Hosting.csproj" IsAspireProjectResource="false" />
     <ProjectReference Include="../../Modules/UI/DigitalBrain.Modules.UI.Aspire.Hosting/DigitalBrain.Modules.UI.Aspire.Hosting.csproj" IsAspireProjectResource="false" />
-    <ProjectReference Include="../../Modules/Memory/Aspire.Hosting/DigitalBrain.Modules.Memory.Aspire.Hosting.csproj" IsAspireProjectResource="false" />
-    <ProjectReference Include="../../Modules/Time/Time/DigitalBrain.Modules.Time.csproj" IsAspireProjectResource="false" />
     <ProjectReference Include="../DigitalBrain.Aspire.Hosting/DigitalBrain.Aspire.Hosting.csproj" IsAspireProjectResource="false" />
     <ProjectReference Include="../../Kernel/DigitalBrain.Silo/DigitalBrain.Silo.csproj" />
     <ProjectReference Include="../../Kernel/DigitalBrain.Mcp/DigitalBrain.Mcp.csproj" />

@@ -9,19 +9,10 @@
     <Project Path="src/Modules/AI/Contracts/DigitalBrain.Modules.AI.Contracts.csproj" />
     <Project Path="src/Modules/AI/Sdk/DigitalBrain.Modules.AI.Sdk.csproj" />
   </Folder>
-  <Folder Name="/Modules/Memory/">
-    <Project Path="src/Modules/Memory/Aspire.Hosting/DigitalBrain.Modules.Memory.Aspire.Hosting.csproj" />
-    <Project Path="src/Modules/Memory/Contracts/DigitalBrain.Modules.Memory.Contracts.csproj" />
-    <Project Path="src/Modules/Memory/Memory/DigitalBrain.Modules.Memory.csproj" />
-  </Folder>
   <Folder Name="/Modules/UI/">
     <Project Path="src/Modules/UI/DigitalBrain.Modules.UI.Aspire.Hosting/DigitalBrain.Modules.UI.Aspire.Hosting.csproj" />
     <Project Path="src/Modules/UI/DigitalBrain.Modules.UI.Contracts/DigitalBrain.Modules.UI.Contracts.csproj" />
     <Project Path="src/Modules/UI/DigitalBrain.Modules.UI/DigitalBrain.Modules.UI.csproj" />
-  </Folder>
-  <Folder Name="/Modules/Time/">
-    <Project Path="src/Modules/Time/Contracts/DigitalBrain.Modules.Time.Contracts.csproj" />
-    <Project Path="src/Modules/Time/Time/DigitalBrain.Modules.Time.csproj" />
   </Folder>
   <Folder Name="/Modules/DigitalBrain/">
     <Project Path="src/Aspire/DigitalBrain.Aspire.Hosting/DigitalBrain.Aspire.Hosting.csproj" />
@@ -40,7 +31,6 @@
     <Project Path="src/Testing/DigitalBrain.Testing/DigitalBrain.Testing.csproj" />
   </Folder>
   <Folder Name="/Tests/">
-    <Project Path="tests/DigitalBrain.Authoring.Tests/DigitalBrain.Authoring.Tests.csproj" />
     <Project Path="tests/DigitalBrain.Substrate.Tests/DigitalBrain.Substrate.Tests.csproj" />
   </Folder>
   <Project Path="src/Aspire/DigitalBrain.AppHost/DigitalBrain.AppHost.csproj" />

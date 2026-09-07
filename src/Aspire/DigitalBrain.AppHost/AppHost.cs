@@ -4,9 +4,6 @@ using DigitalBrain.AI;
 using DigitalBrain.AI.Aspire.Hosting;
 using DigitalBrain.AI.FoundryLocal;
 using DigitalBrain.Aspire.Hosting;
-using DigitalBrain.Memory;
-using DigitalBrain.Memory.Aspire.Hosting;
-using DigitalBrain.Time;
 using DigitalBrain.UI;
 using DigitalBrain.UI.Aspire.Hosting;
 using Microsoft.Extensions.Hosting;
@@ -70,8 +67,6 @@ var brain = builder.AddDigitalBrain(ProductSurfaceResources.Brain)
             ai.WithTavilySearch();
         }
     })
-    .AddModule<MemoryModule>(memory => memory.WithQdrant())
-    .AddModule<TimeModule>()
     .AddModule<UIModule>(ui =>
     {
         ui.WithWindowHost();
