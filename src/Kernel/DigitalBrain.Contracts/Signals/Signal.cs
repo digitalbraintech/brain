@@ -59,4 +59,6 @@ public sealed partial record Signal
     private static partial Regex TypeName();
 }
 
+[GenerateSerializer]
+[Alias("db.signal-rejected")]
 public sealed class SignalRejectedException(string message) : InvalidOperationException(message);
