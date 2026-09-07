@@ -1,8 +1,10 @@
 using DigitalBrain.Abstractions;
+using DigitalBrain.Abstractions.Execution;
 using DigitalBrain.Abstractions.Identity;
 using DigitalBrain.Abstractions.Journals;
 using DigitalBrain.Abstractions.Neurons;
 using DigitalBrain.Abstractions.Signals;
+using DigitalBrain.Abstractions.Synapses;
 using DigitalBrain.Testing;
 using Reqnroll;
 using Xunit;
@@ -12,6 +14,8 @@ namespace DigitalBrain.Substrate.Tests;
 [Binding]
 public sealed class ContextSteps(BrainWorld world)
 {
+    private static readonly OwnerId Owner = new(DigitalBrainNames.DefaultOwner);
+
     private Pong? _pong;
     private Exception? _error;
     private string? _temp;
@@ -32,76 +36,35 @@ public sealed class ContextSteps(BrainWorld world)
     public Task GivenEcho(string name)
         => Echo(name).HandledCount();
 
-    [Given(@"composer ""(.*)"" can handle Compose")]
-    public Task GivenComposer(string name)
-        => Composer(name).LastExecution();
+    [Given(@"(composer|sender|publisher|incomplete|holding) ""(.*)"" can handle Compose")]
+    public Task GivenComposeHandler(string role, string name)
+        => Query(IdFor(role, name)).ReadJournal(JournalKind.Incoming, 0);
 
     [Given(@"board ""(.*)"" can handle Notice")]
     public Task GivenBoard(string name)
-        => Query(BoardId(name)).ReadJournal(JournalKind.Incoming, 0);
+        => Query(IdFor("board", name)).ReadJournal(JournalKind.Incoming, 0);
 
-    [Given(@"board ""(.*)"" subscribes to composer ""(.*)"" for Notice")]
-    public Task GivenBoardSubscribes(string board, string composer)
-        => world.Brain.Grains.GetGrain<IBoard>(BoardId(board).ToGrainId())
-            .HandleAsync(new Subscribe(ComposerId(composer), nameof(Notice)), CancellationToken.None);
+    [Given(@"board ""(.*)"" subscribes to (publisher|incomplete) ""(.*)"" for Notice")]
+    public Task GivenBoardSubscribes(string board, string sourceRole, string source)
+        => world.Brain.Grains.GetGrain<IBoard>(IdFor("board", board).ToGrainId())
+            .HandleAsync(new Subscribe(IdFor(sourceRole, source), nameof(Notice)), CancellationToken.None);
 
-    [Given(@"composer ""(.*)"" publishes without completing")]
-    public Task GivenPublishWithoutComplete(string name)
-        => Composer(name).Use(ComposerScript.PublishWithoutComplete);
+    [When(@"(composer|sender|publisher|incomplete|holding) ""(.*)"" is asked to compose ""(.*)""")]
+    public Task WhenCompose(string role, string name, string text)
+        => AskCompose(role, name, text);
 
-    [Given(@"composer ""(.*)"" holds the echo result before completing")]
-    public Task GivenHoldEcho(string name)
-        => Composer(name).Use(ComposerScript.HoldEchoBeforeComplete);
-
-    [When(@"composer ""(.*)"" is asked to compose ""(.*)""")]
-    public async Task WhenCompose(string name, string text)
+    [When(@"sender ""(.*)"" is asked to ping composer ""(.*)"" with ""(.*)""")]
+    public async Task WhenSenderPingsComposer(string sender, string composer, string text)
     {
-        _error = null;
-        _pong = null;
-        try
-        {
-            _pong = await world.Brain.Brain.Get<IComposer>(name)
-                .RequestAsync(new Compose(text));
-        }
-        catch (Exception exception)
-        {
-            _error = exception;
-        }
-    }
-
-    [When(@"composer ""(.*)"" sends ping ""(.*)"" to echo ""(.*)""")]
-    public async Task WhenSendToEcho(string composer, string text, string echo)
-    {
-        await Composer(composer).Use(ComposerScript.SendPing);
-        await Composer(composer).Aim("echo", echo);
-        await WhenCompose(composer, text);
-        if (_error is null)
-        {
-            _ = _pong;
-        }
-    }
-
-    [When(@"composer ""(.*)"" sends ping ""(.*)"" to composer ""(.*)""")]
-    public async Task WhenSendToComposer(string composer, string text, string other)
-    {
-        await Composer(other).LastExecution();
-        await Composer(composer).Use(ComposerScript.SendPing);
-        await Composer(composer).Aim("composer", other);
-        await WhenCompose(composer, text);
-    }
-
-    [When(@"composer ""(.*)"" publishes notice ""(.*)""")]
-    public async Task WhenPublish(string composer, string text)
-    {
-        await Composer(composer).Use(ComposerScript.PublishNotice);
-        await WhenCompose(composer, text);
+        await Sender(sender).Aim("composer", composer);
+        await AskCompose("sender", sender, text);
     }
 
     [When(@"echo ""(.*)"" completes ping ""(.*)"" twice with the same pong")]
     public async Task WhenEchoTwice(string echo, string text)
     {
         await Echo(echo).RepeatIdenticalComplete();
-        _pong = await world.Brain.Brain.Get<IEcho>(echo).RequestAsync(new Ping(text));
+        await AskPing(echo, text);
     }
 
     [When(@"echo ""(.*)"" then completes ping ""(.*)"" with a different pong")]
@@ -122,15 +85,15 @@ public sealed class ContextSteps(BrainWorld world)
     public Task WhenRestart()
         => world.Brain.RestartSiloAsync();
 
-    [When("the unfinished compose is retried")]
-    public async Task WhenRetry()
+    [When(@"the unfinished compose on holding ""(.*)"" is retried")]
+    public async Task WhenRetry(string name)
     {
         _error = null;
         _pong = null;
         try
         {
-            await Composer("main").RetryUnfinished();
-            _pong = await world.Brain.Brain.Get<IComposer>("main")
+            await Holding(name).RetryUnfinished();
+            _pong = await world.Brain.Brain.Get<IHolding>(name)
                 .RequestAsync(new Compose("hello"));
         }
         catch (Exception exception)
@@ -147,22 +110,15 @@ public sealed class ContextSteps(BrainWorld world)
         Assert.Equal(text, _pong?.Text);
     }
 
-    [Then("the send is handled")]
-    public void ThenSendHandled()
-        => Assert.Null(_error);
-
-    [Then("the send fails")]
-    public void ThenSendFails()
-    {
-        Assert.NotNull(_error);
-        Assert.DoesNotContain("No execution context is bound.", _error.ToString(), StringComparison.Ordinal);
-    }
+    [Then("the compose fails")]
+    public void ThenComposeFails()
+        => AssertHonestFailure();
 
     [Then("the compose fails as incomplete")]
     public void ThenIncomplete()
     {
-        Assert.NotNull(_error);
-        Assert.Contains("Incomplete", _error.ToString(), StringComparison.OrdinalIgnoreCase);
+        AssertHonestFailure();
+        Assert.Contains(ExecutionFailureKind.Incomplete, _error!.ToString(), StringComparison.Ordinal);
     }
 
     [Then("the conflicting complete is rejected")]
@@ -172,46 +128,46 @@ public sealed class ContextSteps(BrainWorld world)
     [Then(@"the ping to echo ""(.*)"" and the compose on composer ""(.*)"" share a correlation")]
     public async Task ThenSameCorrelation(string echo, string composer)
     {
-        var ping = await LatestIncoming<Ping>(EchoId(echo));
-        var compose = await LatestIncoming<Compose>(ComposerId(composer));
+        var ping = await LatestIncoming<Ping>(IdFor("echo", echo));
+        var compose = await LatestIncoming<Compose>(IdFor("composer", composer));
         Assert.Equal(compose.CorrelationId, ping.CorrelationId);
     }
 
     [Then("those two deliveries have different signal ids")]
     public async Task ThenDifferentSignalIds()
     {
-        var ping = await LatestIncoming<Ping>(EchoId("echo"));
-        var compose = await LatestIncoming<Compose>(ComposerId("main"));
+        var ping = await LatestIncoming<Ping>(IdFor("echo", "echo"));
+        var compose = await LatestIncoming<Compose>(IdFor("composer", "main"));
         Assert.NotEqual(compose.SignalId, ping.SignalId);
     }
 
-    [Then(@"composer ""(.*)"" has a learned Ping synapse to echo ""(.*)""")]
-    public async Task ThenLearnedPing(string composer, string echo)
+    [Then(@"sender ""(.*)"" has a learned Ping synapse to echo ""(.*)""")]
+    public async Task ThenLearnedPing(string sender, string echo)
     {
-        var synapse = await Synapse(ComposerId(composer), EchoId(echo), nameof(Ping));
+        var synapse = await Synapse(IdFor("sender", sender), IdFor("echo", echo), nameof(Ping));
         Assert.NotNull(synapse);
-        Assert.Equal(DigitalBrain.Abstractions.Synapses.SynapseKind.Learned, synapse.Value.Kind);
+        Assert.Equal(SynapseKind.Learned, synapse.Value.Kind);
     }
 
-    [Then(@"composer ""(.*)"" has no Ping synapse to composer ""(.*)""")]
-    public async Task ThenNoPingSynapse(string source, string target)
-        => Assert.Null(await Synapse(ComposerId(source), ComposerId(target), nameof(Ping)));
+    [Then(@"sender ""(.*)"" has no Ping synapse to composer ""(.*)""")]
+    public async Task ThenNoPingSynapse(string sender, string composer)
+        => Assert.Null(await Synapse(IdFor("sender", sender), IdFor("composer", composer), nameof(Ping)));
 
-    [Then(@"composer ""(.*)"" has a bound Notice synapse to board ""(.*)""")]
-    public async Task ThenBoundNotice(string composer, string board)
+    [Then(@"publisher ""(.*)"" has a bound Notice synapse to board ""(.*)""")]
+    public async Task ThenBoundNotice(string publisher, string board)
     {
-        var synapse = await Synapse(ComposerId(composer), BoardId(board), nameof(Notice));
+        var synapse = await Synapse(IdFor("publisher", publisher), IdFor("board", board), nameof(Notice));
         Assert.NotNull(synapse);
-        Assert.Equal(DigitalBrain.Abstractions.Synapses.SynapseKind.Bound, synapse.Value.Kind);
+        Assert.Equal(SynapseKind.Bound, synapse.Value.Kind);
     }
 
     [Then(@"board ""(.*)"" incoming journal contains Notice ""(.*)""")]
     public async Task ThenNotice(string board, string text)
-        => Assert.Contains(text, await IncomingNotices(BoardId(board)));
+        => Assert.Contains(text, await IncomingNotices(IdFor("board", board)));
 
     [Then(@"board ""(.*)"" incoming journal does not contain Notice ""(.*)""")]
     public async Task ThenNoNotice(string board, string text)
-        => Assert.DoesNotContain(text, await IncomingNotices(BoardId(board)));
+        => Assert.DoesNotContain(text, await IncomingNotices(IdFor("board", board)));
 
     [Then("the echo execution is a child of the compose execution")]
     public async Task ThenChild()
@@ -248,8 +204,14 @@ public sealed class ContextSteps(BrainWorld world)
         => Assert.Equal(count, await Echo(echo).HandledCount());
 
     [AfterScenario]
-    public void AfterScenario()
+    public async Task AfterScenario()
     {
+        if (world.Simulation is not null)
+        {
+            await world.Simulation.DisposeAsync();
+            world.Simulation = null;
+        }
+
         if (_temp is not null && Directory.Exists(_temp))
         {
             try { Directory.Delete(_temp, true); }
@@ -257,23 +219,85 @@ public sealed class ContextSteps(BrainWorld world)
         }
     }
 
+    private async Task AskCompose(string role, string name, string text)
+    {
+        _error = null;
+        _pong = null;
+        try
+        {
+            _pong = await RequestCompose(role, name, text);
+        }
+        catch (Exception exception)
+        {
+            _error = exception;
+        }
+    }
+
+    private async Task AskPing(string echo, string text)
+    {
+        _error = null;
+        _pong = null;
+        try
+        {
+            _pong = await world.Brain.Brain.Get<IEcho>(echo).RequestAsync(new Ping(text));
+        }
+        catch (Exception exception)
+        {
+            _error = exception;
+        }
+    }
+
+    private Task<Pong> RequestCompose(string role, string name, string text)
+    {
+        var brain = world.Brain.Brain;
+        var compose = new Compose(text);
+        return role switch
+        {
+            "composer" => brain.Get<IComposer>(name).RequestAsync(compose),
+            "sender" => brain.Get<ISender>(name).RequestAsync(compose),
+            "publisher" => brain.Get<IPublisher>(name).RequestAsync(compose),
+            "incomplete" => brain.Get<IIncomplete>(name).RequestAsync(compose),
+            "holding" => brain.Get<IHolding>(name).RequestAsync(compose),
+            _ => throw new ArgumentOutOfRangeException(nameof(role), role, "Unknown compose handler."),
+        };
+    }
+
+    private void AssertHonestFailure()
+    {
+        Assert.NotNull(_error);
+        Assert.DoesNotContain(
+            "No execution context is bound.",
+            _error.ToString(),
+            StringComparison.Ordinal);
+    }
+
     private IEcho Echo(string name)
-        => world.Brain.Grains.GetGrain<IEcho>(EchoId(name).ToGrainId());
+        => world.Brain.Grains.GetGrain<IEcho>(IdFor("echo", name).ToGrainId());
 
     private IComposer Composer(string name)
-        => world.Brain.Grains.GetGrain<IComposer>(ComposerId(name).ToGrainId());
+        => world.Brain.Grains.GetGrain<IComposer>(IdFor("composer", name).ToGrainId());
+
+    private ISender Sender(string name)
+        => world.Brain.Grains.GetGrain<ISender>(IdFor("sender", name).ToGrainId());
+
+    private IHolding Holding(string name)
+        => world.Brain.Grains.GetGrain<IHolding>(IdFor("holding", name).ToGrainId());
 
     private INeuronQuery Query(NeuronId id)
         => world.Brain.Grains.GetGrain<INeuronQuery>(id.ToGrainId());
 
-    private static NeuronId EchoId(string name)
-        => NeuronId.For<IEcho>(new OwnerId(DigitalBrainNames.DefaultOwner), name);
-
-    private static NeuronId ComposerId(string name)
-        => NeuronId.For<IComposer>(new OwnerId(DigitalBrainNames.DefaultOwner), name);
-
-    private static NeuronId BoardId(string name)
-        => NeuronId.For<IBoard>(new OwnerId(DigitalBrainNames.DefaultOwner), name);
+    private static NeuronId IdFor(string role, string name)
+        => role switch
+        {
+            "echo" => NeuronId.For<IEcho>(Owner, name),
+            "composer" => NeuronId.For<IComposer>(Owner, name),
+            "sender" => NeuronId.For<ISender>(Owner, name),
+            "publisher" => NeuronId.For<IPublisher>(Owner, name),
+            "incomplete" => NeuronId.For<IIncomplete>(Owner, name),
+            "holding" => NeuronId.For<IHolding>(Owner, name),
+            "board" => NeuronId.For<IBoard>(Owner, name),
+            _ => throw new ArgumentOutOfRangeException(nameof(role), role, "Unknown neuron role."),
+        };
 
     private async Task<SignalDelivery> LatestIncoming<T>(NeuronId id) where T : Signal
     {
@@ -290,8 +314,7 @@ public sealed class ContextSteps(BrainWorld world)
             .OfType<Notice>()
             .Select(notice => notice.Text)];
 
-    private async Task<DigitalBrain.Abstractions.Synapses.Synapse?> Synapse(
-        NeuronId source, NeuronId target, string signalType)
+    private async Task<Synapse?> Synapse(NeuronId source, NeuronId target, string signalType)
     {
         var matches = (await Query(source).ReadSynapses())
             .Where(synapse =>

@@ -23,15 +23,6 @@ public sealed record Compose(string Text) : Signal<Pong>;
 [Alias("db.test.notice")]
 public sealed record Notice(string Text) : Signal;
 
-public enum ComposerScript
-{
-    RequestEcho,
-    SendPing,
-    PublishNotice,
-    PublishWithoutComplete,
-    HoldEchoBeforeComplete,
-}
-
 [Alias("DigitalBrain.Substrate.Tests.IEcho")]
 public interface IEcho : INeuron, IHandle<Ping>
 {
@@ -51,18 +42,26 @@ public interface IEcho : INeuron, IHandle<Ping>
 [Alias("DigitalBrain.Substrate.Tests.IComposer")]
 public interface IComposer : INeuron, IHandle<Compose>
 {
-    [Alias(nameof(Use))]
-    Task Use(ComposerScript script);
-
-    [Alias(nameof(Aim))]
-    Task Aim(string targetType, string targetName);
-
     [Alias(nameof(LastExecution))]
     Task<ExecutionIdentity?> LastExecution();
+}
 
-    [Alias(nameof(LastChild))]
-    Task<ExecutionIdentity?> LastChild();
+[Alias("DigitalBrain.Substrate.Tests.ISender")]
+public interface ISender : INeuron, IHandle<Compose>
+{
+    [Alias(nameof(Aim))]
+    Task Aim(string targetType, string targetName);
+}
 
+[Alias("DigitalBrain.Substrate.Tests.IPublisher")]
+public interface IPublisher : INeuron, IHandle<Compose>;
+
+[Alias("DigitalBrain.Substrate.Tests.IIncomplete")]
+public interface IIncomplete : INeuron, IHandle<Compose>;
+
+[Alias("DigitalBrain.Substrate.Tests.IHolding")]
+public interface IHolding : INeuron, IHandle<Compose>
+{
     [Alias(nameof(RetryUnfinished))]
     Task RetryUnfinished();
 }
@@ -110,17 +109,28 @@ internal sealed class Echo(NeuronRuntime runtime) : Neuron(runtime), IEcho, IHan
 [GrainType("composer")]
 internal sealed class Composer(NeuronRuntime runtime) : Neuron(runtime), IComposer, IHandle<Compose>
 {
-    private ComposerScript _script = ComposerScript.RequestEcho;
+    private ExecutionIdentity? _last;
+
+    public Task<ExecutionIdentity?> LastExecution() => Task.FromResult(_last);
+
+    public async Task HandleAsync(Compose signal, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(signal);
+        cancellationToken.ThrowIfCancellationRequested();
+        var context = Context.Current;
+        _last = context.Identity;
+        var echo = context.Get<IEcho>("echo");
+        var pong = await context.RequestAsync("echo", echo, new Ping(signal.Text), context.CancellationToken)
+            .ConfigureAwait(true);
+        await context.CompleteAsync(pong).ConfigureAwait(true);
+    }
+}
+
+[GrainType("sender")]
+internal sealed class Sender(NeuronRuntime runtime) : Neuron(runtime), ISender, IHandle<Compose>
+{
     private string _targetType = "echo";
     private string _targetName = "echo";
-    private ExecutionIdentity? _last;
-    private ExecutionIdentity? _child;
-
-    public Task Use(ComposerScript script)
-    {
-        _script = script;
-        return Task.CompletedTask;
-    }
 
     public Task Aim(string targetType, string targetName)
     {
@@ -129,10 +139,58 @@ internal sealed class Composer(NeuronRuntime runtime) : Neuron(runtime), ICompos
         return Task.CompletedTask;
     }
 
-    public Task<ExecutionIdentity?> LastExecution() => Task.FromResult(_last);
+    public async Task HandleAsync(Compose signal, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(signal);
+        cancellationToken.ThrowIfCancellationRequested();
+        var context = Context.Current;
+        if (_targetType == "composer")
+        {
+            var other = context.Get<IComposer>(_targetName);
+            await context.SendAsync("ping", other, new Ping(signal.Text), context.CancellationToken)
+                .ConfigureAwait(true);
+        }
+        else
+        {
+            var echo = context.Get<IEcho>(_targetName);
+            await context.SendAsync("ping", echo, new Ping(signal.Text), context.CancellationToken)
+                .ConfigureAwait(true);
+        }
 
-    public Task<ExecutionIdentity?> LastChild() => Task.FromResult(_child);
+        await context.CompleteAsync(new Pong(signal.Text)).ConfigureAwait(true);
+    }
+}
 
+[GrainType("publisher")]
+internal sealed class Publisher(NeuronRuntime runtime) : Neuron(runtime), IPublisher, IHandle<Compose>
+{
+    public async Task HandleAsync(Compose signal, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(signal);
+        cancellationToken.ThrowIfCancellationRequested();
+        var context = Context.Current;
+        await context.PublishAsync("notice", new Notice(signal.Text), context.CancellationToken)
+            .ConfigureAwait(true);
+        await context.CompleteAsync(new Pong(signal.Text)).ConfigureAwait(true);
+    }
+}
+
+[GrainType("incomplete")]
+internal sealed class Incomplete(NeuronRuntime runtime) : Neuron(runtime), IIncomplete, IHandle<Compose>
+{
+    public async Task HandleAsync(Compose signal, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(signal);
+        cancellationToken.ThrowIfCancellationRequested();
+        var context = Context.Current;
+        await context.PublishAsync("notice", new Notice(signal.Text), context.CancellationToken)
+            .ConfigureAwait(true);
+    }
+}
+
+[GrainType("holding")]
+internal sealed class Holding(NeuronRuntime runtime) : Neuron(runtime), IHolding, IHandle<Compose>
+{
     public Task RetryUnfinished()
         => throw new InvalidOperationException("Retry is not implemented.");
 
@@ -141,59 +199,9 @@ internal sealed class Composer(NeuronRuntime runtime) : Neuron(runtime), ICompos
         ArgumentNullException.ThrowIfNull(signal);
         cancellationToken.ThrowIfCancellationRequested();
         var context = Context.Current;
-        _last = context.Identity;
-        switch (_script)
-        {
-            case ComposerScript.SendPing:
-            {
-                if (_targetType == "composer")
-                {
-                    var other = context.Get<IComposer>(_targetName);
-                    await context.SendAsync("ping", other, new Ping(signal.Text), context.CancellationToken)
-                        .ConfigureAwait(true);
-                }
-                else
-                {
-                    var echo = context.Get<IEcho>(_targetName);
-                    await context.SendAsync("ping", echo, new Ping(signal.Text), context.CancellationToken)
-                        .ConfigureAwait(true);
-                }
-
-                await context.CompleteAsync().ConfigureAwait(true);
-                return;
-            }
-            case ComposerScript.PublishNotice:
-            {
-                await context.PublishAsync("notice", new Notice(signal.Text), context.CancellationToken)
-                    .ConfigureAwait(true);
-                await context.CompleteAsync(new Pong(signal.Text)).ConfigureAwait(true);
-                return;
-            }
-            case ComposerScript.PublishWithoutComplete:
-            {
-                await context.PublishAsync("notice", new Notice(signal.Text), context.CancellationToken)
-                    .ConfigureAwait(true);
-                return;
-            }
-            case ComposerScript.HoldEchoBeforeComplete:
-            {
-                var echo = context.Get<IEcho>("echo");
-                var pong = await context.RequestAsync("echo", echo, new Ping(signal.Text), context.CancellationToken)
-                    .ConfigureAwait(true);
-                _child = context.Identity;
-                _ = pong;
-                return;
-            }
-            default:
-            {
-                var echo = context.Get<IEcho>("echo");
-                var pong = await context.RequestAsync("echo", echo, new Ping(signal.Text), context.CancellationToken)
-                    .ConfigureAwait(true);
-                _child = context.Identity;
-                await context.CompleteAsync(pong).ConfigureAwait(true);
-                return;
-            }
-        }
+        var echo = context.Get<IEcho>("echo");
+        _ = await context.RequestAsync("echo", echo, new Ping(signal.Text), context.CancellationToken)
+            .ConfigureAwait(true);
     }
 }
 

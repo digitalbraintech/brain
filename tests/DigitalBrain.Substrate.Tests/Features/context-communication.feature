@@ -24,20 +24,21 @@ Feature: Context communication — request, send, publish, complete
 
   Rule: Send awaits handled; unhandled does not learn
 
-    Scenario: A composer send to echo is handled and learns a synapse on the composer
+    Scenario: A sender send to echo is handled and learns a synapse on the sender
       Given a running brain
       And echo "echo" can handle Ping
-      And composer "main" can handle Compose
-      When composer "main" sends ping "hello" to echo "echo"
-      Then the send is handled
-      And composer "main" has a learned Ping synapse to echo "echo"
+      And sender "main" can handle Compose
+      When sender "main" is asked to compose "hello"
+      Then the compose reply text is "hello"
+      And sender "main" has a learned Ping synapse to echo "echo"
 
-    Scenario: A composer send to a neuron that cannot handle Ping fails and learns nothing
+    Scenario: A sender send to a neuron that cannot handle Ping fails and learns nothing
       Given a running brain
-      And composer "main" can handle Compose
-      When composer "main" sends ping "nobody" to composer "other"
-      Then the send fails
-      And composer "main" has no Ping synapse to composer "other"
+      And sender "main" can handle Compose
+      And composer "other" can handle Compose
+      When sender "main" is asked to ping composer "other" with "nobody"
+      Then the compose fails
+      And sender "main" has no Ping synapse to composer "other"
 
   Rule: Publish records Bound recipients and does not wait
 
@@ -45,19 +46,19 @@ Feature: Context communication — request, send, publish, complete
       Given a running brain
       And board "alice" can handle Notice
       And board "stranger" can handle Notice
-      And board "alice" subscribes to composer "main" for Notice
-      And composer "main" can handle Compose
-      When composer "main" publishes notice "posted"
+      And board "alice" subscribes to publisher "main" for Notice
+      And publisher "main" can handle Compose
+      When publisher "main" is asked to compose "posted"
       Then board "alice" incoming journal contains Notice "posted"
       And board "stranger" incoming journal does not contain Notice "posted"
-      And composer "main" has a bound Notice synapse to board "alice"
+      And publisher "main" has a bound Notice synapse to board "alice"
 
     Scenario: Publish is not completion of a request
       Given a running brain
       And board "alice" can handle Notice
-      And board "alice" subscribes to composer "main" for Notice
-      And composer "main" publishes without completing
-      When composer "main" is asked to compose "orphan"
+      And board "alice" subscribes to incomplete "main" for Notice
+      And incomplete "main" can handle Compose
+      When incomplete "main" is asked to compose "orphan"
       Then the compose fails as incomplete
       And board "alice" incoming journal contains Notice "orphan"
 
@@ -85,10 +86,10 @@ Feature: Context communication — request, send, publish, complete
     Scenario: After restart, retrying the unfinished compose reuses the completed echo
       Given a running brain with durable storage
       And echo "echo" can handle Ping
-      And composer "main" holds the echo result before completing
-      When composer "main" is asked to compose "hello"
+      And holding "main" can handle Compose
+      When holding "main" is asked to compose "hello"
       And the silo restarts
-      And the unfinished compose is retried
+      And the unfinished compose on holding "main" is retried
       Then the compose reply text is "hello"
       And echo "echo" handled Ping once
 
