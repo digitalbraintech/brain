@@ -105,8 +105,9 @@ public abstract class Neuron : DurableGrain, INeuron, INeuronQuery
         ArgumentNullException.ThrowIfNull(signal);
         cancellationToken.ThrowIfCancellationRequested();
 
-        // Re-validate: a Signal deserialized from the wire may bypass Create.
-        _ = Signal.Create(signal.Type, signal.Body);
+        // Re-validate: a Signal deserialized from the wire may bypass Create. Keep the
+        // normalized instance — Create fills a blank body with "{}".
+        signal = Signal.Create(signal.Type, signal.Body);
 
         if (to is { } target && target == Id)
         {

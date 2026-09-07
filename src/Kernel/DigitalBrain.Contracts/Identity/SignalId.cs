@@ -1,9 +1,12 @@
+using System.Text.Json.Serialization;
+
 namespace DigitalBrain.Abstractions.Identity;
 
 [GenerateSerializer]
 [Alias("db.signal-id")]
 public readonly record struct SignalId
 {
+    [JsonConstructor]
     public SignalId(Guid value)
     {
         if (value == Guid.Empty)

@@ -1,9 +1,12 @@
+using System.Text.Json.Serialization;
+
 namespace DigitalBrain.Abstractions.Identity;
 
 [GenerateSerializer]
 [Alias("db.correlation-id")]
 public readonly record struct CorrelationId
 {
+    [JsonConstructor]
     public CorrelationId(Guid value)
     {
         if (value == Guid.Empty)

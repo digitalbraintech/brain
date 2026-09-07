@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
 namespace DigitalBrain.Abstractions.Signals;
@@ -12,6 +13,9 @@ public sealed partial record Signal
     public const int MaxBodyBytes = 65_536;
     public const int MaxTypeLength = 64;
 
+    // Rehydration path for the JSON journal format, which persists durable state (including
+    // each neuron's latest-per-type map). Create is still the only validating entry point.
+    [JsonConstructor]
     private Signal(string type, string body)
     {
         Type = type;
