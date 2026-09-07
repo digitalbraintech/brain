@@ -25,7 +25,4 @@ public static class DigitalBrainNames
 
     public const string Owner = "DigitalBrain:Owner";
     public const string Modules = "DigitalBrain:Modules";
-    public const string Mode = "DigitalBrain:Mode";
-    public const string TestingMode = "Testing";
-    public const string Fakes = "DigitalBrain:Fakes:Enabled";
 }

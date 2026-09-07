@@ -60,28 +60,6 @@ public static class DigitalBrainHostingExtensions
         return brain;
     }
 
-    public static DigitalBrainBuilder WithDigitalBrainFakes(this DigitalBrainBuilder brain)
-    {
-        ArgumentNullException.ThrowIfNull(brain);
-
-        var state = brain.GetOrAddState(static _ => new FakesHostingState(), out var added);
-        if (added)
-        {
-            brain.AddProjection(state);
-        }
-
-        state.Enable();
-        brain.FakesEnabled = true;
-        return brain;
-    }
-
-    public static IResourceBuilder<T> WithDigitalBrainFakes<T>(this IResourceBuilder<T> builder)
-        where T : IResourceWithEnvironment
-    {
-        ArgumentNullException.ThrowIfNull(builder);
-        return builder.WithEnvironment("DigitalBrain__Fakes__Enabled", "true");
-    }
-
     public static IResourceBuilder<TResource> WithReference<TResource>(this IResourceBuilder<TResource> builder, DigitalBrainBuilder brain)
         where TResource : IResourceWithEnvironment, IResourceWithEndpoints
     {
@@ -129,24 +107,6 @@ public static class DigitalBrainHostingExtensions
         foreach (var dependency in dependencies)
         {
             builder.WithAnnotation(new WaitAnnotation(dependency, WaitType.WaitUntilHealthy, exitCode: 0));
-        }
-    }
-
-    private sealed class FakesHostingState : DigitalBrainModuleProjection
-    {
-        private bool _enabled;
-
-        internal void Enable() => _enabled = true;
-
-        public override void Apply<TResource>(IResourceBuilder<TResource> builder)
-        {
-            ArgumentNullException.ThrowIfNull(builder);
-            if (!_enabled)
-            {
-                return;
-            }
-
-            builder.WithEnvironment("DigitalBrain__Fakes__Enabled", "true");
         }
     }
 }
