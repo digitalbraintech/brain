@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <IsPackable>true</IsPackable>
-    <Description>Reusable module infrastructure on DigitalBrain: hosted MCP tool client and the kernel HTTP surface seam.</Description>
+    <Description>The DigitalBrain client and the in-process Context facade.</Description>
     <RootNamespace>DigitalBrain.Sdk</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
