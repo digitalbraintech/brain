@@ -23,9 +23,7 @@ patched: their vocabulary (IHandle, Learned, Broadcast, IContext) no longer exis
 | `connect` | connect is idempotent; disconnect of nothing is a no-op; a neuron exists when named |
 | `journal` | envelopes on both ends; window bounds; tallies and sequences across compaction and restart |
 | `state` | latest-per-type; replacement; survives restart; `Neuron<TState>` snapshot never appears in a journal |
-| `signal` | type-name rules; JSON body; a rejected fire leaves no trace on either end; a body larger than 64 KB is delivered |
-| `llm` | Ask is answered with Reply; Instruct is the optional system prompt; unknown types are journaled and ignored |
-| `groupchat` | MAG group chat under the hood; Instruct names participants; Said then Reply |
+| `membrane` | payload cap; type-name rules; a rejected fire leaves no trace on either end |
 | `read` | read is a query and changes nothing; default view; walk from a topic; `timeout` semantics; one Session per principal shared across connections |
 
 ## Projects
@@ -33,7 +31,7 @@ patched: their vocabulary (IHandle, Learned, Broadcast, IContext) no longer exis
 | Project | Role |
 |---|---|
 | `DigitalBrain.Contracts` | `INeuron` with `Receive`, `Signal`, `NeuronId`, `Synapse`, journal records. Separate only because Orleans wants grain interfaces in their own assembly. |
-| `DigitalBrain` | the runtime: `Neuron`, `Neuron<TState>`, router, journals, synapses, latest-per-type |
+| `DigitalBrain` | the runtime: `Neuron`, `Neuron<TState>`, router, journals, synapses, latest-per-type, membrane |
 | `DigitalBrain.Mcp` | the client. The four operations as plain C# methods over records, with MCP tool wrappers, the JSON signal codec, and Session mapping. Tests and tools call the same methods. |
 | `DigitalBrain.Silo` | thin host: Orleans plus the MCP endpoint |
 | `DigitalBrain.Testing` | the testing framework: in-memory cluster fixture, durable-storage restart helpers, fixture neuron types, step helpers. Kept as its own project so future neuron packages test against the same harness. |
@@ -43,9 +41,9 @@ patched: their vocabulary (IHandle, Learned, Broadcast, IContext) no longer exis
 Deleted: `DigitalBrain.Sdk`. Its reason to exist, a typed client, disappeared with `IHandle`;
 the four operations in `DigitalBrain.Mcp` are the client now.
 
-AI is a package of reactive neuron types (`llm`, `groupchat`) that plug into the same four
-operations. Not brought back yet: Scripting, Memory, Time, SmartPrompt, Integrations,
-UI/Flutter. Scripting last.
+Not brought back in this phase: Scripting, AI, Memory, Time, SmartPrompt, Integrations,
+UI/Flutter. Each returns later as a package of reactive neuron types that plug into the
+same four operations. Scripting first.
 
 ## Storage compatibility
 
@@ -55,7 +53,7 @@ store cannot be read by this build and must be wiped; there is no migration.
 ## Order of work
 
 1. Cut Contracts and the runtime down to the model. `fire`, `connect`, `journal` green.
-2. Add latest-per-type and signal validation. `state`, `signal` green.
+2. Add latest-per-type and the membrane cap. `state`, `membrane` green.
 3. Build `DigitalBrain.Mcp` with the tests driving its operations directly. `read` green.
 4. Host the MCP endpoint in the Silo, start under Aspire, run the Grok CLI benchmark, tune
    tool descriptions and error messages until an unfamiliar model completes it.

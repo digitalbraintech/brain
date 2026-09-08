@@ -32,7 +32,7 @@ Scoring: 0 = wrong or gave up, 1 = right after a retry or wrong tool first, 2 = 
 - Prompt 2: it followed the recall pattern written in the `read` description word for word.
 - Prompt 3: unprompted, it reused the original signal's correlation id to tie the correction to
   the old note, and explained why it left the synapse in place.
-- No error message was ever hit, so the rejection wording is untested by this run; the test suite
+- No error message was ever hit, so the membrane wording is untested by this run; the test suite
   covers it.
 - Each run began with Grok's own `search_tool` to load MCP schemas; that is a Grok CLI mechanic,
   not a tool of ours.

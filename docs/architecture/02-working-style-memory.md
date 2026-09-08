@@ -69,9 +69,9 @@ per-type tallies survive. Recall never depends on the window, because it reads l
 | Claude's Session | every tool call fires from it | outgoing window turns over; old traffic drops, nothing recall needs is lost |
 | a future reactive neuron | high fan-in | window turns over; tallies and latest-per-type intact |
 
-**Large content.** Latest-per-type is durable and outside the window. Bodies that do not
-fit the journal window are split across neurons or live in an external store the signal
-points at. There is no separate payload cap in core.
+**Payload cap.** Latest-per-type is durable and outside the window, so a signal payload is
+capped at 64 KB at the membrane. Larger content is split across neurons or lives in an
+external store the neuron points at. The rejection message says so.
 
 ## Invariants for tests
 
@@ -80,5 +80,5 @@ points at. There is no separate payload cap in core.
 3. Tallies count every received signal per type and survive window overflow and restart.
 4. Reading state, synapses, or journals produces no delivery and no journal entry anywhere.
 5. A walk from a topic reaches exactly the neurons its synapses point at.
-6. A signal whose type is not vocabulary, or whose body is not JSON, is rejected before delivery, with no journal entry on either end.
+6. A signal over 64 KB is rejected before delivery, with no journal entry on either end.
 7. A neuron with no synapses and no traffic reads as empty and costs nothing beyond its name.

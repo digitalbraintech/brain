@@ -13,13 +13,11 @@ the most literal sense: what was last said to it.
 **Read.** Not a verb of communication. State, synapses, and journals are queries: nothing
 moves, nothing is journaled, no synapse is involved.
 
-**Signal.** A type name (letters only) plus a JSON body. Identity goes in the neuron name;
-a type carrying a date or id is rejected before delivery with no journal entry on either end.
-A neuron remembers at most 256 distinct signal types; the 257th is rejected with the
-vocabulary message, because a type name carrying identity would grow latest-per-type without
-bound. Body size is not a separate cap: the journal window (512 entries / 512 KB) is the
-existing bound, Orleans already limits grain messages, and content that does not belong in a
-journal lives in an external store the signal points at.
+**Membrane.** A signal payload is capped at 64 KB. Larger signals are rejected before
+delivery with no journal entry on either end. Latest-per-type is unbounded in count, so the
+cap is what keeps any neuron's durable footprint in the low megabytes. A neuron remembers at
+most 256 distinct signal types; the 257th is rejected with the vocabulary message, because a
+type name carrying identity would grow latest-per-type without bound.
 
 **Synapse.** A directed edge `A -> B` for one signal type `T`, stored on `A`. It is the
 only routing fact in the system. Whether `B` receives `T` from `A` is decided entirely by
@@ -47,8 +45,7 @@ therefore needs synapses in both directions, created explicitly.
 
 `Deliver` is an awaited, non-reentrant grain call, so a neuron must never Fire back at the
 neuron that is currently delivering to it from inside `ReceiveAsync`; the cycle guard rejects it.
-A reply is fired from a later turn: `ScheduleTurn` (Orleans `RegisterGrainTimer` with
-`Interleave = false`), a reminder, or the next incoming signal.
+`Deliver` accepts; the receiving neuron reacts in its own later turn from its inbox (see doc 05). A reply fired from inside `ReceiveAsync` is therefore ordinary.
 
 ## What was deleted, and why
 

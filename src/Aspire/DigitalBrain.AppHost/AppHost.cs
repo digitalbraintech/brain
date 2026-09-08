@@ -1,12 +1,10 @@
 using Aspire.Hosting;
-using DigitalBrain.AI;
 using DigitalBrain.Aspire.Hosting;
 using Microsoft.Extensions.Hosting;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-var brain = builder.AddDigitalBrain(ProductSurfaceResources.Brain)
-    .AddModule<AIModule>();
+var brain = builder.AddDigitalBrain(ProductSurfaceResources.Brain);
 
 var developmentClusterId = builder.Environment.IsDevelopment()
     ? $"digitalbrain-{Guid.NewGuid():N}"
