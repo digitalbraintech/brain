@@ -65,12 +65,18 @@ internal sealed class AgentNeuron(
 
             var agent = new ChatClientAgent(
                 client,
-                instructions: instruct.System,
-                name: Id.Name,
-                description: null,
-                tools: tools,
-                loggerFactory: services.GetService<ILoggerFactory>(),
-                services: services);
+                new ChatClientAgentOptions
+                {
+                    Name = Id.Name,
+                    ChatOptions = new ChatOptions
+                    {
+                        Instructions = instruct.System,
+                        Tools = tools,
+                        ModelId = instruct.Model,
+                    },
+                },
+                services.GetService<ILoggerFactory>(),
+                services);
 
             var correlation = delivery.CorrelationId.ToString();
             var session = await LoadSessionAsync(agent, correlation, cancellationToken).ConfigureAwait(true);
@@ -89,7 +95,10 @@ internal sealed class AgentNeuron(
                 delivery.CorrelationId,
                 cancellationToken).ConfigureAwait(true);
         }
-        catch (Exception failure) when (failure is not OperationCanceledException)
+        // A model that times out cancels with a TaskCanceledException that has nothing to do
+        // with this turn's token. Letting it escape would leave the cursor in place and the
+        // drain would retry the same timeout forever, so it answers like any other failure.
+        catch (Exception failure) when (failure is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             services.GetService<ILogger<AgentNeuron>>()?.LogError(failure, "Agent {Neuron} failed to answer.", Id);
             await ReplyAsync(delivery, failure.Message, cancellationToken).ConfigureAwait(true);
@@ -127,6 +136,13 @@ internal sealed class AgentNeuron(
                 new Mcp.FireResult(outcome.SignalId.ToString(), outcome.CorrelationId.ToString(), outcome.Delivered),
                 ToolJson);
         });
+
+    // A read is a query, but it still runs on the neuron's own turn and its rejections are
+    // advice the model must read, so it takes the same route as the three writes.
+    internal Task<string> ReadFromToolAsync(McpOperations reads, string neuron, string? what, long after)
+        => OnTurnAsync(async () =>
+            // A reaction may read but never wait: the timeout an MCP client may pass is 0 here.
+            JsonSerializer.Serialize(await reads.ReadAsync(new Mcp.ReadRequest(neuron, what, after, 0)).ConfigureAwait(true), ToolJson));
 
     internal Task<string> ConnectFromToolAsync(string from, string to, string type, bool connect)
         => OnTurnAsync(async () =>
@@ -231,10 +247,11 @@ internal sealed class AgentNeuron(
     // answers with the kernel's own wording instead of collapsing the turn.
     private async Task<string> OnTurnAsync(Func<Task<string>> work)
     {
-        var scheduler = _turnScheduler;
+        var scheduler = _turnScheduler
+            ?? throw new InvalidOperationException("Brain tools may only run during the agent's turn.");
         try
         {
-            return await (scheduler is null || scheduler == TaskScheduler.Current
+            return await (scheduler == TaskScheduler.Current
                 ? work()
                 : Task.Factory.StartNew(work, CancellationToken.None, TaskCreationOptions.None, scheduler).Unwrap())
                 .ConfigureAwait(true);

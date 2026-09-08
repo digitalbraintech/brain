@@ -14,6 +14,8 @@ internal abstract record ScriptItem
     internal sealed record CallTool(string Name, string ArgumentsJson) : ScriptItem;
 
     internal sealed record Pause : ScriptItem;
+
+    internal sealed record TimeOut : ScriptItem;
 }
 
 internal sealed class ScriptedChatClient : IChatClient
@@ -54,6 +56,8 @@ internal sealed class ScriptedChatClient : IChatClient
 
     public void Pause() => _script.Enqueue(new ScriptItem.Pause());
 
+    public void TimeOut() => _script.Enqueue(new ScriptItem.TimeOut());
+
     public void Unpause() => _paused.TrySetResult();
 
     public async Task<ChatResponse> GetResponseAsync(
@@ -74,6 +78,10 @@ internal sealed class ScriptedChatClient : IChatClient
             {
                 case ScriptItem.Say say:
                     return new ChatResponse([new ChatMessage(ChatRole.Assistant, say.Text)]);
+                case ScriptItem.TimeOut:
+                    // What an HttpClient does when a real model stops answering: a cancellation
+                    // that has nothing to do with the caller's own token.
+                    throw new TaskCanceledException("The model request timed out.");
                 case ScriptItem.CallTool tool:
                     var call = new FunctionCallContent(
                         Guid.NewGuid().ToString("N"),

@@ -40,6 +40,17 @@ public sealed class AiSteps(BrainWorld world, BrainSteps brain)
         world.Scripted.Say(text);
     }
 
+    [Given("the scripted model will time out")]
+    public void GivenTimeOut() => world.Scripted.TimeOut();
+
+    [Then(@"the scripted model was asked with model ""(.*)""")]
+    public void ThenModelId(string model)
+        => Assert.Contains(world.Scripted.Options, o => o?.ModelId == model);
+
+    [Then(@"the scripted model's last request contained (\d+) user messages")]
+    public void ThenLastRequestUserMessages(int count)
+        => Assert.Equal(count, world.Scripted.Calls[^1].Count(m => m.Role == ChatRole.User));
+
     [Given("the scripted model will pause before its next answer")]
     public void GivenPause() => world.Scripted.Pause();
 

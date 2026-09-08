@@ -1,8 +1,6 @@
 using System.ComponentModel;
-using System.Text.Json;
 using Microsoft.Extensions.AI;
 using McpOperations = DigitalBrain.Mcp.BrainOperations;
-using McpReadRequest = DigitalBrain.Mcp.ReadRequest;
 
 namespace DigitalBrain.AI;
 
@@ -13,8 +11,6 @@ namespace DigitalBrain.AI;
 /// </summary>
 internal static class BrainTools
 {
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { WriteIndented = true };
-
     internal static IEnumerable<AIFunction> For(AgentNeuron agent, McpOperations reads)
     {
         ArgumentNullException.ThrowIfNull(agent);
@@ -54,12 +50,11 @@ internal static class BrainTools
             + "so it is safe to call twice. Nothing else about either neuron changes; state and journals are kept.");
 
         yield return AIFunctionFactory.Create(
-            async (
+            (
                 [Description("Neuron name, e.g. git or run-tests-before-commit")] string neuron,
                 [Description("state | synapses | incoming | outgoing; omit for all four")] string? what = null,
                 [Description("Journal sequence to read after; 0 for the retained window")] long after = 0)
-                // A reaction may read but never wait: the timeout an MCP client may pass is 0 here.
-                => JsonSerializer.Serialize(await reads.ReadAsync(new McpReadRequest(neuron, what, after, 0)).ConfigureAwait(false), Json),
+                => agent.ReadFromToolAsync(reads, neuron, what, after),
             "read",
             "Read a neuron without changing anything. Returns its state (latest signal per type), its synapses, and its incoming and outgoing journals. "
             + "Recall pattern: read a topic's synapses, follow each target, read its state. "

@@ -22,6 +22,12 @@ public sealed class OperationSteps(BrainSteps brain)
     public Task SessionFires(string session, string type, string body, string to)
         => Try(() => Ops.FireAsync(session, new(type, body, to)));
 
+    // Continuing a conversation is reusing its correlation, so a scenario needs the one the
+    // previous fire returned.
+    [When(@"session ""(.*)"" fires ""([^""]+)"" (\{.*\}) at ""(.*)"" with the correlation of its last fire")]
+    public Task SessionFiresCorrelated(string session, string type, string body, string to)
+        => Try(() => Ops.FireAsync(session, new(type, body, to, _fire!.Correlation)));
+
     [When(@"session ""(.*)"" fires ""(\w+)"" with a body of (\d+) bytes at ""(.*)""")]
     public Task SessionFiresBig(string session, string type, int bytes, string to)
         => Try(() => Ops.FireAsync(session, new(type, "{\"t\":\"" + new string('x', bytes - 8) + "\"}", to)));

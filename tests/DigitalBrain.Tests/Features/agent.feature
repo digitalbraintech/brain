@@ -51,3 +51,32 @@ Feature: agent
     And session "claude" fires "Ask" {"text":"hi"} at "agent:a"
     And "claude" waits up to 10 seconds for an incoming "Reply"
     Then the latest "claude" incoming "Reply" text contains "Provider 'nope' is not configured"
+
+  Scenario: Instruct names the model the provider is asked for
+    Given a running brain with AI
+    And the scripted model will say "ok"
+    When session "claude" fires "Instruct" {"provider":"scripted","model":"m-two"} at "agent:a"
+    And session "claude" fires "Ask" {"text":"hi"} at "agent:a"
+    And "claude" waits up to 10 seconds for an incoming "Reply"
+    Then the scripted model was asked with model "m-two"
+
+  Scenario: A model that times out answers with a Reply and the agent keeps working
+    Given a running brain with AI
+    And the scripted model will time out
+    And the scripted model will say "after"
+    When session "claude" fires "Ask" {"text":"first"} at "agent:a"
+    And "claude" waits up to 10 seconds for an incoming "Reply"
+    Then the latest "claude" incoming "Reply" text contains "timed out"
+    When session "claude" fires "Ask" {"text":"second"} at "agent:a"
+    And "claude" waits up to 10 seconds for 2 incoming "Reply"
+    Then reading "claude" shows latest "Reply" {"text":"after"}
+
+  Scenario: A second Ask on the same correlation continues the conversation
+    Given a running brain with AI
+    And the scripted model will say "one"
+    And the scripted model will say "two"
+    When session "claude" fires "Ask" {"text":"first"} at "agent:a"
+    And "claude" waits up to 10 seconds for an incoming "Reply"
+    And session "claude" fires "Ask" {"text":"second"} at "agent:a" with the correlation of its last fire
+    And "claude" waits up to 10 seconds for 2 incoming "Reply"
+    Then the scripted model's last request contained 2 user messages
