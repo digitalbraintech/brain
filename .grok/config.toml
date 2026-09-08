@@ -37,11 +37,7 @@ args = [
 ]
 startup_timeout_sec = 45
 
-[mcp_servers.digitalbrain-mcp]
-url = "http://localhost:5080/mcp"
-startup_timeout_sec = 15
-
-[mcp_servers.digitalbrain]
+[mcp_servers.brain]
 url = "http://localhost:5080/mcp?principal=grok"
 enabled = true
 
