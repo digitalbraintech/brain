@@ -19,16 +19,18 @@ wakes the drain; activation resumes it.
 Consequences:
 
 - A neuron may `FireAsync` anywhere from inside `ReceiveAsync`, including back at its source.
-  The source's `Fire` completed at accept time, so there is no cycle. `NeuronRequestPath` and
-  `ScheduleTurn` are deleted.
+  The source's `Fire` completed at accept time, so there is no cycle through the source. Two
+  neurons that each fire at the other from inside their reactions still block each other until
+  the response timeout; that is a known limit until `Deliver` itself becomes one-way.
+  `NeuronRequestPath` and `ScheduleTurn` are deleted.
 - `FireOutcome.Delivered` means "accepted by N neurons".
 - A crash between accept and reaction replays the unreacted entries. A throwing `ReceiveAsync`
   leaves the cursor in place; the next drain retries and telemetry records the failure.
 - Rule for reactions: inside a turn a neuron may fire and read, never wait. Whatever it is
   waiting for arrives as its next incoming signal with the same correlation.
 
-Invariants: every accepted signal is reacted to exactly once across restarts; reactions run in
-journal order per neuron; a neuron can fire at its source from inside `ReceiveAsync`; `Fire`
+Invariants: every accepted signal is reacted to at least once across restarts, in order;
+reactions run in journal order per neuron; a neuron can fire at its source from inside `ReceiveAsync`; `Fire`
 returns once every target has accepted; a throwing reaction does not lose the entry.
 
 ## What an agent is

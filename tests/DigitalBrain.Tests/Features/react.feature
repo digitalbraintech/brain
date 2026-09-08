@@ -1,6 +1,7 @@
 Feature: React
-  Deliver accepts. A neuron reacts to its inbox in its own turns, in order, exactly once,
-  and may fire back at the neuron that delivered to it.
+  Deliver accepts. A neuron reacts to its inbox in its own turns, in order, at least once
+  (a failed or crashed reaction is retried from the cursor), and may fire back at the neuron
+  that delivered to it.
 
   Scenario: An echo neuron replies to its source from inside its reaction
     Given a running brain

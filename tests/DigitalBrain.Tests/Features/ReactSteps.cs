@@ -68,21 +68,12 @@ public sealed class ReactSteps(BrainSteps brain)
     public static void ThenReacted(string name, int times, long sequence)
         => Assert.Equal(times, FixtureSwitches.Reactions[$"{name}:{sequence}"]);
 
-    [Then(@"(?:echo|flaky|sleepy) ""(.*)"" incoming journal contains ""(\w+)"" (\{.*\})$")]
-    public async Task ThenTypedIncoming(string name, string type, string body)
+    [Then(@"(echo|flaky|sleepy) ""(.*)"" incoming journal contains ""(\w+)"" (\{.*\})$")]
+    public async Task ThenTypedIncoming(string grainType, string name, string type, string body)
     {
-        // The grain type is inferred from the scenario; try all three fixture types.
-        foreach (var grainType in new[] { "echo", "flaky", "sleepy" })
-        {
-            var read = await brain.Brain.Grains
-                .GetGrain<INeuron>(new NeuronId(grainType, name).ToGrainId())
-                .ReadJournal(JournalKind.Incoming, 0);
-            if (read.Delta.Any(d => d.Signal.Type == type && d.Signal.Body == body))
-            {
-                return;
-            }
-        }
-
-        Assert.Fail($"no {type} {body} on {name}");
+        var read = await brain.Brain.Grains
+            .GetGrain<INeuron>(new NeuronId(grainType, name).ToGrainId())
+            .ReadJournal(JournalKind.Incoming, 0);
+        Assert.Contains(read.Delta, d => d.Signal.Type == type && d.Signal.Body == body);
     }
 }
