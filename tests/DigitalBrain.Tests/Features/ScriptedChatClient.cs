@@ -24,7 +24,8 @@ internal sealed class ScriptedChatClient : IChatClient
     private readonly List<IReadOnlyList<ChatMessage>> _calls = [];
     private readonly List<ChatOptions?> _options = [];
     private readonly Lock _gate = new();
-    private TaskCompletionSource _paused = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly TaskCompletionSource _never = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private bool _unpaused;
 
     /// <summary>Every request the model received, in order, as a snapshot of its messages.</summary>
     public IReadOnlyList<IReadOnlyList<ChatMessage>> Calls
@@ -58,7 +59,18 @@ internal sealed class ScriptedChatClient : IChatClient
 
     public void TimeOut() => _script.Enqueue(new ScriptItem.TimeOut());
 
-    public void Unpause() => _paused.TrySetResult();
+    /// <summary>
+    /// Lets the next request past a pause. It does not release the request that is already
+    /// blocked: that one belongs to a silo that is gone, and letting it wake up would consume
+    /// the rest of the script behind the restarted silo's back.
+    /// </summary>
+    public void Unpause()
+    {
+        lock (_gate)
+        {
+            _unpaused = true;
+        }
+    }
 
     public async Task<ChatResponse> GetResponseAsync(
         IEnumerable<ChatMessage> messages,
@@ -90,11 +102,20 @@ internal sealed class ScriptedChatClient : IChatClient
                     return new ChatResponse([new ChatMessage(ChatRole.Assistant, [call])]);
                 default:
                     // A pause blocks the turn where a real model would still be thinking, so a
-                    // test can assert on what the brain does while an answer is outstanding.
-                    await _paused.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    // test can assert on what the brain does while an answer is outstanding. It
+                    // never returns and it ignores the turn's token: a silo shutting down under
+                    // a paused model tears the activation down with the reaction unfinished, and
+                    // the drain retries it after the restart. Unpause frees the retry, not this
+                    // request, so a request from the dead silo cannot eat the rest of the script.
+                    bool freed;
                     lock (_gate)
                     {
-                        _paused = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                        freed = _unpaused;
+                    }
+
+                    if (!freed)
+                    {
+                        await _never.Task.ConfigureAwait(false);
                     }
 
                     break;

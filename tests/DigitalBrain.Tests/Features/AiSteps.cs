@@ -87,6 +87,25 @@ public sealed class AiSteps(BrainWorld world, BrainSteps brain)
         Assert.All(calls, call => Assert.Equal(userMessages, call.Count(m => m.Role == ChatRole.User)));
     }
 
+    // Instruct is accepted before it is reacted to, so the anatomy it wires appears a turn
+    // later. Waiting for the last synapse it creates is waiting for the whole reaction.
+    [When(@"""(.*)"" waits up to (\d+) seconds for a synapse to ""(.*)"" for ""(\w+)""")]
+    public async Task WhenSynapseAppears(string from, int seconds, string to, string type)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(seconds);
+        while (DateTime.UtcNow < deadline)
+        {
+            if ((await brain.Query(from).ReadSynapses()).Any(s => s.Target == BrainSteps.Id(to) && s.SignalType == type))
+            {
+                return;
+            }
+
+            await Task.Delay(50);
+        }
+
+        Assert.Fail($"{from} has no synapse to {to} for {type} after {seconds}s");
+    }
+
     [Then(@"the latest ""(.*)"" incoming ""(\w+)"" text contains ""(.*)""")]
     public async Task ThenLatestTextContains(string neuron, string type, string fragment)
     {

@@ -59,12 +59,14 @@ Participants, a transcript, and a turn policy.
 - **Participants are `agent` neurons.** Different LLMs in one chat is different `Instruct`
   bodies, nothing else.
 - **The transcript is the `chat` neuron's incoming journal**, filtered by correlation.
-- **The turn policy is MAF's `GroupChatManager`** (round-robin or LLM-selected), run by the
-  `chat` neuron as a MAF group-chat workflow whose participants are **`RequestPort` proxies**.
-  When the manager picks a speaker the workflow halts with an external request; the `chat`
-  neuron checkpoints into its `Neuron<ChatState>` snapshot and fires `Turn` at that participant.
-  When `Said` arrives it resumes the workflow from the checkpoint with that text as the
-  response. When the workflow completes it fires `Reply` at whoever sent the `Ask`.
+- **The turn policy is MAF's `GroupChatManager`** (round-robin or LLM-selected), driven by the
+  `chat` neuron itself rather than by MAF's workflow runtime: the runtime's group chat runs its
+  participants in-process, and a participant here is a neuron that answers a turn later. So the
+  `chat` neuron asks the manager who speaks next, **persists the manager's turn state** into its
+  `Neuron<ChatState>` snapshot, and fires `Turn` at that participant. When `Said` arrives it
+  advances the turn state and asks the manager again; the manager is rebuilt and replayed from
+  the persisted turn count, so a chat picks up exactly where it stopped. When the last turn of
+  the last round is spoken it fires `Reply` at whoever sent the `Ask`.
 - **Who hears is anatomy.** On `Instruct {participants, manager, rounds}` the `chat` neuron
   wires `chat --Turn--> p` and `p --Said--> chat` for each participant. A session that wants to
   watch live connects `p --Said--> session` itself, or reads the chat journal afterwards.
@@ -73,11 +75,11 @@ Participants, a transcript, and a turn policy.
 
 ```
 session --Ask--> chat                             (corr C)
-chat: workflow halts on RequestPort(writer); checkpoint; --Turn--> writer (C)
+chat: manager picks writer; persist turn state; --Turn--> writer (C)
 writer: reads chat.incoming[C]; --Said--> chat (C)
-chat: resume; halts on RequestPort(reviewer); checkpoint; --Turn--> reviewer (C)
+chat: advance turn state; manager picks reviewer; persist; --Turn--> reviewer (C)
 ...
-chat: workflow complete; --Reply--> session (C)
+chat: last turn spoken; --Reply--> session (C)
 ```
 
 ## Vocabulary
@@ -100,7 +102,7 @@ The AppHost calls the module's own hosting extension; nothing in `src/Aspire` is
 | Removed | Reason | Cost if wrong |
 |---|---|---|
 | `ScheduleTurn`, `NeuronRequestPath` | the inbox drain makes fire-back the normal case; timers are non-durable and invisible | none |
-| in-grain agents in `groupchat` | a hidden graph inside a node; replaced by `RequestPort` proxies over real neurons | one resume round-trip per turn |
+| in-grain agents in `groupchat` | a hidden graph inside a node; replaced by real neurons the manager only names | one signal round-trip per turn |
 | `SignalText.TryShow`, `Choice`, `Show` | UI vocabulary inside an LLM neuron | callers define their own |
 | removal of the 64 KB body cap | latest-per-type does not compact; the window bounds retained entries, not `latest` | none; the cap is restored |
 | the hand edit of `AppHost.cs` | module registration belongs to the module's Aspire.Hosting project | none |
@@ -111,6 +113,6 @@ The AppHost calls the module's own hosting extension; nothing in `src/Aspire` is
 2. `Said` count equals the manager's turn count for that correlation.
 3. Two concurrent `Ask`s never mix sessions or transcripts.
 4. The transcript is readable from the `chat` journal with no participant alive.
-5. A chat survives a silo restart mid-conversation and continues from its checkpoint.
+5. A chat survives a silo restart mid-conversation and continues from its persisted turn state.
 6. An agent's tool `fire` appears in its outgoing journal like any Session's.
 7. A participant whose client throws does not lose the turn: the drain retries.
