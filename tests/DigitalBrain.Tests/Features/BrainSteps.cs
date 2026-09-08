@@ -35,7 +35,7 @@ public sealed class BrainSteps(BrainWorld world)
     public Task Disconnect(string from, string to, string type) => Neuron(from).Disconnect(Id(to), type);
 
     [When(@"""(.*)"" fires ""(\w+)"" (\{.*\})$")]
-    public Task Fire(string from, string type, string body) => FireCore(from, type, body, to: null);
+    public Task Fire(string from, string type, string body) => FireCore(from, type, body, (NeuronId?)null);
 
     [When(@"""(.*)"" fires ""(\w+)"" (\{.*\}) at ""(.*)""")]
     public Task FireAt(string from, string type, string body, string to) => FireCore(from, type, body, to);
@@ -107,18 +107,22 @@ public sealed class BrainSteps(BrainWorld world)
     // ---- helpers shared with later features ----
 
     internal BrainSimulation Brain => world.Brain;
-    internal static NeuronId Id(string name) => NeuronId.Plain(name);
+    internal static NeuronId Id(string name)
+        => NeuronId.TryParse(name, out var id) ? id : NeuronId.Plain(name);
     internal INeuron Neuron(string name) => Brain.Grains.GetGrain<INeuron>(Id(name).ToGrainId());
     internal INeuronQuery Query(string name) => Brain.Grains.GetGrain<INeuronQuery>(Id(name).ToGrainId());
     internal Task<JournalRead> Journal(string name, JournalKind kind) => Query(name).ReadJournal(kind, 0);
     internal static JournalKind Kind(string text) => text == "incoming" ? JournalKind.Incoming : JournalKind.Outgoing;
 
-    internal async Task FireCore(string from, string type, string body, string? to)
+    internal Task FireCore(string from, string type, string body, string? to)
+        => FireCore(from, type, body, to is null ? null : Id(to));
+
+    internal async Task FireCore(string from, string type, string body, NeuronId? to)
     {
         _lastError = null;
         try
         {
-            _lastCount = (await Neuron(from).Fire(Signal.Create(type, body), to is null ? null : Id(to), null)).Delivered;
+            _lastCount = (await Neuron(from).Fire(Signal.Create(type, body), to, null)).Delivered;
         }
         catch (Exception error)
         {

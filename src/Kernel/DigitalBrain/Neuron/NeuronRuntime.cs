@@ -27,7 +27,8 @@ public sealed class NeuronRuntime(TimeProvider clock)
             Clock,
             new NeuronJournals(Window("incoming"), Window("outgoing")),
             new NeuronSynapses(services.GetRequiredKeyedService<IDurableDictionary<string, Synapse>>("synapses"), neuronId, Clock),
-            services.GetRequiredKeyedService<IDurableDictionary<string, SignalDelivery>>("latest"));
+            services.GetRequiredKeyedService<IDurableDictionary<string, SignalDelivery>>("latest"),
+            services.GetRequiredKeyedService<IDurableValue<long>>("reacted"));
     }
 }
 
@@ -35,4 +36,5 @@ internal sealed record NeuronActivationComponents(
     TimeProvider Clock,
     NeuronJournals Journals,
     NeuronSynapses Synapses,
-    IDurableDictionary<string, SignalDelivery> Latest);
+    IDurableDictionary<string, SignalDelivery> Latest,
+    IDurableValue<long> Reacted);

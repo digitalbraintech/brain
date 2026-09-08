@@ -7,6 +7,10 @@ internal sealed class NeuronJournals(JournalWindow incoming, JournalWindow outgo
 {
     internal long OutgoingNextSequence => outgoing.NextSequence;
 
+    internal long IncomingLastSequence => incoming.LastSequence;
+
+    internal bool TryReadIncoming(long sequence, out SignalDelivery delivery) => incoming.TryRead(sequence, out delivery);
+
     internal JournalRead Read(JournalKind kind, long afterSequence) => WindowFor(kind).Read(afterSequence);
 
     internal void AppendIncoming(SignalDelivery delivery) => incoming.Append(delivery);

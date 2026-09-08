@@ -3,20 +3,28 @@ using DigitalBrain.Abstractions.Journals;
 using DigitalBrain.Abstractions.Neurons;
 using DigitalBrain.Abstractions.Signals;
 using DigitalBrain.Abstractions.Synapses;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Orleans.Concurrency;
 using Orleans.Journaling;
 
 namespace DigitalBrain.Core;
 
 // A durable actor with one receive slot. Owns its synapses, two bounded journals, and the
 // latest signal of each type it received. Fire travels along synapses; nothing else routes.
-public abstract class Neuron : DurableGrain, INeuron, INeuronQuery
+public abstract class Neuron : DurableGrain, INeuron, INeuronQuery, INeuronDrain
 {
     // Latest-per-type is keyed by type name, so a caller putting identity in the type would
     // grow it without bound. The cap turns that mistake into one sentence of advice.
     public const int MaxSignalTypesPerNeuron = 256;
 
+    // A permanently failing reaction must not hot-loop: after this many failures in one
+    // activation the drain waits for the next Deliver or activation to wake it.
+    private const int MaxConsecutiveFailures = 5;
+
     private readonly NeuronActivationComponents _components;
     private SignalDelivery? _handling;
+    private int _consecutiveFailures;
 
     protected Neuron(NeuronRuntime runtime)
     {
@@ -28,7 +36,7 @@ public abstract class Neuron : DurableGrain, INeuron, INeuronQuery
 
     protected TimeProvider TimeProvider => _components.Clock;
 
-    // The delivery this turn is reacting to, or null outside Deliver.
+    // The delivery this turn is reacting to, or null outside ReceiveAsync.
     protected SignalDelivery? CurrentDelivery => _handling;
 
     public sealed override async Task OnActivateAsync(CancellationToken cancellationToken)
@@ -36,6 +44,12 @@ public abstract class Neuron : DurableGrain, INeuron, INeuronQuery
         NeuronConcurrency.RequireSerializedTurns(GetType());
         await base.OnActivateAsync(cancellationToken).ConfigureAwait(true);
         await OnNeuronActivatedAsync(cancellationToken).ConfigureAwait(true);
+
+        // Entries accepted before the last deactivation are still pending: resume the drain.
+        if (_components.Reacted.Value < _components.Journals.IncomingLastSequence)
+        {
+            Wake();
+        }
     }
 
     protected virtual Task OnNeuronActivatedAsync(CancellationToken cancellationToken) => Task.CompletedTask;
@@ -82,16 +96,54 @@ public abstract class Neuron : DurableGrain, INeuron, INeuronQuery
         _components.Latest[delivery.Signal.Type] = delivery;
         await WriteStateAsync(cancellationToken).ConfigureAwait(true);
 
+        Wake();
+    }
+
+    // ---- INeuronDrain ----
+
+    // Reacts to exactly one pending entry per call, then re-wakes if more remain, so that
+    // accepts interleave with reactions and journal order is preserved.
+    public async Task Drain()
+    {
+        var next = _components.Reacted.Value + 1;
+        if (next > _components.Journals.IncomingLastSequence)
+        {
+            return;
+        }
+
+        if (!_components.Journals.TryReadIncoming(next, out var delivery))
+        {
+            // Fell out of the retained window before we reacted: count it as lost and move on.
+            DrainTelemetry.Lost(Logger, Id, next);
+            await AdvanceAsync(next).ConfigureAwait(true);
+            return;
+        }
+
         var previous = _handling;
         _handling = delivery;
         try
         {
-            await ReceiveAsync(delivery, cancellationToken).ConfigureAwait(true);
+            await ReceiveAsync(delivery, CancellationToken.None).ConfigureAwait(true);
+        }
+        catch (Exception failure)
+        {
+            // The cursor stays, so the entry is not lost. Re-wake once, with a bounded
+            // backoff, and give up on self-healing after a few failures in a row.
+            DrainTelemetry.Failed(Logger, Id, next, failure);
+            if (++_consecutiveFailures <= MaxConsecutiveFailures)
+            {
+                RegisterWakeUp();
+            }
+
+            return;
         }
         finally
         {
             _handling = previous;
         }
+
+        _consecutiveFailures = 0;
+        await AdvanceAsync(next).ConfigureAwait(true);
     }
 
     // ---- INeuronQuery ----
@@ -144,7 +196,6 @@ public abstract class Neuron : DurableGrain, INeuron, INeuronQuery
         {
             try
             {
-                using var path = NeuronRequestPath.Enter(Id, receiver);
                 await GrainFactory.GetGrain<INeuron>(receiver.ToGrainId())
                     .Deliver(delivery, cancellationToken)
                     .ConfigureAwait(true);
@@ -163,6 +214,36 @@ public abstract class Neuron : DurableGrain, INeuron, INeuronQuery
         }
 
         return new FireOutcome(delivery.SignalId, delivery.CorrelationId, targets.Length);
+    }
+
+    // ---- the drain's wake-ups ----
+
+    private ILogger? Logger => ServiceProvider.GetService<ILogger<Neuron>>();
+
+    // A one-way call to ourselves: it returns immediately and is queued behind the current turn.
+    private void Wake() => GrainFactory.GetGrain<INeuronDrain>(this.GetGrainId()).Drain().Ignore();
+
+    // The timer is only a wake-up, never the reaction: durability lives in the cursor, so a
+    // lost timer costs nothing beyond waiting for the next Deliver or activation.
+    private void RegisterWakeUp()
+        => this.RegisterGrainTimer(
+            _ =>
+            {
+                Wake();
+                return Task.CompletedTask;
+            },
+            new GrainTimerCreationOptions
+            {
+                DueTime = TimeSpan.FromMilliseconds(250),
+                Period = Timeout.InfiniteTimeSpan,
+                Interleave = false,
+            });
+
+    private async Task AdvanceAsync(long sequence)
+    {
+        _components.Reacted.Value = sequence;
+        await WriteStateAsync().ConfigureAwait(true);
+        Wake();
     }
 
     protected new IDisposable RegisterTimer(Func<object, Task> callback, object state, TimeSpan dueTime, TimeSpan period)
