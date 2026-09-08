@@ -13,7 +13,7 @@ visibility; MAF is the execution engine.
 
 `Deliver` only **accepts**: journal incoming, set latest-per-type, persist, return. The base
 `Neuron` then drains its inbox in its own turns: a durable cursor "reacted up to sequence N",
-one `ReceiveAsync` per entry in journal order, cursor advanced after each. A one-way self-call
+one `ReceiveAsync` per entry in journal order, cursor advanced after each. An internal one-way self-message
 wakes the drain; activation resumes it.
 
 Consequences:

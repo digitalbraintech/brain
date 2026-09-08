@@ -83,7 +83,7 @@ public sealed class BrainOperations(IGrainFactory grains)
         return new(Name(id), state, synapses, incoming, outgoing);
     }
 
-    private static async Task<JournalView> ReadJournalAsync(INeuronQuery query, JournalKind kind, long after, DateTimeOffset deadline, CancellationToken cancellationToken)
+    private static async Task<JournalView> ReadJournalAsync(INeuron query, JournalKind kind, long after, DateTimeOffset deadline, CancellationToken cancellationToken)
     {
         while (true)
         {
@@ -109,7 +109,7 @@ public sealed class BrainOperations(IGrainFactory grains)
             delivery.Timestamp);
 
     // A delta-only read carries no snapshot; one read past the tip returns it without a delta.
-    private static async Task<long> TotalAsync(INeuronQuery query, JournalKind kind, JournalRead read)
+    private static async Task<long> TotalAsync(INeuron query, JournalKind kind, JournalRead read)
     {
         if (read.ResetSnapshot is { } snapshot)
         {
@@ -122,7 +122,7 @@ public sealed class BrainOperations(IGrainFactory grains)
 
     private INeuron Neuron(NeuronId id) => grains.GetGrain<INeuron>(id.ToGrainId());
 
-    private INeuronQuery Query(NeuronId id) => grains.GetGrain<INeuronQuery>(id.ToGrainId());
+    private INeuron Query(NeuronId id) => grains.GetGrain<INeuron>(id.ToGrainId());
 
     // Plain neurons are named the way callers type them; anything else keeps its "type:name".
     private static string Name(NeuronId id) => id.Type == NeuronId.PlainType ? id.Name : id.ToString();

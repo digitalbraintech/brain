@@ -63,10 +63,10 @@ public sealed class StateSteps(BrainSteps brain)
         => Assert.Equal(count, (await ProfileQuery(profile).ReadJournal(JournalKind.Outgoing, 0)).Delta.Count);
 
     private static NeuronId ProfileId(string name) => new("profile", name);
-    private INeuronQuery ProfileQuery(string name) => brain.Brain.Grains.GetGrain<INeuronQuery>(ProfileId(name).ToGrainId());
+    private INeuron ProfileQuery(string name) => brain.Brain.Grains.GetGrain<INeuron>(ProfileId(name).ToGrainId());
 
     // Read past the tip to get the snapshot without a delta.
-    private static async Task<JournalSnapshot> Snapshot(INeuronQuery query, JournalKind kind)
+    private static async Task<JournalSnapshot> Snapshot(INeuron query, JournalKind kind)
     {
         var tip = await query.ReadJournal(kind, 0);
         var reset = await query.ReadJournal(kind, tip.ResumeSequence + 1);

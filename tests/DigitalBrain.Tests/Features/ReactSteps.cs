@@ -25,7 +25,7 @@ public sealed class ReactSteps(BrainSteps brain)
         FixtureSwitches.Asleep[name] = false;
 
         // Touching the neuron activates it; activation resumes the drain.
-        _ = await brain.Brain.Grains.GetGrain<INeuronQuery>(new NeuronId("sleepy", name).ToGrainId()).ReadState();
+        _ = await brain.Brain.Grains.GetGrain<INeuron>(new NeuronId("sleepy", name).ToGrainId()).ReadState();
     }
 
     [When(@"""(.*)"" waits up to (\d+) seconds for an incoming ""(\w+)""")]
@@ -75,7 +75,7 @@ public sealed class ReactSteps(BrainSteps brain)
         foreach (var grainType in new[] { "echo", "flaky", "sleepy" })
         {
             var read = await brain.Brain.Grains
-                .GetGrain<INeuronQuery>(new NeuronId(grainType, name).ToGrainId())
+                .GetGrain<INeuron>(new NeuronId(grainType, name).ToGrainId())
                 .ReadJournal(JournalKind.Incoming, 0);
             if (read.Delta.Any(d => d.Signal.Type == type && d.Signal.Body == body))
             {

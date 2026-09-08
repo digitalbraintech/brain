@@ -11,7 +11,8 @@ it has received, kept durably outside the journal window. That last item is its 
 the most literal sense: what was last said to it.
 
 **Read.** Not a verb of communication. State, synapses, and journals are queries: nothing
-moves, nothing is journaled, no synapse is involved.
+moves, nothing is journaled, no synapse is involved. On the wire these are the `Read*` methods
+of the single `INeuron` interface, marked read-only and interleaving.
 
 **Membrane.** A signal payload is capped at 64 KB. Larger signals are rejected before
 delivery with no journal entry on either end. Latest-per-type is unbounded in count, so the

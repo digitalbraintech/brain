@@ -110,7 +110,7 @@ public sealed class BrainSteps(BrainWorld world)
     internal static NeuronId Id(string name)
         => NeuronId.TryParse(name, out var id) ? id : NeuronId.Plain(name);
     internal INeuron Neuron(string name) => Brain.Grains.GetGrain<INeuron>(Id(name).ToGrainId());
-    internal INeuronQuery Query(string name) => Brain.Grains.GetGrain<INeuronQuery>(Id(name).ToGrainId());
+    internal INeuron Query(string name) => Brain.Grains.GetGrain<INeuron>(Id(name).ToGrainId());
     internal Task<JournalRead> Journal(string name, JournalKind kind) => Query(name).ReadJournal(kind, 0);
     internal static JournalKind Kind(string text) => text == "incoming" ? JournalKind.Incoming : JournalKind.Outgoing;
 

@@ -12,19 +12,14 @@ namespace DigitalBrain.Core;
 
 // A durable actor with one receive slot. Owns its synapses, two bounded journals, and the
 // latest signal of each type it received. Fire travels along synapses; nothing else routes.
-public abstract class Neuron : DurableGrain, INeuron, INeuronQuery, INeuronDrain
+public abstract class Neuron : DurableGrain, INeuron, INeuronInbox
 {
     // Latest-per-type is keyed by type name, so a caller putting identity in the type would
     // grow it without bound. The cap turns that mistake into one sentence of advice.
     public const int MaxSignalTypesPerNeuron = 256;
 
-    // A permanently failing reaction must not hot-loop: after this many failures in one
-    // activation the drain waits for the next Deliver or activation to wake it.
-    private const int MaxConsecutiveFailures = 5;
-
     private readonly NeuronActivationComponents _components;
     private SignalDelivery? _handling;
-    private int _consecutiveFailures;
 
     protected Neuron(NeuronRuntime runtime)
     {
@@ -99,11 +94,11 @@ public abstract class Neuron : DurableGrain, INeuron, INeuronQuery, INeuronDrain
         Wake();
     }
 
-    // ---- INeuronDrain ----
+    // ---- INeuronInbox ----
 
     // Reacts to exactly one pending entry per call, then re-wakes if more remain, so that
     // accepts interleave with reactions and journal order is preserved.
-    public async Task Drain()
+    async Task INeuronInbox.Drain()
     {
         var next = _components.Reacted.Value + 1;
         if (next > _components.Journals.IncomingLastSequence)
@@ -127,14 +122,9 @@ public abstract class Neuron : DurableGrain, INeuron, INeuronQuery, INeuronDrain
         }
         catch (Exception failure)
         {
-            // The cursor stays, so the entry is not lost. Re-wake once, with a bounded
-            // backoff, and give up on self-healing after a few failures in a row.
+            // The cursor stays, so the entry is not lost, and nothing else happens: the
+            // journal is the only schedule. The next Deliver or activation retries it.
             DrainTelemetry.Failed(Logger, Id, next, failure);
-            if (++_consecutiveFailures <= MaxConsecutiveFailures)
-            {
-                RegisterWakeUp();
-            }
-
             return;
         }
         finally
@@ -142,11 +132,10 @@ public abstract class Neuron : DurableGrain, INeuron, INeuronQuery, INeuronDrain
             _handling = previous;
         }
 
-        _consecutiveFailures = 0;
         await AdvanceAsync(next).ConfigureAwait(true);
     }
 
-    // ---- INeuronQuery ----
+    // ---- INeuron: the reads ----
 
     public Task<IReadOnlyList<SignalDelivery>> ReadState()
         => Task.FromResult<IReadOnlyList<SignalDelivery>>(
@@ -221,23 +210,7 @@ public abstract class Neuron : DurableGrain, INeuron, INeuronQuery, INeuronDrain
     private ILogger? Logger => ServiceProvider.GetService<ILogger<Neuron>>();
 
     // A one-way call to ourselves: it returns immediately and is queued behind the current turn.
-    private void Wake() => GrainFactory.GetGrain<INeuronDrain>(this.GetGrainId()).Drain().Ignore();
-
-    // The timer is only a wake-up, never the reaction: durability lives in the cursor, so a
-    // lost timer costs nothing beyond waiting for the next Deliver or activation.
-    private void RegisterWakeUp()
-        => this.RegisterGrainTimer(
-            _ =>
-            {
-                Wake();
-                return Task.CompletedTask;
-            },
-            new GrainTimerCreationOptions
-            {
-                DueTime = TimeSpan.FromMilliseconds(250),
-                Period = Timeout.InfiniteTimeSpan,
-                Interleave = false,
-            });
+    private void Wake() => GrainFactory.GetGrain<INeuronInbox>(this.GetGrainId()).Drain().Ignore();
 
     private async Task AdvanceAsync(long sequence)
     {

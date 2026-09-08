@@ -1,9 +1,14 @@
 using DigitalBrain.Abstractions.Identity;
+using DigitalBrain.Abstractions.Journals;
 using DigitalBrain.Abstractions.Signals;
+using DigitalBrain.Abstractions.Synapses;
+using Orleans.Concurrency;
 
 namespace DigitalBrain.Abstractions.Neurons;
 
-// The two verbs, plus Deliver, which only another neuron's Fire calls.
+// The whole surface of a neuron: the two verbs, Deliver (which only another neuron's Fire
+// calls), and the reads. A read is a query — nothing moves, nothing is journaled — so the
+// Read* methods are the only interleaving ones.
 [Alias("db.v3.neuron")]
 public interface INeuron : IGrainWithStringKey
 {
@@ -23,4 +28,20 @@ public interface INeuron : IGrainWithStringKey
     [Alias(nameof(Deliver))]
     [ResponseTimeout(NeuronCallTimeouts.LongRunning)]
     Task Deliver(SignalDelivery delivery, CancellationToken cancellationToken = default);
+
+    [ReadOnly]
+    [AlwaysInterleave]
+    [Alias(nameof(ReadState))]
+    Task<IReadOnlyList<SignalDelivery>> ReadState();
+
+    [ReadOnly]
+    [AlwaysInterleave]
+    [Alias(nameof(ReadSynapses))]
+    Task<IReadOnlyList<Synapse>> ReadSynapses();
+
+    [ReadOnly]
+    [AlwaysInterleave]
+    [Alias(nameof(ReadJournal))]
+    [ResponseTimeout(NeuronCallTimeouts.LongRunning)]
+    Task<JournalRead> ReadJournal(JournalKind kind, long afterSequence);
 }

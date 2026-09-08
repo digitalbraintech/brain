@@ -30,7 +30,7 @@ patched: their vocabulary (IHandle, Learned, Broadcast, IContext) no longer exis
 
 | Project | Role |
 |---|---|
-| `DigitalBrain.Contracts` | `INeuron` with `Receive`, `Signal`, `NeuronId`, `Synapse`, journal records. Separate only because Orleans wants grain interfaces in their own assembly. |
+| `DigitalBrain.Contracts` | One grain interface, `INeuron`: `Fire`, `Connect`, `Disconnect`, `Deliver`, and the `Read*` methods, which are the only read-only, interleaving ones. Plus `Signal`, `NeuronId`, `Synapse`, journal records. Separate only because Orleans wants grain interfaces in their own assembly. |
 | `DigitalBrain` | the runtime: `Neuron`, `Neuron<TState>`, router, journals, synapses, latest-per-type, membrane |
 | `DigitalBrain.Mcp` | the client. The four operations as plain C# methods over records, with MCP tool wrappers, the JSON signal codec, and Session mapping. Tests and tools call the same methods. |
 | `DigitalBrain.Silo` | thin host: Orleans plus the MCP endpoint |

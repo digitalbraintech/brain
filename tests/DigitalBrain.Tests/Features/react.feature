@@ -17,12 +17,14 @@ Feature: React
     And "claude" waits up to 5 seconds for 3 incoming "Pong"
     Then "claude" incoming "Pong" bodies are {"n":1}, {"n":2}, {"n":3}
 
-  Scenario: A reaction that throws is retried and the entry is not lost
+  Scenario: A reaction that throws is retried on the next wake and nothing is lost
     Given a running brain
     And flaky "f" fails its first reaction
     When "claude" fires "Ping" {"n":1} at flaky "f"
-    And "claude" waits up to 10 seconds for an incoming "Pong"
+    And "claude" fires "Ping" {"n":2} at flaky "f"
+    And "claude" waits up to 10 seconds for 2 incoming "Pong"
     Then flaky "f" reacted 2 times to sequence 1
+    And "claude" incoming "Pong" bodies are {"n":1}, {"n":2}
 
   Scenario: Unreacted entries survive a restart
     Given a running brain with durable storage
