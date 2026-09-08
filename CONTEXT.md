@@ -6,8 +6,8 @@ Two nouns, two verbs, and one query:
 
 - **Neuron** — a durable actor with one receive slot. It owns its outgoing synapses, two
   bounded journals (incoming, outgoing), and the latest signal of each type it received.
-- **Signal** — a type name (letters only, vocabulary such as `Note`) plus a JSON body up to
-  64 KB. Identity goes in the neuron name, never in the type.
+- **Signal** — a type name (letters only, vocabulary such as `Note`) plus a JSON body.
+  Identity goes in the neuron name, never in the type.
 - **Fire** — a neuron emits a type; the signal travels along every synapse of that type.
 - **Connect / Disconnect** — create or remove a synapse, the only routing fact in the system.
 - **Read** — state, synapses, journals. A query: nothing moves, nothing is journaled.

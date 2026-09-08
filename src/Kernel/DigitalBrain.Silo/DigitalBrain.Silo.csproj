@@ -5,6 +5,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../Aspire/DigitalBrain.Aspire/DigitalBrain.Aspire.csproj" />
+    <ProjectReference Include="../../Modules/AI/DigitalBrain.Modules.AI/DigitalBrain.Modules.AI.csproj" />
     <ProjectReference Include="../DigitalBrain/DigitalBrain.csproj" />
     <ProjectReference Include="../DigitalBrain.Mcp/DigitalBrain.Mcp.csproj" />
   </ItemGroup>

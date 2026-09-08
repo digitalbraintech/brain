@@ -1,5 +1,7 @@
 <Solution>
-  <Folder Name="/Modules/" />
+  <Folder Name="/Modules/">
+    <Project Path="src/Modules/AI/DigitalBrain.Modules.AI/DigitalBrain.Modules.AI.csproj" />
+  </Folder>
   <Folder Name="/Modules/DigitalBrain/">
     <Project Path="src/Aspire/DigitalBrain.Aspire.Hosting/DigitalBrain.Aspire.Hosting.csproj" />
     <Project Path="src/Aspire/DigitalBrain.Aspire/DigitalBrain.Aspire.csproj" />

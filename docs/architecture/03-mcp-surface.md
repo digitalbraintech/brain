@@ -40,8 +40,8 @@ action. This is the part an unfamiliar model will test hardest.
 
 | Condition | Message shape |
 |---|---|
-| payload over 64 KB | "Signal body is N KB; the limit is 64 KB. Split the content across neurons or store it externally and fire a reference." |
 | type name is not vocabulary (contains dates, ids, spaces) | "Type names are vocabulary such as `Note`; put identity in the neuron name." |
+| body is not JSON | "Signal body is not valid JSON: …" |
 | `read` on a neuron never touched | returns an empty view, not an error; the neuron now exists |
 | `disconnect` of a missing synapse | success, no-op |
 
@@ -73,5 +73,5 @@ it. Tool descriptions and error messages are tuned until it can.
 3. `connect` twice is one synapse; `disconnect` of nothing succeeds.
 4. `read` never changes any journal, tally, or synapse on any neuron.
 5. `read` with `timeoutSeconds` returns as soon as a matching entry arrives, and returns empty at the deadline.
-6. A fire rejected at the membrane (payload cap, bad type name) produces no delivery and no journal entry on either end. The receiver-side cap of 256 signal types is different: the emitter has already journaled its outgoing envelope when the receiver refuses, so that rejection leaves an outgoing entry on the emitter and nothing on the receiver.
+6. A fire rejected at `Signal.Create` (bad type name, body that is not JSON) produces no delivery and no journal entry on either end. The receiver-side cap of 256 signal types is different: the emitter has already journaled its outgoing envelope when the receiver refuses, so that rejection leaves an outgoing entry on the emitter and nothing on the receiver.
 7. Two connections with the same principal fire from the same Session neuron.

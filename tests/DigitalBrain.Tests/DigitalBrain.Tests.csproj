@@ -12,10 +12,12 @@
     <PackageReference Include="Reqnroll.xunit.v3" />
     <PackageReference Include="xunit.v3.mtp-v2" />
     <PackageReference Include="ModelContextProtocol.Core" />
+    <PackageReference Include="Microsoft.Extensions.AI" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/Kernel/DigitalBrain.Mcp/DigitalBrain.Mcp.csproj" />
     <ProjectReference Include="../../src/Kernel/DigitalBrain/DigitalBrain.csproj" />
+    <ProjectReference Include="../../src/Modules/AI/DigitalBrain.Modules.AI/DigitalBrain.Modules.AI.csproj" />
     <ProjectReference Include="../../src/Testing/DigitalBrain.Testing/DigitalBrain.Testing.csproj" />
   </ItemGroup>
 </Project>

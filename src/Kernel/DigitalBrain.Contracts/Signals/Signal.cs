@@ -1,4 +1,3 @@
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
@@ -10,8 +9,6 @@ namespace DigitalBrain.Abstractions.Signals;
 [Alias("db.signal")]
 public sealed partial record Signal
 {
-    public const int MaxBodyBytes = 65_536;
-
     // Rehydration path for the JSON journal format, which persists durable state (including
     // each neuron's latest-per-type map). Create is still the only validating entry point.
     [JsonConstructor]
@@ -34,14 +31,6 @@ public sealed partial record Signal
         }
 
         body = string.IsNullOrWhiteSpace(body) ? "{}" : body;
-        var bytes = Encoding.UTF8.GetByteCount(body);
-        if (bytes > MaxBodyBytes)
-        {
-            throw new SignalRejectedException(
-                $"Signal body is {(bytes + 1023) / 1024} KB; the limit is {MaxBodyBytes / 1024} KB. "
-                + "Split the content across neurons or store it externally and fire a reference.");
-        }
-
         try
         {
             using var _ = JsonDocument.Parse(body);

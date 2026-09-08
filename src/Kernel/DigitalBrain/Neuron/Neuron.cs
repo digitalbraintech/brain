@@ -4,6 +4,7 @@ using DigitalBrain.Abstractions.Neurons;
 using DigitalBrain.Abstractions.Signals;
 using DigitalBrain.Abstractions.Synapses;
 using Orleans.Journaling;
+using Orleans.Runtime;
 
 namespace DigitalBrain.Core;
 
@@ -165,6 +166,25 @@ public abstract class Neuron : DurableGrain, INeuron, INeuronQuery
         return new FireOutcome(delivery.SignalId, delivery.CorrelationId, targets.Length);
     }
 
+    // The obsolete RegisterTimer interleaved with other grain calls by default. Neurons
+    // require serialized turns; use ScheduleTurn (RegisterGrainTimer, Interleave = false).
     protected new IDisposable RegisterTimer(Func<object, Task> callback, object state, TimeSpan dueTime, TimeSpan period)
-        => throw new InvalidOperationException($"{nameof(RegisterTimer)} creates interleaving callbacks, but neurons require serialized turns.");
+        => throw new InvalidOperationException($"{nameof(RegisterTimer)} creates interleaving callbacks, but neurons require serialized turns. Use {nameof(ScheduleTurn)}.");
+
+    // Next serialized turn after the current Receive returns. Orleans RegisterGrainTimer with
+    // Interleave = false is a grain call, not an interleaved callback.
+    protected IGrainTimer ScheduleTurn(Func<CancellationToken, Task> callback)
+    {
+        ArgumentNullException.ThrowIfNull(callback);
+        return this.RegisterGrainTimer(
+            static (work, cancellation) => work(cancellation),
+            callback,
+            new GrainTimerCreationOptions
+            {
+                DueTime = TimeSpan.Zero,
+                Period = Timeout.InfiniteTimeSpan,
+                Interleave = false,
+                KeepAlive = true,
+            });
+    }
 }

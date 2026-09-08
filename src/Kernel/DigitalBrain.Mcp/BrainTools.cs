@@ -11,7 +11,7 @@ public sealed class BrainTools(BrainOperations operations, SessionPrincipal sess
 
     [McpServerTool(Name = "fire"), Description(
         "Fire a signal from your Session neuron. A signal is a `type` (letters only, vocabulary such as Note, Confirmed, Decision) "
-        + "and a JSON `body` up to 64 KB. With `to`, it goes to exactly that neuron and creates the synapse if missing; "
+        + "and a JSON `body`. With `to`, it goes to exactly that neuron and creates the synapse if missing; "
         + "without `to`, it follows every synapse of that type you already have. Neurons exist as soon as they are named. "
         + "Put identity in the neuron name (run-tests-before-commit), never in the type. Returns the signal id, correlation and how many neurons received it.")]
     public Task<string> Fire(
