@@ -17,6 +17,7 @@ public sealed class OperationSteps(BrainSteps brain)
 
     private BrainOperations Ops => new(brain.Brain.Grains);
 
+    [Given(@"session ""(.*)"" fires ""([^""]+)"" (\{.*\}) at ""(.*)""")]
     [When(@"session ""(.*)"" fires ""([^""]+)"" (\{.*\}) at ""(.*)""")]
     public Task SessionFires(string session, string type, string body, string to)
         => Try(() => Ops.FireAsync(session, new(type, body, to)));

@@ -20,6 +20,7 @@ internal sealed class ScriptedChatClient : IChatClient
 {
     private readonly ConcurrentQueue<ScriptItem> _script = new();
     private readonly List<IReadOnlyList<ChatMessage>> _calls = [];
+    private readonly List<ChatOptions?> _options = [];
     private readonly Lock _gate = new();
     private TaskCompletionSource _paused = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -31,6 +32,18 @@ internal sealed class ScriptedChatClient : IChatClient
             lock (_gate)
             {
                 return [.. _calls];
+            }
+        }
+    }
+
+    /// <summary>The options of every request, in order, alongside <see cref="Calls"/>.</summary>
+    public IReadOnlyList<ChatOptions?> Options
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return [.. _options];
             }
         }
     }
@@ -52,6 +65,7 @@ internal sealed class ScriptedChatClient : IChatClient
         lock (_gate)
         {
             _calls.Add([.. messages]);
+            _options.Add(options);
         }
 
         while (_script.TryDequeue(out var item))

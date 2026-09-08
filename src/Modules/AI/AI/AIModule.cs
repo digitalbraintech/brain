@@ -28,6 +28,22 @@ public sealed class NativeTools
         ArgumentNullException.ThrowIfNull(function);
         _functions[name] = function;
     }
+
+    /// <summary>
+    /// The tools an <c>Instruct.tools</c> list names. A name no module registered is ignored:
+    /// a host that dropped a module should not stop every agent that once used it.
+    /// </summary>
+    public IEnumerable<AIFunction> Resolve(IEnumerable<string> names)
+    {
+        ArgumentNullException.ThrowIfNull(names);
+        foreach (var name in names)
+        {
+            if (_functions.TryGetValue(name, out var function))
+            {
+                yield return function;
+            }
+        }
+    }
 }
 
 /// <summary>

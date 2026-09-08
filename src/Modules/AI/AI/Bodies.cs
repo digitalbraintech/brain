@@ -26,6 +26,14 @@ internal static class Bodies
     internal static string Said(string author, string text)
         => new JsonObject { ["author"] = author, ["text"] = text }.ToJsonString();
 
+    /// <summary>One transcript line as the model reads it: <c>"{author}: {text}"</c>.</summary>
+    internal static string SaidLine(string body)
+    {
+        var json = Parse(body);
+        var text = String(json, "text");
+        return string.IsNullOrEmpty(text) ? string.Empty : $"{String(json, "author") ?? "someone"}: {text}";
+    }
+
     internal static InstructBody Instruct(string body)
     {
         var json = Parse(body);

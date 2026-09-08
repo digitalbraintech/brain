@@ -57,9 +57,9 @@ public sealed class BrainSteps(BrainWorld world)
         Assert.Contains(fragment, Flatten(_lastError).Message, StringComparison.Ordinal);
     }
 
-    [Then(@"""(.*)"" incoming journal contains ""(\w+)"" (\{.*\})$")]
-    public async Task ThenIncomingContains(string name, string type, string body)
-        => Assert.Contains((await Journal(name, JournalKind.Incoming)).Delta, d => d.Signal.Type == type && d.Signal.Body == body);
+    [Then(@"""(.*)"" (incoming|outgoing) journal contains ""(\w+)"" (\{.*\})$")]
+    public async Task ThenJournalContains(string name, string kind, string type, string body)
+        => Assert.Contains((await Journal(name, Kind(kind))).Delta, d => d.Signal.Type == type && d.Signal.Body == body);
 
     [Then(@"""(.*)"" incoming journal is empty")]
     public async Task ThenIncomingEmpty(string name) => Assert.Empty((await Journal(name, JournalKind.Incoming)).Delta);
