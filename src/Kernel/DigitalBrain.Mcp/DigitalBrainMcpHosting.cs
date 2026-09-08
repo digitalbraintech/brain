@@ -16,7 +16,7 @@ public static class DigitalBrainMcpHosting
         services.TryAddSingleton<BrainOperations>();
         services.AddHttpContextAccessor();
         services.TryAddScoped(sp => SessionPrincipal.FromHttp(sp.GetRequiredService<IHttpContextAccessor>().HttpContext));
-        return services.AddMcpServer(options => options.ServerInfo = new() { Name = "digitalbrain", Version = "0.1" })
+        return services.AddMcpServer(options => options.ServerInfo = new() { Name = "brain", Version = "0.1" })
             .WithTools<BrainTools>();
     }
 

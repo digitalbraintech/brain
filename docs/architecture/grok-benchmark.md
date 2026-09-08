@@ -3,7 +3,7 @@
 Run 2026-09-08 against the Silo started by `aspire start` (kernel at `http://localhost:5080`,
 MCP at `/mcp`). Client: Grok CLI (`grok-4.6`, headless `-p`, `--no-subagents`,
 `--disable-web-search`), registered with
-`grok mcp add digitalbrain "http://localhost:5080/mcp?principal=grok" -t http -s project`.
+`grok mcp add brain "http://localhost:5080/mcp?principal=grok" -t http -s project`.
 The model was told only that four tools exist and to use nothing else. It had never seen this
 repository. Each prompt ran as a brand-new session.
 

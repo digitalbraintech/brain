@@ -27,7 +27,7 @@
         "--mcp"
       ]
     },
-    "digitalbrain-mcp": {
+    "brain": {
       "type": "http",
       "url": "http://localhost:5080/mcp"
     }

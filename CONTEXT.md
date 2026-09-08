@@ -15,7 +15,7 @@ Two nouns, two verbs, and one query:
 There is no outside: Claude, a person, and each MCP session are **Session neurons** named
 after their principal (default `claude`), and they Fire like anything else.
 
-Four MCP tools — `fire`, `connect`, `disconnect`, `read` — are served at `/mcp` by the kernel
+The MCP server is named `brain`; its four tools — `fire`, `connect`, `disconnect`, `read` — are served at `/mcp` by the kernel
 silo, on port 5080 under `aspire start`. `DigitalBrain.Mcp` is the client; the tests call the
 same four operations as plain C#.
 
