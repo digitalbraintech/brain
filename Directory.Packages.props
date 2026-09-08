@@ -57,7 +57,7 @@
     <PackageVersion Include="Microsoft.AI.Foundry.Local" Version="1.2.4" />
     <PackageVersion Include="Concentus" Version="2.2.2" />
     <PackageVersion Include="Concentus.Oggfile" Version="1.0.7" />
-    <PackageVersion Include="NAudio" Version="3.0.2-preview.1" />
+    <PackageVersion Include="NAudio" Version="3.1.0" />
     <PackageVersion Include="Microsoft.ML.OnnxRuntime.Gpu" Version="1.29.0" />
   </ItemGroup>
 </Project>
