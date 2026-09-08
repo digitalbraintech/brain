@@ -19,6 +19,10 @@ public abstract class Neuron : DurableGrain, INeuron, INeuronInbox
     public const int MaxSignalTypesPerNeuron = 256;
 
     private readonly NeuronActivationComponents _components;
+
+    // A reaction's token. It is cancelled when the activation shuts down, which is the only
+    // cancellation a neuron has: there are no timers and no deadlines on a turn.
+    private readonly CancellationTokenSource _activation = new();
     private SignalDelivery? _handling;
 
     protected Neuron(NeuronRuntime runtime)
@@ -44,6 +48,21 @@ public abstract class Neuron : DurableGrain, INeuron, INeuronInbox
         if (_components.Reacted.Value < _components.Journals.IncomingLastSequence)
         {
             Wake();
+        }
+    }
+
+    // Shutting down cancels the reaction in flight. It is not a failure: the cursor stays and
+    // the next activation retries the entry.
+    public sealed override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken cancellationToken)
+    {
+        await _activation.CancelAsync().ConfigureAwait(true);
+        try
+        {
+            await base.OnDeactivateAsync(reason, cancellationToken).ConfigureAwait(true);
+        }
+        finally
+        {
+            _activation.Dispose();
         }
     }
 
@@ -118,7 +137,7 @@ public abstract class Neuron : DurableGrain, INeuron, INeuronInbox
         _handling = delivery;
         try
         {
-            await ReceiveAsync(delivery, CancellationToken.None).ConfigureAwait(true);
+            await ReceiveAsync(delivery, _activation.Token).ConfigureAwait(true);
         }
         catch (Exception failure)
         {

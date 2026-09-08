@@ -62,6 +62,11 @@ internal sealed class ChatNeuron(
 
     // ---- Instruct: who hears is anatomy ----
 
+    /// <summary>
+    /// The chat wires only its own edges. The participant's <c>Said</c> synapse back to the chat
+    /// is created by its first <c>Said</c>, because a directed fire creates the synapse it
+    /// travels on — so a turn never makes a grain call to another neuron, and never a cycle.
+    /// </summary>
     private async Task WireAsync(SignalDelivery delivery)
     {
         var wanted = Participants(Bodies.Instruct(delivery.Signal.Body).Participants);
@@ -69,17 +74,15 @@ internal sealed class ChatNeuron(
         foreach (var participant in wanted)
         {
             await Connect(participant, AIVocabulary.Turn).ConfigureAwait(true);
-            await GrainFactory.GetGrain<INeuron>(participant.ToGrainId()).Connect(Id, AIVocabulary.Said).ConfigureAwait(true);
         }
 
         // Re-instructing a chat is re-wiring it: a participant who is no longer listed stops
-        // being invited and stops being heard.
+        // being invited.
         foreach (var synapse in await ReadSynapses().ConfigureAwait(true))
         {
             if (synapse.SignalType == AIVocabulary.Turn && !wanted.Contains(synapse.Target))
             {
                 await Disconnect(synapse.Target, AIVocabulary.Turn).ConfigureAwait(true);
-                await GrainFactory.GetGrain<INeuron>(synapse.Target.ToGrainId()).Disconnect(Id, AIVocabulary.Said).ConfigureAwait(true);
             }
         }
     }
@@ -162,7 +165,9 @@ internal sealed class ChatNeuron(
     private async Task<NeuronId> SelectAsync(RunPolicy policy, CorrelationId correlation, CancellationToken cancellationToken)
     {
         var agents = policy.Participants.Select(static p => (AIAgent)new Participant(p)).ToArray();
-        var manager = new ReplayableRoundRobin(agents) { MaximumIterationCount = policy.TotalTurns };
+        // No MaximumIterationCount: the manager's own iteration count is advanced by MAF's host,
+        // not by selection, so termination is the chat's — it ends the run after TotalTurns.
+        var manager = new ReplayableRoundRobin(agents);
         var history = await TranscriptAsync(correlation).ConfigureAwait(true);
 
         var speaker = agents[0];

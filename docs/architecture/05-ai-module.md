@@ -28,6 +28,8 @@ Consequences:
   leaves the cursor in place; the next drain retries and telemetry records the failure.
 - Rule for reactions: inside a turn a neuron may fire and read, never wait. Whatever it is
   waiting for arrives as its next incoming signal with the same correlation.
+- A reaction receives a token that is cancelled when the activation shuts down; a reaction
+  cancelled that way is not a failure and is retried on the next activation.
 
 Invariants: every accepted signal is reacted to at least once across restarts, in order;
 reactions run in journal order per neuron; a neuron can fire at its source from inside `ReceiveAsync`; `Fire`
@@ -68,8 +70,9 @@ Participants, a transcript, and a turn policy.
   the persisted turn count, so a chat picks up exactly where it stopped. When the last turn of
   the last round is spoken it fires `Reply` at whoever sent the `Ask`.
 - **Who hears is anatomy.** On `Instruct {participants, manager, rounds}` the `chat` neuron
-  wires `chat --Turn--> p` and `p --Said--> chat` for each participant. A session that wants to
-  watch live connects `p --Said--> session` itself, or reads the chat journal afterwards.
+  wires `chat --Turn--> p` for each participant. The participant's `Said` synapse is created by
+  its first `Said`; the chat wires only its own edges. A session that wants to watch live
+  connects `p --Said--> session` itself, or reads the chat journal afterwards.
 - A participant's turn is a read-walk plus one fire: it reads the source's incoming journal for
   that correlation to build context, then fires `Said`. `Turn` carries no transcript.
 
@@ -114,5 +117,9 @@ The AppHost calls the module's own hosting extension; nothing in `src/Aspire` is
 3. Two concurrent `Ask`s never mix sessions or transcripts.
 4. The transcript is readable from the `chat` journal with no participant alive.
 5. A chat survives a silo restart mid-conversation and continues from its persisted turn state.
+   After a restart a neuron with unreacted inbox entries resumes when it is next activated, i.e.
+   when anything addresses it; nothing wakes it on its own.
 6. An agent's tool `fire` appears in its outgoing journal like any Session's.
-7. A participant whose client throws does not lose the turn: the drain retries.
+7. A participant whose client throws does not lose the turn: the drain retries. A chat-side
+   failure to invite a participant ends the run with an error `Reply`; the agent-side retry story
+   applies to participants, not to the chat's own invitations.
