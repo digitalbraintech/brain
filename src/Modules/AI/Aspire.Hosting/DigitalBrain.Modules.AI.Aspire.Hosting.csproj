@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <RootNamespace>DigitalBrain.AI.Aspire.Hosting</RootNamespace>
+    <Description>Aspire AppHost integration for the DigitalBrain AI module: provider endpoints, models, and API keys as parameters.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../AI/DigitalBrain.Modules.AI.csproj" />
+    <ProjectReference Include="../../../Aspire/DigitalBrain.Aspire.Hosting/DigitalBrain.Aspire.Hosting.csproj" />
+  </ItemGroup>
+</Project>

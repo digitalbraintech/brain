@@ -7,5 +7,6 @@
     <ProjectReference Include="../../Aspire/DigitalBrain.Aspire/DigitalBrain.Aspire.csproj" />
     <ProjectReference Include="../DigitalBrain/DigitalBrain.csproj" />
     <ProjectReference Include="../DigitalBrain.Mcp/DigitalBrain.Mcp.csproj" />
+    <ProjectReference Include="../../Modules/AI/AI/DigitalBrain.Modules.AI.csproj" />
   </ItemGroup>
 </Project>
