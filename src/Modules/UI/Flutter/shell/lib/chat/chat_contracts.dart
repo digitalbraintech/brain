@@ -5,18 +5,23 @@ import 'package:digitalbrain_ui_kit/digitalbrain_ui_kit.dart';
 
 typedef SendMessage = Future<void> Function(String text);
 typedef StreamMessage = Stream<ChatDelta> Function(String text);
-typedef StreamVoice =
-    Stream<ChatDelta> Function(List<int> audioBytes, {String fileName});
+typedef StreamVoice = Stream<ChatDelta> Function(
+  List<int> audioBytes, {
+  String fileName,
+});
 typedef OpenUrl = Future<void> Function(Uri url);
-typedef CancelChatTurn =
-    Future<void> Function({required String commandId, required String turnId});
+typedef CancelChatTurn = Future<void> Function({
+  required String commandId,
+  required String turnId,
+});
 typedef ReadChart = Future<ChatChartOffer?> Function(String name);
 typedef ReadImageBytes = Future<Uint8List?> Function(String name);
 typedef ReadSpreadsheet = Future<ChatSpreadsheetOffer?> Function(String name);
 typedef ReadGraph = Future<ChatGraphOffer?> Function(String name);
 typedef ReadSurface = Future<KitSurfaceState?> Function(String name);
-typedef ReadActivityResults =
-    Future<List<ChatTurnEvent>> Function(String activityId);
+typedef ReadActivityResults = Future<List<ChatTurnEvent>> Function(
+  String activityId,
+);
 
 const ownerUserId = 'owner';
 const assistantUserId = 'assistant';

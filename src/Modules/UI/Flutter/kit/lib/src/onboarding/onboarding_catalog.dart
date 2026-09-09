@@ -67,8 +67,7 @@ abstract final class OnboardingCatalog {
     id: 'fire',
     title: 'Fire',
     blurb: 'Send a signal at a named neuron.',
-    rule:
-        'A script or assistant fires SendAsync at a named neuron. The payload is the Signal. The envelope (id, correlation, caller, sequence) rides with it. This is not a broadcast.',
+    rule: 'A script or assistant fires SendAsync at a named neuron. The payload is the Signal. The envelope (id, correlation, caller, sequence) rides with it. This is not a broadcast.',
     icon: Icons.flash_on_outlined,
     frames: [
       OnboardingLessonFrame(
@@ -92,8 +91,7 @@ abstract final class OnboardingCatalog {
     id: 'handle',
     title: 'Handle',
     blurb: 'IHandle is a type capability, not a subscription.',
-    rule:
-        'IHandle<ActivityChanged> means this grain type can receive ActivityChanged. It does not subscribe the handler to every source. Unhandled fires still journal; they do not learn a route.',
+    rule: 'IHandle<ActivityChanged> means this grain type can receive ActivityChanged. It does not subscribe the handler to every source. Unhandled fires still journal; they do not learn a route.',
     icon: Icons.pan_tool_outlined,
     frames: [
       OnboardingLessonFrame(
@@ -117,8 +115,7 @@ abstract final class OnboardingCatalog {
     id: 'synapse',
     title: 'Synapse',
     blurb: 'A handled fire writes an edge on the source.',
-    rule:
-        'A handled directed ActivityChanged delivery records an observational learned edge on its source. Unhandled fire: journal only, no edge.',
+    rule: 'A handled directed ActivityChanged delivery records an observational learned edge on its source. Unhandled fire: journal only, no edge.',
     icon: Icons.hub_outlined,
     frames: [
       OnboardingLessonFrame(
@@ -147,8 +144,7 @@ abstract final class OnboardingCatalog {
     id: 'broadcast',
     title: 'Broadcast',
     blurb: 'Fan-out from this neuron’s audience.',
-    rule:
-        'Broadcast follows this source neuron’s existing synapses for the signal type. An unsubscribed handler receives nothing. The emitter never receives its own broadcast.',
+    rule: 'Broadcast follows this source neuron’s existing synapses for the signal type. An unsubscribed handler receives nothing. The emitter never receives its own broadcast.',
     icon: Icons.campaign_outlined,
     frames: [
       OnboardingLessonFrame(
@@ -177,8 +173,7 @@ abstract final class OnboardingCatalog {
     id: 'subscribe',
     title: 'Subscribe',
     blurb: 'A subscription names one exact source.',
-    rule:
-        'Each subscription is a bound edge on one named source. A broadcast follows only those explicit bound edges for its signal type.',
+    rule: 'Each subscription is a bound edge on one named source. A broadcast follows only those explicit bound edges for its signal type.',
     icon: Icons.notifications_active_outlined,
     frames: [
       OnboardingLessonFrame(
@@ -212,8 +207,7 @@ abstract final class OnboardingCatalog {
     id: 'journal',
     title: 'Journal',
     blurb: 'Interactions, bounded — not the snapshot.',
-    rule:
-        'The traffic journal is a bounded window of SignalDelivery envelopes. It is not the chart, the bio, or the synapse map. Past the window you get a reset snapshot, not infinite history.',
+    rule: 'The traffic journal is a bounded window of SignalDelivery envelopes. It is not the chart, the bio, or the synapse map. Past the window you get a reset snapshot, not infinite history.',
     icon: Icons.receipt_long_outlined,
     frames: [
       OnboardingLessonFrame(
@@ -233,8 +227,7 @@ abstract final class OnboardingCatalog {
     id: 'entity',
     title: 'Entity',
     blurb: 'Snapshots. Not graph endpoints.',
-    rule:
-        'Profile, charts, and sheets are entities: current values, no journal, no synapses. Neurons fire and journal; entities persist points. The square is never a pulse target.',
+    rule: 'Profile, charts, and sheets are entities: current values, no journal, no synapses. Neurons fire and journal; entities persist points. The square is never a pulse target.',
     icon: Icons.inventory_2_outlined,
     frames: [
       OnboardingLessonFrame(
@@ -267,8 +260,7 @@ abstract final class OnboardingCatalog {
     id: 'module',
     title: 'Module',
     blurb: 'Modules contain neurons with related responsibilities.',
-    rule:
-        'Time groups timer neurons; other modules group their own neurons and tools. A script sends StartTimer to a named Timer neuron. The module groups the neurons; it does not receive the signal.',
+    rule: 'Time groups timer neurons; other modules group their own neurons and tools. A script sends StartTimer to a named Timer neuron. The module groups the neurons; it does not receive the signal.',
     icon: Icons.extension_outlined,
     frames: [
       OnboardingLessonFrame(

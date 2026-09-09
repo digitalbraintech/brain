@@ -55,7 +55,9 @@ final class _CapabilityCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: selected ? KitPalette.signal.withValues(alpha: 0.14) : KitPalette.surfaceRaised,
+      color: selected
+          ? KitPalette.signal.withValues(alpha: 0.14)
+          : KitPalette.surfaceRaised,
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         key: Key('onboarding_capability_${capability.id}'),

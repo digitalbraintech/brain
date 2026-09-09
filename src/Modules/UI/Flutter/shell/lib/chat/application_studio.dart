@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:digitalbrain_flutter/digitalbrain_flutter.dart';
 import 'package:flutter/material.dart';
 
@@ -322,8 +323,7 @@ class _ApplicationEditorState extends State<ApplicationEditor> {
     } catch (_) {
       if (mounted) {
         setState(
-          () => _message =
-              'The application changed or the operation failed. Refresh and retry.',
+          () => _message = 'The application changed or the operation failed. Refresh and retry.',
         );
       }
     } finally {

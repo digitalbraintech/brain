@@ -6,8 +6,10 @@ import '../chat/chat_contracts.dart';
 import 'chat_login_action.dart';
 import 'user_action_card.dart';
 
-typedef LoginAuthorizeButtonBuilder =
-    Widget Function(BuildContext context, VoidCallback? onPressed);
+typedef LoginAuthorizeButtonBuilder = Widget Function(
+  BuildContext context,
+  VoidCallback? onPressed,
+);
 
 /// Shared lifecycle card for the small, explicitly allowlisted set of OAuth
 /// providers that can be requested by a chat turn.
@@ -221,9 +223,8 @@ final class _ProviderLoginCardState extends State<ProviderLoginCard> {
               padding: const EdgeInsets.only(bottom: 10),
               child: Text(
                 _failure!,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.error,
-                ),
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: Theme.of(context).colorScheme.error),
               ),
             ),
         ],

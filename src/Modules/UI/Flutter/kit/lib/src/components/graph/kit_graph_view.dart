@@ -21,8 +21,7 @@ final class KitGraphView extends StatefulWidget {
     this.sceneFactory,
     this.pulse,
     this.showLabels = false,
-    this.semanticsLabel =
-        'Interactive three-dimensional graph. Drag to orbit; tap a node to focus it.',
+    this.semanticsLabel = 'Interactive three-dimensional graph. Drag to orbit; tap a node to focus it.',
   });
 
   final KitGraphController controller;

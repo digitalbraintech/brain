@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'dart:typed_data';
+
 import 'package:digitalbrain_flutter/digitalbrain_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_chat_core/flutter_chat_core.dart';
 import 'package:forui/forui.dart';
+
 import '../chat/kit_chat.dart';
 import '../components/button/kit_button.dart';
 import '../components/card/kit_card.dart';
@@ -287,8 +289,7 @@ final class _GalleryPreviewState extends State<GalleryPreview> {
                 TextMessage(
                   id: 'example-2',
                   authorId: 'ino',
-                  text:
-                      'A clear surface, a small next step, and room for what matters.',
+                  text: 'A clear surface, a small next step, and room for what matters.',
                 ),
               ],
       );

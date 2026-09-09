@@ -33,8 +33,7 @@ final class _ShellChatDemoState extends State<ShellChatDemo> {
         id: 'kit-2',
         authorId: assistantUserId,
         createdAt: DateTime.utc(2026, 8, 1, 10, 0, 12),
-        text:
-            'p50 is 12ms across 186 synapses/min. Want a chart window opened on the desktop?',
+        text: 'p50 is 12ms across 186 synapses/min. Want a chart window opened on the desktop?',
       ),
       TextMessage(
         id: 'kit-3',

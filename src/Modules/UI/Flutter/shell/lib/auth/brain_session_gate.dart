@@ -10,13 +10,16 @@ import 'credential_store_io.dart'
 import 'login_screen.dart';
 
 /// Builds the signed-in shell once a client is available.
-typedef ShellBuilder =
-    Widget Function(DigitalBrainUiClient? client, String? statusMessage);
+typedef ShellBuilder = Widget Function(
+  DigitalBrainUiClient? client,
+  String? statusMessage,
+);
 
 /// Creates a client for the given credentials, or throws if the kernel
 /// location cannot be resolved.
-typedef ClientFactory =
-    DigitalBrainUiClient Function(BasicCredentials? credentials);
+typedef ClientFactory = DigitalBrainUiClient Function(
+  BasicCredentials? credentials,
+);
 
 DigitalBrainUiClient _fromEnvironment(BasicCredentials? credentials) =>
     DigitalBrainUiClient.fromEnvironment(credentials: credentials);

@@ -22,8 +22,7 @@ final class ActivityScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final empty =
-        turns.isEmpty && userActions.isEmpty && correlations.isEmpty;
+    final empty = turns.isEmpty && userActions.isEmpty && correlations.isEmpty;
     return ColoredBox(
       key: const Key('activity_screen'),
       color: BrainPalette.surface,
@@ -139,11 +138,13 @@ final class _CorrelationEntry extends StatelessWidget {
         color: BrainPalette.surfaceRaised,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: correlation.status == 'failed' ||
+          color:
+              correlation.status == 'failed' ||
                   correlation.status == 'needs-approval'
               ? color
               : BrainPalette.line,
-          width: correlation.status == 'failed' ||
+          width:
+              correlation.status == 'failed' ||
                   correlation.status == 'needs-approval'
               ? 1.5
               : 1,

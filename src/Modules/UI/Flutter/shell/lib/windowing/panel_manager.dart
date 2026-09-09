@@ -242,7 +242,9 @@ final class PanelManager extends ChangeNotifier {
     seedDemoPanels();
   }
 
-  void loadScenes(List<(String id, String title, WindowPanelKind kind)> scenes) {
+  void loadScenes(
+    List<(String id, String title, WindowPanelKind kind)> scenes,
+  ) {
     _panels.clear();
     _topZ = 0;
     for (var i = 0; i < scenes.length; i++) {

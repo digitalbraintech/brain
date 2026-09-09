@@ -178,20 +178,17 @@ final class _BrainChatComposerState extends State<BrainChatComposer> {
                 children: [
                   _AssistantHint(
                     label: 'Personal code review',
-                    prompt:
-                        'Review my local repository diff. Focus on correctness, concurrency, and durable state. Give actionable findings with file and line references; skip cosmetic comments.',
+                    prompt: 'Review my local repository diff. Focus on correctness, concurrency, and durable state. Give actionable findings with file and line references; skip cosmetic comments.',
                     onSend: onSend,
                   ),
                   _AssistantHint(
                     label: 'My behaviors',
-                    prompt:
-                        'List my saved C# behaviors and explain what each one does.',
+                    prompt: 'List my saved C# behaviors and explain what each one does.',
                     onSend: onSend,
                   ),
                   _AssistantHint(
                     label: 'Create a behavior',
-                    prompt:
-                        'Help me turn a routine into a C# behavior. Ask what should trigger it and what it should do.',
+                    prompt: 'Help me turn a routine into a C# behavior. Ask what should trigger it and what it should do.',
                     onSend: onSend,
                   ),
                 ],

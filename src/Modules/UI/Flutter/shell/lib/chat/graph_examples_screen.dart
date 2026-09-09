@@ -237,8 +237,7 @@ final class _GraphExamplesScreenState extends State<GraphExamplesScreen> {
                     sceneFactory: widget.sceneFactory,
                     pulse: _simulation.pulse,
                     showLabels: true,
-                    semanticsLabel:
-                        'DigitalBrain 3D simulation. UI, AI, Kernel and Time modules contain seven neurons. Drag to orbit and scroll to zoom.',
+                    semanticsLabel: 'DigitalBrain 3D simulation. UI, AI, Kernel and Time modules contain seven neurons. Drag to orbit and scroll to zoom.',
                   ),
                   const Positioned(
                     left: 14,
@@ -343,8 +342,7 @@ final class _GraphExamplesScreenState extends State<GraphExamplesScreen> {
           ),
           const SizedBox(height: 6),
           Text(
-            step?.detail ??
-                'Play a local example of signal delivery or subscription changes. Synapses are illustrative; this is not a live topology. Chat uses your assistant.',
+            step?.detail ?? 'Play a local example of signal delivery or subscription changes. Synapses are illustrative; this is not a live topology. Chat uses your assistant.',
             style: BrainType.bodyMuted,
           ),
           if (step != null) ...[

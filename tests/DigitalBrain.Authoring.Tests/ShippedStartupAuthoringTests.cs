@@ -1,4 +1,5 @@
 using DigitalBrain.Abstractions;
+using DigitalBrain.AI;
 using DigitalBrain.Core;
 using DigitalBrain.Abstractions.Identity;
 using DigitalBrain.Abstractions.Journals;
@@ -7,9 +8,9 @@ using DigitalBrain.Testing;
 using DigitalBrain.UI;
 using Xunit;
 
-namespace DigitalBrain.Simulation.Tests;
+namespace DigitalBrain.Authoring.Tests;
 
-[Collection("Application graph builds")]
+[Collection("Compiled shipped startup")]
 public sealed class ShippedStartupAuthoringTests
 {
     [Fact(Timeout = 120000)]
@@ -22,7 +23,12 @@ public sealed class ShippedStartupAuthoringTests
         {
             await using var simulation = await BrainSimulation.StartAsync(new()
             {
-                Modules = new ModuleManifest([typeof(UIModule)]),
+                // start.cs wires composer → assistant (AI) and activities → renderer (UI).
+                Modules = new ModuleManifest([typeof(AIModule), typeof(UIModule)]),
+                Configuration = new Dictionary<string, string?>
+                {
+                    [DigitalBrainNames.Mode] = DigitalBrainNames.TestingMode,
+                },
             });
             var actor = new ActorContext(new PrincipalId(new Guid("0000dead-0000-0000-0000-000000000001")),
                 "owner");

@@ -56,9 +56,7 @@ final class KitSheet extends StatelessWidget {
                         TableRow(
                           children: [
                             for (var i = 0; i < columnCount; i++)
-                              _SheetCell(
-                                text: i < row.length ? row[i] : '',
-                              ),
+                              _SheetCell(text: i < row.length ? row[i] : ''),
                           ],
                         ),
                     ],
@@ -83,10 +81,7 @@ final class _SheetCell extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      child: Text(
-        text,
-        style: header ? KitType.metaStrong : KitType.meta,
-      ),
+      child: Text(text, style: header ? KitType.metaStrong : KitType.meta),
     );
   }
 }

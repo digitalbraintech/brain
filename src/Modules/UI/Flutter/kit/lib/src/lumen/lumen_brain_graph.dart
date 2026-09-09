@@ -1,6 +1,8 @@
 import 'dart:math' as math;
+
 import 'package:digitalbrain_flutter/digitalbrain_flutter.dart';
 import 'package:flutter/material.dart';
+
 import '../../digitalbrain_ui_kit.dart';
 
 /// A growing whiteboard of real neurons. Existing positions survive new traffic
@@ -168,7 +170,7 @@ final class _LumenBrainGraphState extends State<LumenBrainGraph> {
                               (positions[event.neuronId]!.dy +
                                       positions[event.targetId]!.dy) /
                                   2 -
-                                    100,
+                              100,
                           child: LumenActionButton(
                             key: ValueKey('delegation_${event.operationId}'),
                             label: 'Request running',
@@ -307,9 +309,8 @@ final class _NeuronTile extends StatelessWidget {
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(
-                        0xff4c6b4b,
-                      ).withValues(alpha: active ? .18 : .06),
+                      color: const Color(0xff4c6b4b)
+                          .withValues(alpha: active ? .18 : .06),
                       blurRadius: active ? 24 : 12,
                       offset: const Offset(0, 5),
                     ),

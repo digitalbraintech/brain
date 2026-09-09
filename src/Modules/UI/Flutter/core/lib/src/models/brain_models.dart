@@ -35,21 +35,21 @@ final class BrainSnapshot {
   }
 
   factory BrainSnapshot.fromJson(Map<String, dynamic> json) {
-    final activity = _objects(
-      json['activity'],
-    ).map(BrainActivity.fromJson).toList(growable: false);
+    final activity = _objects(json['activity'])
+        .map(BrainActivity.fromJson)
+        .toList(growable: false);
     final rawCorrelations = _objects(json['correlations']);
     return BrainSnapshot(
       rootId: json['rootId'] as String,
       observedAt: DateTime.parse(json['observedAt'] as String),
       scope: json['scope'] as String? ?? '',
       truncated: json['truncated'] == true,
-      nodes: _objects(
-        json['nodes'],
-      ).map(BrainNeuron.fromJson).toList(growable: false),
-      synapses: _objects(
-        json['synapses'],
-      ).map(BrainSynapse.fromJson).toList(growable: false),
+      nodes: _objects(json['nodes'])
+          .map(BrainNeuron.fromJson)
+          .toList(growable: false),
+      synapses: _objects(json['synapses'])
+          .map(BrainSynapse.fromJson)
+          .toList(growable: false),
       activity: activity,
       correlations: rawCorrelations.isEmpty
           ? BrainCorrelation.group(activity)
@@ -295,10 +295,9 @@ DateTime? _date(Object? value) =>
 
 typedef ReadBrain = Future<BrainSnapshot> Function();
 typedef WatchBrain = Stream<BrainSnapshot> Function();
-typedef SetBrainSubscription =
-    Future<void> Function({
-      required String sourceId,
-      required String targetId,
-      required String signalType,
-      required bool subscribed,
-    });
+typedef SetBrainSubscription = Future<void> Function({
+  required String sourceId,
+  required String targetId,
+  required String signalType,
+  required bool subscribed,
+});

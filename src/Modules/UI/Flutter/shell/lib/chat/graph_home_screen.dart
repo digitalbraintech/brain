@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'dart:async';
+
 import 'package:digitalbrain_flutter/digitalbrain_flutter.dart';
 import 'package:digitalbrain_ui_kit/digitalbrain_ui_kit.dart';
 import 'package:flutter/material.dart';
+
 import 'brain_chat_screen.dart';
 import 'brain_graph_store.dart';
 import 'application_studio.dart';
@@ -939,9 +941,10 @@ final class _GraphHomeScreenState extends State<GraphHomeScreen> {
   ) async {
     // Match the kernel's principal partition ({32 hex digits}.{local name}).
     // This only limits offered choices; the server authorizes every mutation.
-    final partition = RegExp(
-      r'^[^:]+:([0-9a-fA-F]{32}\.)',
-    ).firstMatch(snapshot.rootId)?.group(1)?.toLowerCase();
+    final partition = RegExp(r'^[^:]+:([0-9a-fA-F]{32}\.)')
+        .firstMatch(snapshot.rootId)
+        ?.group(1)
+        ?.toLowerCase();
     final targets = snapshot.nodes
         .where(
           (n) =>
