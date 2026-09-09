@@ -131,7 +131,7 @@ jobs:
                 az containerapp logs show \
                   --name "${{ vars.AZURE_CONTAINERAPP_NAME }}" \
                   --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
-                  --revision "$revision" --type system --tail 40
+                  --revision "$revision" --type console --tail 80
                 exit 1
                 ;;
               *)
