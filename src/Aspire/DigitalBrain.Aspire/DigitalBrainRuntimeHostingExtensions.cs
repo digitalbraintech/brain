@@ -52,13 +52,12 @@ public static class DigitalBrainRuntimeHostingExtensions
         return builder;
     }
 
-    // Aspire AppHost injects Orleans:Clustering:ProviderType via WithClustering. Published
-    // containers set DigitalBrain:Standalone and may only have ConnectionStrings:* — wire
-    // Azure membership/reminders explicitly so the silo does not depend on Aspire DCP env.
+    // Aspire AppHost (and some Container App configs) inject Orleans:Clustering:ProviderType.
+    // Only wire Azure membership/reminders from ConnectionStrings when that provider is absent,
+    // otherwise Orleans ends up with a duplicate IMembershipTable registration.
     private static void ConfigureStandaloneAzureClustering(ISiloBuilder silo, IConfiguration configuration)
     {
-        var standalone = configuration.GetValue("DigitalBrain:Standalone", false);
-        if (!standalone && !string.IsNullOrWhiteSpace(configuration["Orleans:Clustering:ProviderType"]))
+        if (!string.IsNullOrWhiteSpace(configuration["Orleans:Clustering:ProviderType"]))
         {
             return;
         }
@@ -66,11 +65,11 @@ public static class DigitalBrainRuntimeHostingExtensions
         var clustering = configuration.GetConnectionString(DigitalBrainNames.Clustering);
         if (string.IsNullOrWhiteSpace(clustering))
         {
-            if (standalone)
+            if (configuration.GetValue("DigitalBrain:Standalone", false))
             {
                 throw new InvalidOperationException(
                     $"Missing connection string '{DigitalBrainNames.Clustering}'. "
-                    + "Standalone hosts require Azure Table clustering.");
+                    + "Standalone hosts require Azure Table clustering (or Orleans:Clustering:ProviderType).");
             }
 
             return;
