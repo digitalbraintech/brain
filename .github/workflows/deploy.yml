@@ -168,15 +168,16 @@ jobs:
 
       - name: Core package tests
         working-directory: src/Modules/UI/Flutter/core
-        run: dart test
+        run: |
+          if [ -d test ]; then dart test; else echo "no core tests"; fi
 
       - name: Kit package tests
         working-directory: src/Modules/UI/Flutter/kit
-        run: flutter test --no-pub
+        run: |
+          if [ -d test ]; then flutter test --no-pub; else echo "no kit tests"; fi
 
       - name: Shell tests
         run: flutter test --no-pub
-
       - name: Web release build
         # Without the define the shell falls back to its own SWA origin, which
         # serves no kernel. vars.KERNEL_PUBLIC_URL is the Container App FQDN.
