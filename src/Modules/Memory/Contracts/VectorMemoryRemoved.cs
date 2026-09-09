@@ -1,6 +1,6 @@
 using DigitalBrain.Abstractions;
 
-using DigitalBrain.Abstractions.Messaging;
+using DigitalBrain.Abstractions.Signals;
 namespace DigitalBrain.Memory;
 
 [GenerateSerializer]
@@ -8,5 +8,5 @@ namespace DigitalBrain.Memory;
 public sealed record VectorMemoryRemoved(
     [property: Id(0)] bool Removed,
     [property: Id(1)] VectorMemoryNamespace Namespace,
-    [property: Id(2)] string Key) : Synapse;
+    [property: Id(2)] string Key) : Signal;
 

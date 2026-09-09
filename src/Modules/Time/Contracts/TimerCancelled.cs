@@ -1,6 +1,7 @@
+using DigitalBrain.Product.Identity;
 using DigitalBrain.Abstractions;
 
-using DigitalBrain.Abstractions.Messaging;
+using DigitalBrain.Abstractions.Signals;
 using DigitalBrain.Abstractions.Identity;
 namespace DigitalBrain.Time;
 
@@ -9,5 +10,5 @@ namespace DigitalBrain.Time;
 public sealed record TimerCancelled(
     [property: Id(0)] CommandId CommandId,
     [property: Id(1)] NeuronId Timer,
-    [property: Id(2)] long Generation) : Synapse;
+    [property: Id(2)] long Generation) : Signal;
 

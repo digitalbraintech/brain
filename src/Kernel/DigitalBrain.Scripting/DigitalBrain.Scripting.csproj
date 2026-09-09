@@ -1,7 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
     <RootNamespace>DigitalBrain.Scripting</RootNamespace>
-    <Description>Out-of-process Scripting host stub. Kernel must never reference or load this assembly.</Description>
+    <Description>Immutable file application compilation and authoring for DigitalBrain.</Description>
   </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../DigitalBrain.Contracts/DigitalBrain.Contracts.csproj" />
+    <ProjectReference Include="../DigitalBrain.Sdk/DigitalBrain.Sdk.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="DigitalBrain.Simulation.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="scripts/**/*.cs" />
+    <Content Include="scripts/**/*.cs" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

@@ -1,7 +1,8 @@
 using DigitalBrain.Abstractions.Identity;
 using DigitalBrain.Abstractions.Journals;
-using DigitalBrain.Abstractions.Messaging;
-using DigitalBrain.Client;
+using DigitalBrain.Abstractions.Neurons;
+using DigitalBrain.Abstractions.Signals;
+using DigitalBrain.Abstractions;
 
 namespace DigitalBrain.Testing;
 
@@ -20,15 +21,74 @@ public static class JournalWait
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(200);
 
-    public static async Task<SynapseDelivery> ForAsync(
-        IDigitalBrain brain,
-        NeuronId subject,
+    public static Task<SignalDelivery> ForAsync<TNeuron>(
+        NeuronReference<TNeuron> neuron,
         JournalKind kind,
-        Func<SynapseDelivery, bool> match,
+        Func<SignalDelivery, bool> match,
         TimeSpan? timeout = null,
-        long afterSequence = 0)
+        long afterSequence = 0,
+        CancellationToken cancellationToken = default)
+        where TNeuron : INeuron
+        => ForAsync(
+            neuron.Id,
+            kind,
+            (cursor, token) => neuron.ReadJournalAsync(kind, cursor, token),
+            match,
+            timeout,
+            afterSequence,
+            cancellationToken);
+
+    public static Task<SignalDelivery> ForAsync(
+        IDigitalBrain brain,
+        JournalKind kind,
+        Func<SignalDelivery, bool> match,
+        TimeSpan? timeout = null,
+        long afterSequence = 0,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(brain);
+
+        return ForAsync(
+            IBrainNeuron.ForOwner(brain.Owner),
+            kind,
+            (cursor, token) => brain.ReadJournalAsync(kind, cursor, token),
+            match,
+            timeout,
+            afterSequence,
+            cancellationToken);
+    }
+
+    public static Task<SignalDelivery> ForAsync(
+        INeuronQuery neuron,
+        NeuronId subject,
+        JournalKind kind,
+        Func<SignalDelivery, bool> match,
+        TimeSpan? timeout = null,
+        long afterSequence = 0,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(neuron);
+
+        return ForAsync(
+            subject,
+            kind,
+            (cursor, token) => neuron.ReadJournal(kind, cursor).WaitAsync(token),
+            match,
+            timeout,
+            afterSequence,
+            cancellationToken);
+    }
+
+    private static async Task<SignalDelivery> ForAsync(
+        NeuronId subject,
+        JournalKind kind,
+        Func<long, CancellationToken, Task<JournalRead>> read,
+        Func<SignalDelivery, bool> match,
+        TimeSpan? timeout,
+        long afterSequence,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(read);
         ArgumentNullException.ThrowIfNull(match);
 
         var budget = timeout ?? DefaultTimeout;
@@ -38,7 +98,9 @@ public static class JournalWait
 
         while (true)
         {
-            var page = await brain.ReadJournalAsync(subject, kind, afterSequence).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var page = await read(afterSequence, cancellationToken).ConfigureAwait(false);
 
             if (page.ResetSnapshot is not null)
             {
@@ -74,7 +136,7 @@ public static class JournalWait
             {
                 foreach (var delivery in page.Delta)
                 {
-                    var typeName = delivery.Synapse.GetType().Name;
+                    var typeName = delivery.Signal.GetType().Name;
                     if (!seenTypes.Contains(typeName, StringComparer.Ordinal))
                     {
                         seenTypes.Add(typeName);
@@ -98,7 +160,7 @@ public static class JournalWait
                     $"No matching {kind} delivery on {subject} within {budget}. Saw: [{seen}]");
             }
 
-            await Task.Delay(PollInterval).ConfigureAwait(false);
+            await Task.Delay(PollInterval, cancellationToken).ConfigureAwait(false);
         }
     }
 }

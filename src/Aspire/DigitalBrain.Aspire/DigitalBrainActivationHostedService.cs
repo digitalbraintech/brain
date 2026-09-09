@@ -1,4 +1,4 @@
-using DigitalBrain.Client;
+using DigitalBrain.Abstractions;
 using Microsoft.Extensions.Hosting;
 
 namespace DigitalBrain.Aspire;

@@ -8,17 +8,21 @@ final class ActivityScreen extends StatelessWidget {
   const ActivityScreen({
     super.key,
     required this.turns,
+    this.correlations = const [],
     this.userActions = const [],
     this.onOpenUserAction,
+    this.truncated = false,
   });
 
   final List<ChatTurnEvent> turns;
+  final List<BrainCorrelation> correlations;
   final List<UserActionCardModel> userActions;
   final ValueChanged<Uri>? onOpenUserAction;
+  final bool truncated;
 
   @override
   Widget build(BuildContext context) {
-    final empty = turns.isEmpty && userActions.isEmpty;
+    final empty = turns.isEmpty && userActions.isEmpty && correlations.isEmpty;
     return ColoredBox(
       key: const Key('activity_screen'),
       color: BrainPalette.surface,
@@ -35,6 +39,13 @@ final class ActivityScreen extends StatelessWidget {
                   ),
                   children: [
                     const _ActivityHeader(),
+                    if (truncated) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        'Older journal facts have left the window.',
+                        style: BrainType.bodyMuted,
+                      ),
+                    ],
                     if (userActions.isNotEmpty) ...[
                       const SizedBox(height: 18),
                       for (final action in userActions)
@@ -46,8 +57,12 @@ final class ActivityScreen extends StatelessWidget {
                         ),
                     ],
                     const SizedBox(height: 24),
-                    for (final turn in turns.reversed)
-                      _ActivityEntry(turn: turn),
+                    if (correlations.isNotEmpty)
+                      for (final correlation in correlations)
+                        _CorrelationEntry(correlation: correlation)
+                    else
+                      for (final turn in turns.reversed)
+                        _ActivityEntry(turn: turn),
                   ],
                 ),
               ),
@@ -67,7 +82,7 @@ final class _ActivityHeader extends StatelessWidget {
         Text('Activity', style: BrainType.heading),
         SizedBox(height: 8),
         Text(
-          'Durable conversation facts, newest first. Message content stays in Chat.',
+          'Live work grouped by conversation correlation. Approval and failures are highlighted.',
           style: BrainType.bodyMuted,
         ),
       ],
@@ -95,6 +110,93 @@ final class _EmptyActivity extends StatelessWidget {
           Text(
             'Journal facts appear after the conversation begins.',
             style: BrainType.body.copyWith(color: BrainPalette.textMuted),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+final class _CorrelationEntry extends StatelessWidget {
+  const _CorrelationEntry({required this.correlation});
+
+  final BrainCorrelation correlation;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = switch (correlation.status) {
+      'failed' => const Color(0xFFE35D5D),
+      'needs-approval' => BrainPalette.signal,
+      'live' => BrainPalette.owner,
+      _ => BrainPalette.success,
+    };
+    return Container(
+      key: Key('activity_${correlation.correlationId}'),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: BrainPalette.surfaceRaised,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color:
+              correlation.status == 'failed' ||
+                  correlation.status == 'needs-approval'
+              ? color
+              : BrainPalette.line,
+          width:
+              correlation.status == 'failed' ||
+                  correlation.status == 'needs-approval'
+              ? 1.5
+              : 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              switch (correlation.status) {
+                'failed' => Icons.error_outline_rounded,
+                'needs-approval' => Icons.verified_user_outlined,
+                'live' => Icons.bolt_rounded,
+                _ => Icons.check_rounded,
+              },
+              color: color,
+              size: 17,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  correlation.summary,
+                  style: BrainType.metaStrong.copyWith(color: color),
+                ),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 18,
+                  runSpacing: 5,
+                  children: [
+                    Text(correlation.status, style: BrainType.meta),
+                    Text(
+                      '${correlation.deliveryCount} deliveries',
+                      style: BrainType.meta,
+                    ),
+                    Text(
+                      '${correlation.neuronIds.length} neurons',
+                      style: BrainType.meta,
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -142,7 +244,7 @@ final class _ActivityEntry extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  turn.synapse,
+                  turn.signal,
                   style: BrainType.metaStrong.copyWith(color: color),
                 ),
                 const SizedBox(height: 6),

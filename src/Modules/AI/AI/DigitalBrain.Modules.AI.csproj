@@ -12,6 +12,7 @@
          consumers resolve the version this assembly compiles against on every OS, instead
          of inheriting it from the Windows-only Foundry Local graph. -->
     <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
+    <PackageReference Include="Microsoft.Extensions.Http" />
     <PackageReference Include="Microsoft.Extensions.AI" />
     <PackageReference Include="Microsoft.Extensions.AI.OpenAI" />
     <PackageReference Include="Anthropic" />
@@ -23,16 +24,18 @@
     <PackageReference Include="Concentus.Oggfile" />
     <PackageReference Include="NAudio" />
   </ItemGroup>
+
   <ItemGroup>
-    <InternalsVisibleTo Include="DigitalBrain.Simulation.Tests" />
-    <!-- Voice-to-text selection is internal wiring; its conformance tests live beside
-         the other single-source-of-truth suites. -->
-    <InternalsVisibleTo Include="DigitalBrain.Aspire.Tests" />
+    <ProjectReference Include="../../../Product/DigitalBrain.Product.Contracts/DigitalBrain.Product.Contracts.csproj" />
+    <ProjectReference Include="../Contracts/DigitalBrain.Modules.AI.Contracts.csproj" />
+    <ProjectReference Include="../Sdk/DigitalBrain.Modules.AI.Sdk.csproj" />
+    <ProjectReference Include="../../../Kernel/DigitalBrain/DigitalBrain.csproj" />
+    <ProjectReference Include="../../../Kernel/DigitalBrain.Sdk/DigitalBrain.Sdk.csproj" />
+    <ProjectReference Include="../../Memory/Contracts/DigitalBrain.Modules.Memory.Contracts.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="../Contracts/DigitalBrain.Modules.AI.Contracts.csproj" />
-    <ProjectReference Include="../../../Kernel/DigitalBrain.Core/DigitalBrain.Core.csproj" />
-    <ProjectReference Include="../../../Kernel/DigitalBrain.Client/DigitalBrain.Client.csproj" />
-    <ProjectReference Include="../../Memory/Contracts/DigitalBrain.Modules.Memory.Contracts.csproj" />
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>DigitalBrain.AI.Tests</_Parameter1>
+    </AssemblyAttribute>
   </ItemGroup>
 </Project>

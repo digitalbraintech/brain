@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <Description>Aspire AppHost integration for the DigitalBrain Salesforce module.</Description>
+    <RootNamespace>DigitalBrain.Salesforce.Aspire.Hosting</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Salesforce/DigitalBrain.Modules.Salesforce.csproj" />
+    <ProjectReference Include="../../../Aspire/DigitalBrain.Aspire.Hosting/DigitalBrain.Aspire.Hosting.csproj" />
+  </ItemGroup>
+</Project>

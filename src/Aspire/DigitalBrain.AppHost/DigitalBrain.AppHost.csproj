@@ -1,4 +1,4 @@
-<Project Sdk="Aspire.AppHost.Sdk/13.5.2">
+<Project Sdk="Aspire.AppHost.Sdk/13.5.3">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <AspireUseCliBundle>true</AspireUseCliBundle>
@@ -10,21 +10,13 @@
     <ProjectReference Include="../../Modules/UI/DigitalBrain.Modules.UI.Aspire.Hosting/DigitalBrain.Modules.UI.Aspire.Hosting.csproj" IsAspireProjectResource="false" />
     <ProjectReference Include="../../Modules/Memory/Aspire.Hosting/DigitalBrain.Modules.Memory.Aspire.Hosting.csproj" IsAspireProjectResource="false" />
     <ProjectReference Include="../../Modules/Time/Time/DigitalBrain.Modules.Time.csproj" IsAspireProjectResource="false" />
+    <ProjectReference Include="../../Modules/Excel/Excel/DigitalBrain.Modules.Excel.csproj" IsAspireProjectResource="false" />
     <ProjectReference Include="../../Modules/Execution/Execution/DigitalBrain.Modules.Execution.csproj" IsAspireProjectResource="false" />
-    <ProjectReference Include="../../Modules/Integrations/DigitalBrain.Modules.Integrations.csproj" IsAspireProjectResource="false" />
-    <ProjectReference Include="../../Modules/SmartPrompt/SmartPrompt/DigitalBrain.Modules.SmartPrompt.csproj" IsAspireProjectResource="false" />
+    <ProjectReference Include="../../Modules/Google/Aspire.Hosting/DigitalBrain.Modules.Google.Aspire.Hosting.csproj" IsAspireProjectResource="false" />
+    <ProjectReference Include="../../Modules/Salesforce/Aspire.Hosting/DigitalBrain.Modules.Salesforce.Aspire.Hosting.csproj" IsAspireProjectResource="false" />
+    <ProjectReference Include="../../Modules/Microsoft/Aspire.Hosting/DigitalBrain.Modules.Microsoft.Aspire.Hosting.csproj" IsAspireProjectResource="false" />
     <ProjectReference Include="../DigitalBrain.Aspire.Hosting/DigitalBrain.Aspire.Hosting.csproj" IsAspireProjectResource="false" />
-    <ProjectReference Include="../../Kernel/DigitalBrain.Kernel/DigitalBrain.Kernel.csproj" />
+    <ProjectReference Include="../../Kernel/DigitalBrain.Silo/DigitalBrain.Silo.csproj" />
     <ProjectReference Include="../../Kernel/DigitalBrain.Mcp/DigitalBrain.Mcp.csproj" />
   </ItemGroup>
-  <PropertyGroup>
-    <CodeGraphRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\..'))</CodeGraphRoot>
-  </PropertyGroup>
-  <Target Name="RefreshCodeGraph" BeforeTargets="Build">
-    <PropertyGroup>
-      <CodeGraphIndexed>$([System.IO.File]::Exists('$(CodeGraphRoot)\.codegraph\codegraph.db'))</CodeGraphIndexed>
-    </PropertyGroup>
-    <Exec Command="npx -y @colbymchenry/codegraph@latest init &quot;$(CodeGraphRoot)&quot;" WorkingDirectory="$(CodeGraphRoot)" Condition="'$(CodeGraphIndexed)' != 'True'" />
-    <Exec Command="npx -y @colbymchenry/codegraph@latest sync &quot;$(CodeGraphRoot)&quot;" WorkingDirectory="$(CodeGraphRoot)" Condition="'$(CodeGraphIndexed)' == 'True'" />
-  </Target>
 </Project>

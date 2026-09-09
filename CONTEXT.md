@@ -1,115 +1,88 @@
 # DigitalBrain
 
-DigitalBrain is a personal assistant whose durable actors, user-authored behaviors, and typed capabilities cooperate on behalf of an identified owner.
+A personal assistant whose durable graph a user (or the assistant) programs with typed C#.
 
-## Runtime language
+The sentence that settles naming: **a neuron fires a signal along a synapse**.
 
-**Neuron**:
-A durable participant that receives and emits typed Synapses while preserving its own state and observable traffic.
-_Avoid_: Agent, service, grain
+## Graph
 
-**Synapse**:
-A typed message exchanged between Neurons with preserved identity, causation, correlation, and ownership.
-_Avoid_: Event payload, bus message
+**Neuron**
+A durable actor. It receives and emits typed Signals, owns its Synapses and journals, and keeps its own state.
+_Avoid_: agent, service, grain (product language)
 
-**Traffic Journal**:
-A bounded observation window over a Neuron's incoming or outgoing Synapses.
-_Avoid_: Event store, audit log, execution history
+**Signal**
+A typed, immutable message. Identity, causation, correlation, and ownership ride the delivery envelope, not the payload.
+_Avoid_: event, bus message, “synapse” as a message
 
-**Entity**:
-A live addressable resource holding one persisted current typed state snapshot, without transition history or Synapse participation.
-_Avoid_: Neuron, event stream, Run history
+**Synapse**
+A directed, typed, weighted edge between two Neurons. Lives on the source. `SubscribeTo` writes a Bound edge (does not decay). A handled Send writes a Learned edge (decays). Anatomy, not traffic.
+_Avoid_: message, subscription grain, journal entry
 
-**Entity Reference**:
-A typed owner-scoped identity for an Entity. It identifies current state but is not a snapshot, write endpoint, or authority; governed use requires admitted lineage or a typed grant rule.
-_Avoid_: Entity value, capability, mutable handle
+**Journal**
+A bounded window over a Neuron’s incoming or outgoing Signals. How scripts notice that something happened.
+_Avoid_: event store, execution history, a record of Synapses
 
-## Behavior and execution language
+**Entity**
+A live snapshot (Chart, Surface, Memory). Direct typed reads/writes. Not on the graph: no journal, no synapses, not a signal target.
+_Avoid_: neuron, run history
 
-**Smart Prompt**:
-The product name for a user-authored automation: almost plain English plus binding chips (Gmail, Salesforce, Chart, schedule). Users do not see generated C# by default.
-_Avoid_: Behavior (internal synonym only), recipe, raw script
+**IDigitalBrain**
+The owner’s typed handle: `Get<TNeuron>`, `GetEntity<TEntity>`, journals. The assistant and scripts use this, not Orleans.
 
-**Behavior**:
-Internal/engineering synonym for Smart Prompt when discussing grants, revisions, and Execution workloads.
-_Avoid_: Prefer Smart Prompt in UI and product docs
+In code, a `Neuron` owns its outgoing relationships through `NeuronSynapses` and its incoming/outgoing journal windows (`JournalWindow`) through `NeuronJournals`. Synapses `Bind`, `Unbind`, and `Reinforce`; journals record signal deliveries.
 
-**Smart Prompt / Behavior Revision**:
-An immutable, content-addressed version of a Smart Prompt, including optional script artifact, contract lock, and requested Input and Capability grants.
-_Avoid_: Script version, current code
+## Programming
 
-**Execution**:
-The durable Run aggregate (Neuron) that realizes chat turns and Smart Prompt fires on one spine.
-_Avoid_: Task, job, session
+**Script**
+User- or assistant-authored C#, compiled against module contracts, executed outside the silo.
 
-**ExecutionContext**:
-The per-Execution Entity holding operation-specific working memory (schema-shaped ContextDelta slots, not hop DTOs).
-_Avoid_: Global memory, chat transcript, Run event store
+**Behavior**
+A named `IBehavior` neuron that owns a saved C# handler, its validated draft and active revision,
+subscriptions, durable accepted inputs, execution claims, request checkpoints and output delivery.
+The scripting host runs handlers outside serialized neuron turns. Each accepted input pins its
+revision. Saving changes creates a draft; activation affects future inputs. Disable removes its
+incoming subscriptions and fences outstanding execution and output.
 
-**ActiveExecutionId**:
-The Chat Neuron's switchable pointer to which ExecutionContext assistant tools currently bind.
-_Avoid_: Single global context
+Trigger is type-safe: you may `Send`/`Publish` `TSignal` only to a neuron that `IHandle<TSignal>`s it.
+`IHandle<T>` is the capability to receive T. A **synapse** is who actually receives T from **this** source.
+`SubscribeTo<TSource, TSignal>(sourceId)` writes that synapse (durable, does not decay). Broadcast fires only along those synapses — not to every neuron type that `IHandle`s T.
 
-**ContextDelta**:
-A typed merge into ExecutionContext: path, schema hash, payload/ref — MCP-shaped without hand-written hop DTOs.
-_Avoid_: CompanyResearch DTO, Dictionary bag without schema
+```csharp
+await using IDigitalBrain digitalBrain = await DigitalBrainClient.ConnectAsync(args);
+var inbox = digitalBrain.Get<IUserMessages>("default");
+var memoryAgent = digitalBrain.Get<IBehavior>("memory-agent");
+await memoryAgent.SaveScriptAsync<UserMessaged>(handlerSource);
+await memoryAgent.SubscribeToAsync<IUserMessages, UserMessaged>(inbox.Id);
+await memoryAgent.ActivateAsync();
+```
 
-**Workload Revision**:
-An immutable executable definition admitted to the generic Execution runtime; a Smart Prompt revision is its primary product form.
-_Avoid_: Mutable job definition, latest code
+English is how the owner asks. A compiled script is what they get. There is no second runtime, grant catalog, or JSON capability bus for this path.
 
-**Trigger**:
-A typed fact admitted by a Behavior subscription that can request Input admission and then start at most one Run per selected revision-scoped subscription.
-_Avoid_: Prompt, callback, event name
+Start with [Flutter chat and personal C# review routines](docs/GETTING_STARTED.md).
+The assistant can save, inspect, validate, connect, activate, invoke and disable behaviors.
+Each definition lives on its own `BehaviorNeuron`; `BehaviorsNeuron` is the discovery index.
+Its notifications wake the separate scripting worker;
+durable recovery handles missed notifications. Composition commands are not replayed on restart.
+The former admitted-script runtime and fixed GitHub review pipeline have been removed.
+Development chat can read the configured local repository diff for a one-off review.
 
-**Input Grant**:
-Authority for one immutable Workload Revision to receive a declared redacted Trigger view within an owner, principal, source, field/classification, and policy scope. Runtime disclosure still requires a current fenced Input permit.
-_Avoid_: Subscription, Capability Grant, permanent data access
+The SDK owns the concrete client and reusable `WebhookNeuron`. A thin authenticated HTTP
+adapter durably accepts receipts before acknowledging them. Provider modules translate those
+receipts into minimal typed domain facts. `IRepository : IWebhook` is the GitHub source;
+there is no mandatory second webhook neuron or GitHub-specific review orchestrator.
+See [the implementation contract](docs/programmable-behaviors-implementation.md).
 
-**Input Admission**:
-A durable policy-fenced decision over one frozen redacted Trigger view and one exact Workload Revision. A permitted admission creates at most one Run; a denial discloses no Input to generated code.
-_Avoid_: Trigger match, activation, implicit read
+## Specialist modules
 
-**Run**:
-One durable execution of exactly one immutable Workload Revision for exactly one admitted typed input; a Behavior Run is the primary product case.
-_Avoid_: Task, job, session
+Ino delegates to `IAspire`, `IGmail`, and `ISalesforce`. Each inherits `IAgent`
+(`IHandle<AgentRequest>` with `AgentReply`) and owns its native discovered MCP tools.
+An ordinary request uses the initiating neuron's source-owned send path and can
+create a Learned synapse; it does not create a Bound subscription.
 
-**Run Event**:
-An immutable fact recording a state transition within a Run's authoritative history.
-_Avoid_: Log line, notification, status string
+Google, Salesforce, and Microsoft own connection policy and static presentation
+metadata. The SDK owns MCP sessions/discovery; the shared AI tool boundary owns
+screened evidence. Provider operation schemas remain MCP-owned.
 
-**Effect**:
-A typed request from a Run to invoke a Capability, paired with a recorded policy decision and outcome.
-_Avoid_: Tool call, side effect
-
-**Capability**:
-A typed operation that a module makes available to authorized Runs.
-_Avoid_: Tool, function, integration
-
-**Capability Grant**:
-Authority for a specific immutable Workload Revision to request a constrained Capability.
-_Avoid_: Permission flag, tool availability
-
-**Approval**:
-A one-time owner decision that resolves one pending Effect without widening its Capability Grant.
-_Avoid_: Confirmation prompt, permission
-
-**Projection**:
-A rebuildable read model derived from authoritative domain facts for clients and operators.
-_Avoid_: State of record, event snapshot
-
-**Learning Evidence**:
-A recorded correction, preference, validation result, or Run outcome used to propose a new Behavior Revision.
-_Avoid_: Self-modification, model training
-
-**Outcome Uncertain**:
-A Run condition in which an Effect may have occurred externally but no authoritative result is known.
-_Avoid_: Failure, timeout
-
-**Scripting Supervisor**:
-One of two separately identified restricted roles: Build accepts and attests artifacts; Run verifies accepted artifacts and brokers leased sandbox execution. Neither possesses Capability authority or provider secrets.
-_Avoid_: Kernel script engine, agent, shared worker
-
-**Sandbox Child**:
-An ephemeral, one-build or one-Run restricted process/container launched by the matching Scripting Supervisor with only its exact inputs and authenticated channel.
-_Avoid_: Long-lived worker, trusted module, Capability endpoint
+`AgentActivity` records diagnostic journal evidence, not subscriber delivery.
+Unsubscribe removes the current edge; a later explicit handled send can establish
+a Learned edge that is again eligible for broadcast. Journals remain bounded.

@@ -1,8 +1,9 @@
-using DigitalBrain.Abstractions.Interactions;
+using DigitalBrain.Product.Interactions;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 
 namespace DigitalBrain.AI;
 
@@ -13,6 +14,7 @@ internal static class AIClients
     internal const string DefaultEmbeddingKey = $"{ConfigurationRoot}:Default:Embedding";
     internal const string DefaultTranscriptionKey = $"{ConfigurationRoot}:Default:Transcription";
     internal const string DefaultImageKey = $"{ConfigurationRoot}:Default:Image";
+    internal const string SensitiveTelemetryKey = $"{ConfigurationRoot}:Telemetry:EnableSensitiveData";
     private const string TelemetrySource = "DigitalBrain.AI";
 
     private static readonly IReadOnlyDictionary<AiProvider, ILlmProviderFactory> Factories =
@@ -51,9 +53,17 @@ internal static class AIClients
     }
 
     private static IChatClient BuildChatPipeline(IServiceProvider provider, LLMModel model)
+        => BuildChatPipeline(provider, model, Factories[model.Provider].CreateChatClient(
+            model, provider.GetRequiredService<IConfiguration>()));
+
+    internal static IChatClient BuildChatPipeline(IServiceProvider provider, LLMModel model, IChatClient innerClient)
     {
         var configuration = provider.GetRequiredService<IConfiguration>();
-        var pipeline = new ChatClientBuilder(Factories[model.Provider].CreateChatClient(model, configuration));
+        var captureContent = configuration.GetValue<bool?>(SensitiveTelemetryKey)
+            ?? configuration.GetValue<bool?>("OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT")
+            ?? false;
+        var loggerFactory = provider.GetService<ILoggerFactory>();
+        var pipeline = new ChatClientBuilder(innerClient);
         if (!model.SupportsTools)
         {
             // Models that cannot emit tool calls must never be told about tools —
@@ -73,8 +83,9 @@ internal static class AIClients
         return pipeline
             .UseFunctionInvocation()
             .UseOpenTelemetry(
+                loggerFactory: loggerFactory,
                 sourceName: $"{TelemetrySource}.{model.Marker.Name}",
-                configure: telemetry => telemetry.EnableSensitiveData = false)
+                configure: telemetry => telemetry.EnableSensitiveData = captureContent)
             .Build(provider);
     }
 

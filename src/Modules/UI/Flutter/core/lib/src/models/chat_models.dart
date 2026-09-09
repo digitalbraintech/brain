@@ -6,16 +6,25 @@ final class SendMessageRequest {
   Map<String, Object?> toJson() => {'text': text};
 }
 
-/// One [ChatResponseUpdate] frame from POST /chats/{name}/messages/stream.
+/// An acceptance receipt or assistant content from the chat command stream.
 ///
 /// Unknown content `$type` values are retained as [ChatDeltaPart] with raw
 /// fields so older clients do not crash when the edge starts emitting data/uri.
 
 final class ChatDelta {
-  const ChatDelta({required this.role, required this.contents});
+  const ChatDelta({required this.role, required this.contents})
+    : commandId = null,
+      turnId = null;
+
+  const ChatDelta.accepted({required this.commandId, required this.turnId})
+    : role = null,
+      contents = const [];
 
   final String? role;
   final List<ChatDeltaPart> contents;
+  final String? commandId;
+  final String? turnId;
+  bool get isAcceptance => commandId != null;
 
   String get text => contents
       .map((part) => part.text ?? '')
@@ -91,6 +100,129 @@ final class ChatChartPoint {
   }
 }
 
+final class ChatSpreadsheetOffer {
+  const ChatSpreadsheetOffer({
+    required this.title,
+    required this.columns,
+    required this.rows,
+    this.sheetName = 'Sheet1',
+  });
+
+  final String title;
+  final String sheetName;
+  final List<String> columns;
+  final List<List<String>> rows;
+
+  factory ChatSpreadsheetOffer.fromJson(Map<String, Object?> json) {
+    final rawColumns = json['columns'];
+    final columns = rawColumns is List
+        ? rawColumns.map((e) => e.toString()).toList(growable: false)
+        : const <String>[];
+    final rawRows = json['rows'];
+    final rows = rawRows is List
+        ? rawRows
+              .map((row) {
+                if (row is List) {
+                  return row.map((cell) => cell.toString()).toList();
+                }
+                if (row is Map) {
+                  final cells = row['cells'];
+                  if (cells is List) {
+                    return cells.map((cell) => cell.toString()).toList();
+                  }
+                }
+                return const <String>[];
+              })
+              .toList(growable: false)
+        : const <List<String>>[];
+    return ChatSpreadsheetOffer(
+      title: json['title'] as String? ?? 'Sheet',
+      sheetName: json['sheetName'] as String? ?? 'Sheet1',
+      columns: columns,
+      rows: rows,
+    );
+  }
+}
+
+final class ChatGraphNode {
+  const ChatGraphNode({
+    required this.id,
+    required this.label,
+    this.kind = 'leaf',
+    this.cluster,
+  });
+
+  final String id;
+  final String label;
+  final String kind;
+  final String? cluster;
+
+  factory ChatGraphNode.fromJson(Map<String, Object?> json) => ChatGraphNode(
+    id: json['id'] as String? ?? '',
+    label: json['label'] as String? ?? '',
+    kind: json['kind'] as String? ?? 'leaf',
+    cluster: json['cluster'] as String?,
+  );
+}
+
+final class ChatGraphEdge {
+  const ChatGraphEdge({
+    required this.id,
+    required this.sourceId,
+    required this.targetId,
+    this.dotted = false,
+  });
+
+  final String id;
+  final String sourceId;
+  final String targetId;
+  final bool dotted;
+
+  factory ChatGraphEdge.fromJson(Map<String, Object?> json) => ChatGraphEdge(
+    id: json['id'] as String? ?? '',
+    sourceId: json['sourceId'] as String? ?? '',
+    targetId: json['targetId'] as String? ?? '',
+    dotted: json['dotted'] as bool? ?? false,
+  );
+}
+
+/// State of a named graph kit entity, read from /kit/graphs/{name}.
+final class ChatGraphOffer {
+  const ChatGraphOffer({
+    required this.title,
+    required this.nodes,
+    required this.edges,
+  });
+
+  final String title;
+  final List<ChatGraphNode> nodes;
+  final List<ChatGraphEdge> edges;
+
+  factory ChatGraphOffer.fromJson(Map<String, Object?> json) {
+    final rawNodes = json['nodes'];
+    final rawEdges = json['edges'];
+    return ChatGraphOffer(
+      title: json['title'] as String? ?? '',
+      nodes: rawNodes is List
+          ? rawNodes
+                .whereType<Map>()
+                .map(
+                  (e) => ChatGraphNode.fromJson(Map<String, Object?>.from(e)),
+                )
+                .toList(growable: false)
+          : const <ChatGraphNode>[],
+      edges: rawEdges is List
+          ? rawEdges
+                .whereType<Map>()
+                .map(
+                  (e) => ChatGraphEdge.fromJson(Map<String, Object?>.from(e)),
+                )
+                .toList(growable: false)
+          : const <ChatGraphEdge>[],
+    );
+  }
+}
+
 final class ChatChartOffer {
   const ChatChartOffer({
     required this.title,
@@ -146,6 +278,7 @@ final class ChatUserAction {
     required this.loginUrl,
     required this.expiresAt,
     this.resumeToolNames = const [],
+    this.stage = 'login',
   });
 
   final String id;
@@ -155,6 +288,7 @@ final class ChatUserAction {
   final Uri loginUrl;
   final DateTime expiresAt;
   final List<String> resumeToolNames;
+  final String stage;
 
   static ChatUserAction? tryParse(Object? value) {
     if (value is! Map) return null;
@@ -184,6 +318,7 @@ final class ChatUserAction {
       message: message,
       loginUrl: uri,
       expiresAt: expiry.toUtc(),
+      stage: value['stage'] as String? ?? 'login',
       resumeToolNames: tools is List
           ? List<String>.unmodifiable(tools.whereType<String>())
           : const [],
@@ -197,7 +332,7 @@ final class ChatTurnEvent {
     required this.fromUser,
     required this.text,
     required this.commandId,
-    required this.synapse,
+    required this.signal,
     required this.neuronId,
     required this.caller,
     required this.correlationId,
@@ -209,13 +344,14 @@ final class ChatTurnEvent {
     this.turnId,
     this.status,
     this.userAction,
+    this.eventId,
   });
 
   final int sequence;
   final bool fromUser;
   final String text;
   final String commandId;
-  final String synapse;
+  final String signal;
   final String neuronId;
   final String caller;
   final String correlationId;
@@ -227,6 +363,7 @@ final class ChatTurnEvent {
   final String? turnId;
   final String? status;
   final ChatUserAction? userAction;
+  final String? eventId;
 
   factory ChatTurnEvent.fromJson(Map<String, Object?> json) {
     final rawButtons = json['buttons'];
@@ -265,7 +402,7 @@ final class ChatTurnEvent {
       fromUser: json['fromUser'] as bool,
       text: json['text'] as String,
       commandId: json['commandId'] as String,
-      synapse: json['synapse'] as String,
+      signal: json['signal'] as String,
       neuronId: json['neuronId'] as String,
       caller: json['caller'] as String,
       correlationId: json['correlationId'] as String,
@@ -277,6 +414,7 @@ final class ChatTurnEvent {
       turnId: json['turnId'] as String?,
       status: json['status'] as String?,
       userAction: ChatUserAction.tryParse(json['userAction']),
+      eventId: json['eventId'] as String?,
     );
   }
 }
@@ -296,4 +434,78 @@ final class ChatTimerOffer {
           : DateTime.parse(rawDueAt).toUtc(),
     );
   }
+}
+
+/// State of a named surface kit entity, read from /kit/surfaces/{name}.
+final class KitSurfaceState {
+  const KitSurfaceState({required this.scenes});
+
+  final List<KitSurfaceScene> scenes;
+
+  factory KitSurfaceState.fromJson(Map<String, Object?> json) {
+    final raw = json['scenes'];
+    return KitSurfaceState(
+      scenes: raw is List
+          ? raw
+                .whereType<Map>()
+                .map(
+                  (e) => KitSurfaceScene.fromJson(Map<String, Object?>.from(e)),
+                )
+                .toList(growable: false)
+          : const <KitSurfaceScene>[],
+    );
+  }
+}
+
+final class KitSurfaceScene {
+  const KitSurfaceScene({
+    required this.surfaceKey,
+    required this.title,
+    this.root,
+  });
+
+  final String surfaceKey;
+  final String title;
+  final SurfaceComponent? root;
+
+  factory KitSurfaceScene.fromJson(Map<String, Object?> json) =>
+      KitSurfaceScene(
+        surfaceKey: json['surfaceKey'] as String? ?? '',
+        title: json['title'] as String? ?? '',
+        root: json['root'] is Map
+            ? SurfaceComponent.fromJson(
+                Map<String, Object?>.from(json['root'] as Map),
+              )
+            : null,
+      );
+}
+
+/// A persistent component tree authored by a UI script, never a client route.
+final class SurfaceComponent {
+  const SurfaceComponent({
+    required this.kind,
+    this.key,
+    this.properties = const {},
+    this.children = const [],
+  });
+  final String kind;
+  final String? key;
+  final Map<String, String> properties;
+  final List<SurfaceComponent> children;
+
+  factory SurfaceComponent.fromJson(Map<String, Object?> json) =>
+      SurfaceComponent(
+        kind: json['kind'] as String? ?? '',
+        key: json['key'] as String?,
+        properties: json['properties'] is Map
+            ? Map<String, String>.from(json['properties'] as Map)
+            : const {},
+        children: (json['children'] as List? ?? const [])
+            .whereType<Map>()
+            .map(
+              (child) =>
+                  SurfaceComponent.fromJson(Map<String, Object?>.from(child)),
+            )
+            .toList(growable: false),
+      );
 }

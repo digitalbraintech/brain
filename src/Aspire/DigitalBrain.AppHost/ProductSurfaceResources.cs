@@ -10,5 +10,4 @@ internal static class ProductSurfaceResources
     public const int McpHttpPort = 5000;
 
     public const int UiHttpPort = 5080;
-    public const string KernelPublicOrigin = "http://localhost:5080";
 }

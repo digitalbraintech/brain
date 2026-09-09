@@ -2,7 +2,6 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using DigitalBrain.Abstractions;
-using DigitalBrain.Abstractions.Security;
 using Qdrant.Client;
 using Qdrant.Client.Grpc;
 

@@ -1,64 +1,55 @@
 using System.Runtime.CompilerServices;
-using DigitalBrain.Abstractions.Interactions;
+using System.Text;
+using System.Diagnostics;
+using DigitalBrain.Abstractions.Identity;
+using DigitalBrain.Abstractions.Neurons;
 using DigitalBrain.Core;
+using DigitalBrain.Product.Interactions;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace DigitalBrain.AI;
 
-// The setup layer over a raw LLM: an agent owns its initial prompt and its
-// toolset; model/provider concerns live in the injected chat client.
-public abstract class Agent : Neuron, IAgent
+// LLM turn + optional discovered MCP tools. Delegation uses this neuron's send
+// path; it never re-enters IDigitalBrain's serialized owner root.
+public abstract partial class Agent : Neuron, IAgent
 {
-    private readonly IChatClient _chatClient;
-
-    protected Agent(IChatClient chatClient)
+    protected Agent(NeuronRuntime runtime, IChatClient chatClient)
+        : base(runtime)
     {
         ArgumentNullException.ThrowIfNull(chatClient);
-
-        _chatClient = chatClient;
+        _completedRequests = ServiceProvider.GetRequiredKeyedService<Orleans.Journaling.IDurableDictionary<string, AgentRequestResult>>("agent.completed-requests");
     }
 
     protected abstract string Instructions { get; }
 
-    protected virtual IReadOnlyList<AITool> Tools => [];
+    protected virtual string DisplayName => Id.Type;
 
-    public async IAsyncEnumerable<ChatResponseUpdate> RespondStreaming(
-        IReadOnlyList<ChatMessage> messages,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    protected virtual ValueTask<IReadOnlyList<AITool>> PrepareToolsAsync(
+        AgentToolContext context, CancellationToken cancellationToken)
+        => ValueTask.FromResult<IReadOnlyList<AITool>>([]);
+
+    public async Task HandleAsync(AgentRequest signal, CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(messages);
+        ArgumentNullException.ThrowIfNull(signal);
         cancellationToken.ThrowIfCancellationRequested();
-
-        var tools = Tools;
-        if (AgentTurnContext.Current?.AllowedToolNames is { } allowedToolNames)
-        {
-            var allowed = new HashSet<string>(allowedToolNames, StringComparer.Ordinal);
-            // Apply the trusted continuation allowlist to every tool type, including
-            // server-side tools. OAuth consent must never enable an automatic write.
-            tools = [.. tools.Where(tool => allowed.Contains(tool.Name))];
-        }
-        var options = new ChatOptions { MaxOutputTokens = 4096 };
-        if (tools.Count > 0)
-        {
-            var turnScheduler = TaskScheduler.Current;
-            options.Tools = [.. tools.Select(tool =>
-                tool is AIFunction capability ? new TurnBoundFunction(capability, turnScheduler) : tool)];
-        }
-        IReadOnlyList<ChatMessage> request = string.IsNullOrWhiteSpace(Instructions)
-            ? messages
-            : [new ChatMessage(ChatRole.System, Instructions), .. messages];
-
-        await foreach (var update in _chatClient
-            .GetStreamingResponseAsync(request, options, cancellationToken).ConfigureAwait(true))
-        {
-            yield return update;
-        }
+        var reply = await HandleApplicationAsync(signal, cancellationToken).ConfigureAwait(true)
+            ?? await AskDurablyAsync(signal, cancellationToken)
+            .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
+        await ReplyAsync(reply).ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
     }
 
-    public Task<ChatResponse> Respond(IReadOnlyList<ChatMessage> messages)
-    {
-        ArgumentNullException.ThrowIfNull(messages);
+    protected virtual Task<AgentReply?> HandleApplicationAsync(
+        AgentRequest signal, CancellationToken cancellationToken)
+        => Task.FromResult<AgentReply?>(null);
 
-        return RespondStreaming(messages).ToChatResponseAsync();
-    }
+    private IAgentKernel Kernel
+        => GrainFactory.GetGrain<IAgentKernel>(IAgentKernel.IdFor(Id.Owner));
+
+    protected Task<AgentReply> Ask(
+        AgentRequest request,
+        CorrelationId conversationId,
+        CancellationToken cancellationToken = default)
+        => Kernel.Ask(request, conversationId, cancellationToken);
+
 }

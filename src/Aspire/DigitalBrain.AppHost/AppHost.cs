@@ -1,42 +1,44 @@
+using Aspire.Hosting;
+using DigitalBrain.Abstractions;
+using DigitalBrain.AI;
+using DigitalBrain.AI.Aspire.Hosting;
+using DigitalBrain.AI.FoundryLocal;
+using DigitalBrain.Aspire.Hosting;
+using DigitalBrain.Execution;
+using DigitalBrain.Google;
+using DigitalBrain.Google.Aspire.Hosting;
+using DigitalBrain.Memory;
+using DigitalBrain.Memory.Aspire.Hosting;
+using DigitalBrain.Microsoft;
+using DigitalBrain.Microsoft.Hosting;
+using DigitalBrain.Salesforce;
+using DigitalBrain.Salesforce.Aspire.Hosting;
+using DigitalBrain.Excel;
+using DigitalBrain.Time;
+using DigitalBrain.UI;
+using DigitalBrain.UI.Aspire.Hosting;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Configuration;
 using AnthropicModels = DigitalBrain.AI.Anthropic;
 using GoogleModels = DigitalBrain.AI.Google;
 using OllamaModels = DigitalBrain.AI.Ollama;
 using OpenAIModels = DigitalBrain.AI.OpenAI;
 using XaiModels = DigitalBrain.AI.XAI;
-using DigitalBrain.AI;
-using DigitalBrain.AI.Aspire.Hosting;
-using DigitalBrain.AI.FoundryLocal;
-using DigitalBrain.Abstractions;
-using DigitalBrain.Aspire.Hosting;
-using DigitalBrain.Execution;
-using DigitalBrain.Integrations;
-using DigitalBrain.Memory;
-using DigitalBrain.Memory.Aspire.Hosting;
-using DigitalBrain.SmartPrompt;
-using DigitalBrain.Time;
-using DigitalBrain.UI;
-using DigitalBrain.UI.Aspire.Hosting;
-using Aspire.Hosting;
-using Microsoft.Extensions.Hosting;
 
 var builder = DistributedApplication.CreateBuilder(args);
-
-var salesforceConsumerKey = builder.AddParameter("salesforce-consumer-key", secret: true)
-    .WithDescription(
-        "Consumer key (client ID) from your existing Salesforce "
-        + "[External Client App](https://developer.salesforce.com/docs/platform/hosted-mcp-servers/guide/create-external-client-app.html). "
-        + "Register http://localhost:5080/integrations/salesforce/callback, enable PKCE and JWT access tokens, and allow mcp_api and refresh_token.",
-        enableMarkdown: true);
-var salesforceConsumerSecret = builder.AddParameter("salesforce-consumer-secret", secret: true)
-    .WithDescription(
-        "Consumer secret from the same Salesforce External Client App. Enable Require Secret for Web Server Flow. "
-        + "Only the kernel receives this secret; Salesforce login happens in your browser when the assistant needs access.",
-        enableMarkdown: true);
+// Conversation/model/tool evidence is enabled for this local development app.
+// Publishing or a production environment keeps the module's default off unless
+// the host explicitly configures the same opt-in.
+var captureGenAiContent = builder.Configuration.GetValue<bool?>("DigitalBrain:AI:Telemetry:EnableSensitiveData")
+    ?? (builder.Environment.IsDevelopment() && builder.ExecutionContext.IsRunMode);
+var fakesEnabled = string.Equals(builder.Configuration[DigitalBrainNames.Fakes], "true", StringComparison.OrdinalIgnoreCase)
+    || string.Equals(builder.Configuration[DigitalBrainNames.Fakes], "1", StringComparison.OrdinalIgnoreCase)
+    || string.Equals(builder.Configuration[DigitalBrainNames.Mode], DigitalBrainNames.TestingMode, StringComparison.Ordinal);
 
 var brain = builder.AddDigitalBrain(ProductSurfaceResources.Brain)
     .AddModule<AIModule>(ai =>
     {
-        ai.EnableSensitiveData = false;
+        ai.EnableSensitiveData = captureGenAiContent;
 
         // --- OpenAI ---
         //ai.WithLlm<OpenAIModels.IGpt56Sol>();
@@ -70,21 +72,26 @@ var brain = builder.AddDigitalBrain(ProductSurfaceResources.Brain)
         // ai.WithEmbedding<OllamaModels.IEmbeddingGemma>();
         // ai.WithDefaultEmbedding<OllamaModels.IEmbeddingGemma>();
 
-        //ai.WithVoiceToText<IWhisperLargeV3Turbo>();
+        ai.WithVoiceToText<IWhisperTiny>();
+        if (!fakesEnabled)
+        {
+            ai.WithTavilySearch();
+        }
     })
     .AddModule<MemoryModule>(memory => memory.WithQdrant())
     .AddModule<TimeModule>()
+    .AddModule<ExcelModule>()
     .AddModule<ExecutionModule>()
-    .AddModule<IntegrationsModule>()
-    .AddModule<SmartPromptModule>()
+    .AddModule<GoogleModule>(google => google.WithGmail())
+    .AddModule<SalesforceModule>(salesforce => salesforce.WithHostedMcp())
+    .AddModule<MicrosoftModule>(microsoft => microsoft.WithAspire(
+        Path.Combine(builder.AppHostDirectory, "DigitalBrain.AppHost.csproj"), ShellHostingExtensions.DefaultOwner)
+        .WithConfiguredGitHubRepositories(builder.Configuration))
     .AddModule<UIModule>(ui =>
     {
         ui.WithWindowHost();
     });
 
-var fakesEnabled = string.Equals(builder.Configuration[DigitalBrainNames.Fakes], "true", StringComparison.OrdinalIgnoreCase)
-    || string.Equals(builder.Configuration[DigitalBrainNames.Fakes], "1", StringComparison.OrdinalIgnoreCase)
-    || string.Equals(builder.Configuration[DigitalBrainNames.Mode], DigitalBrainNames.TestingMode, StringComparison.Ordinal);
 if (fakesEnabled)
 {
     brain.WithDigitalBrainFakes();
@@ -97,15 +104,8 @@ var developmentClusterId = builder.Environment.IsDevelopment()
     ? $"digitalbrain-{Guid.NewGuid():N}"
     : null;
 
-var kernel = builder.AddProject<Projects.DigitalBrain_Kernel>(ProductSurfaceResources.Kernel)
+var kernel = builder.AddProject<Projects.DigitalBrain_Silo>(ProductSurfaceResources.Kernel)
     .WithReference(brain)
-    .WithEnvironment(IntegrationsModule.SalesforceConsumerKeyEnvironmentVariable, salesforceConsumerKey)
-    .WithEnvironment(IntegrationsModule.SalesforceConsumerSecretEnvironmentVariable, salesforceConsumerSecret)
-    .WithEnvironment("DigitalBrain__Integrations__Salesforce__OAuth__PublicOrigin", ProductSurfaceResources.KernelPublicOrigin)
-    .WithEnvironment(
-        IntegrationsModule.SalesforceMcpEndpointEnvironmentVariable,
-        "https://api.salesforce.com/platform/mcp/v1/platform/sobject-all")
-    .WithEnvironment("OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT", "false")
     .WithEnvironment("OTEL_DOTNET_EXPERIMENTAL_ASPNETCORE_DISABLE_URL_QUERY_REDACTION", "false")
     .WithEnvironment("OTEL_DOTNET_EXPERIMENTAL_HTTPCLIENT_DISABLE_URL_QUERY_REDACTION", "false")
     .WithHttpEndpoint(
@@ -129,35 +129,27 @@ var kernel = builder.AddProject<Projects.DigitalBrain_Kernel>(ProductSurfaceReso
         if (developmentClusterId is not null)
         {
             context.EnvironmentVariables["Orleans__ClusterId"] = developmentClusterId;
+            // Local reviews read this checkout. Production has no host workspace unless
+            // one is explicitly configured for its owner.
+            context.EnvironmentVariables["DigitalBrain__Workspace__RepositoryPath"] =
+                builder.Configuration["DigitalBrain:Workspace:RepositoryPath"]
+                    ?? Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "../../.."));
+            context.EnvironmentVariables["DigitalBrain__Workspace__Owner"] = ShellHostingExtensions.DefaultOwner;
+            context.EnvironmentVariables["DigitalBrain__StartupApplication__Source"] =
+                builder.Configuration["DigitalBrain:StartupApplication:Source"]
+                    ?? Path.GetFullPath(Path.Combine(
+                        builder.AppHostDirectory,
+                        "../../Kernel/DigitalBrain.Scripting/scripts/start.cs"));
         }
     });
-
-if (!fakesEnabled)
-{
-    var gmailClientId = builder.AddParameter("gmail-client-id")
-        .WithDescription(
-            "OAuth client ID for a Google web client configured for the [Gmail MCP server](https://developers.google.com/workspace/gmail/api/guides/configure-mcp-server). "
-            + "Register http://localhost:5080/integrations/gmail/callback. Only the kernel receives this value.",
-            enableMarkdown: true);
-    var gmailClientSecret = builder.AddParameter("gmail-client-secret", secret: true)
-        .WithDescription(
-            "OAuth client secret for the same Google web client configured for the [Gmail MCP server](https://developers.google.com/workspace/gmail/api/guides/configure-mcp-server). "
-            + "Only the kernel receives this secret; Gmail sign-in happens in your browser when the assistant needs access.",
-            enableMarkdown: true);
-    kernel
-        .WithEnvironment("DigitalBrain__Integrations__Gmail__OAuth__ClientId", gmailClientId)
-        .WithEnvironment("DigitalBrain__Integrations__Gmail__OAuth__ClientSecret", gmailClientSecret)
-        .WithEnvironment("DigitalBrain__Integrations__Gmail__OAuth__PublicOrigin", ProductSurfaceResources.KernelPublicOrigin)
-        .WithEnvironment(IntegrationsModule.GmailMcpEndpointEnvironmentVariable, "https://gmailmcp.googleapis.com/mcp/v1");
-}
 
 var mcp = builder.AddProject<Projects.DigitalBrain_Mcp>(ProductSurfaceResources.Mcp)
     .WithMcpServer(ProductSurfaceResources.McpPath, ProductSurfaceResources.McpHttpEndpointName)
     .WithReference(brain.AsClient())
+    .WithReference(kernel)
     .WithEnvironment(
         ShellHostingExtensions.OwnerEnvironmentVariable,
         ShellHostingExtensions.DefaultOwner)
-    .WithEnvironment("OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT", "false")
     .WithEnvironment("OTEL_DOTNET_EXPERIMENTAL_ASPNETCORE_DISABLE_URL_QUERY_REDACTION", "false")
     .WithEnvironment("OTEL_DOTNET_EXPERIMENTAL_HTTPCLIENT_DISABLE_URL_QUERY_REDACTION", "false")
     .WithEnvironment(context =>
@@ -173,7 +165,8 @@ var mcp = builder.AddProject<Projects.DigitalBrain_Mcp>(ProductSurfaceResources.
     .WithHttpHealthCheck("/health", endpointName: ProductSurfaceResources.McpHttpEndpointName)
     .WaitFor(kernel);
 
-// Later: AddProject<Projects.DigitalBrain_Scripting>(...) as a sibling resource for Script driver IPC.
-// Do not reference DigitalBrain.Scripting from Kernel — generated C# stays out of process.
+// Endpoint injection adds no WaitFor(mcp): the kernel must start before the MCP client
+// can connect back. Assistant tool discovery opens the connection lazily per session.
+kernel.WithEnvironment("DigitalBrain__Mcp__Endpoint", mcp.GetEndpoint(ProductSurfaceResources.McpHttpEndpointName));
 
 builder.Build().Run();

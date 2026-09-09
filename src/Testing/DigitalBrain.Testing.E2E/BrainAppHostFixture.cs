@@ -4,7 +4,6 @@ using Aspire.Hosting.ApplicationModel;
 using Aspire.Hosting.Testing;
 using DigitalBrain.Abstractions;
 using DigitalBrain.Aspire;
-using DigitalBrain.Client;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -45,6 +44,13 @@ public class BrainAppHostFixture<TAppHost> : IAsyncLifetime
             .CreateAsync<TAppHost>(options.Args)
             .ConfigureAwait(false);
 
+        // Aspire 13.5 advertises a test host through the same CLI discovery socket
+        // as its real AppHost project, despite disabling the test dashboard. A
+        // concurrent `aspire start` can attach to this fixture, report success with
+        // no dashboard, and cancel its own unfinished launch. Give discovery the
+        // actual test assembly identity; resource/project paths are already built.
+        appBuilder.Configuration["AppHost:FilePath"] = typeof(TAppHost).Assembly.Location;
+
         // Keep test output readable: only warnings and errors reach the console. The apphost
         // re-logs every resource's console line under DigitalBrain.AppHost.Resources.* at
         // Information, and configuration rules outrank SetMinimumLevel, so the quieting must
@@ -59,7 +65,7 @@ public class BrainAppHostFixture<TAppHost> : IAsyncLifetime
 
         StubParameters(appBuilder);
         IsolateContainers(appBuilder);
-        RandomizeProxiedPorts(appBuilder);
+        RandomizePorts(appBuilder);
         ArmExplicitStart(appBuilder, options.ExplicitStart);
         StripNeverStartingWaits(appBuilder, options.ExplicitStart);
         ArmProjectResources(appBuilder, options.ProjectEnvironment);
@@ -192,9 +198,9 @@ public class BrainAppHostFixture<TAppHost> : IAsyncLifetime
         }
     }
 
-    // The IsProxied guard is what spares the kernel's unproxied HTTP endpoint (port 5080);
-    // callers reach resources through App.CreateHttpClient, never the literal port.
-    private static void RandomizeProxiedPorts(IDistributedApplicationTestingBuilder appBuilder)
+    // Proxyless project endpoints need isolation too. Aspire allocates their port
+    // and supplies it to Kestrel; callers use CreateHttpClient/service discovery.
+    private static void RandomizePorts(IDistributedApplicationTestingBuilder appBuilder)
     {
         foreach (var resource in appBuilder.Resources)
         {
@@ -205,9 +211,10 @@ public class BrainAppHostFixture<TAppHost> : IAsyncLifetime
 
             foreach (var endpoint in endpoints)
             {
-                if (endpoint.IsProxied && endpoint.Port is not null)
+                endpoint.Port = null;
+                if (!endpoint.IsProxied && resource is ProjectResource)
                 {
-                    endpoint.Port = null;
+                    endpoint.TargetPort = null;
                 }
             }
         }

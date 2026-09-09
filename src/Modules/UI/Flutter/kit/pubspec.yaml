@@ -7,7 +7,7 @@ publish_to: none
 version: 0.1.0
 
 environment:
-  sdk: ^3.12.0
+  sdk: ^3.13.0
 
 resolution: workspace
 
@@ -16,8 +16,14 @@ dependencies:
     sdk: flutter
   digitalbrain_flutter:
     path: ../core
+  forui: ^0.26.0
+  material_ui: ^1.2.0
+  gpt_markdown: ^1.2.1
+  flutter_svg: ^2.3.0
   flutter_chat_core: ^2.9.0
+  flutter_chat_ui: ^2.11.1
   graphic: ^2.7.0
+  three_js: ^0.3.0
 
 dev_dependencies:
   flutter_test:
@@ -26,3 +32,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/brands/aspire-icon-32.svg
+    - assets/brands/gmail.svg
+    - assets/brands/salesforce.svg
+    - assets/brands/github.svg

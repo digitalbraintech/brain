@@ -5,24 +5,31 @@ import 'package:digitalbrain_ui_kit/digitalbrain_ui_kit.dart';
 
 typedef SendMessage = Future<void> Function(String text);
 typedef StreamMessage = Stream<ChatDelta> Function(String text);
-typedef StreamVoice =
-    Stream<ChatDelta> Function(List<int> audioBytes, {String fileName});
+typedef StreamVoice = Stream<ChatDelta> Function(
+  List<int> audioBytes, {
+  String fileName,
+});
 typedef OpenUrl = Future<void> Function(Uri url);
-typedef CancelChatTurn =
-    Future<void> Function({required String commandId, required String turnId});
-typedef ActivateChatButton =
-    Future<void> Function({
-      required String offerCommandId,
-      required String buttonId,
-      required String action,
-    });
+typedef CancelChatTurn = Future<void> Function({
+  required String commandId,
+  required String turnId,
+});
 typedef ReadChart = Future<ChatChartOffer?> Function(String name);
 typedef ReadImageBytes = Future<Uint8List?> Function(String name);
+typedef ReadSpreadsheet = Future<ChatSpreadsheetOffer?> Function(String name);
+typedef ReadGraph = Future<ChatGraphOffer?> Function(String name);
+typedef ReadSurface = Future<KitSurfaceState?> Function(String name);
+typedef ReadActivityResults = Future<List<ChatTurnEvent>> Function(
+  String activityId,
+);
 
 const ownerUserId = 'owner';
 const assistantUserId = 'assistant';
-const behaviorsDestinationIndex = 2;
-const kitDestinationIndex = 3;
+const onboardingDestinationIndex = 1;
+const graphDestinationIndex = 2;
+const activityDestinationIndex = 3;
+const kitDestinationIndex = 4;
+const windowingDestinationIndex = 5;
 
 extension ChatTurnKitParts on ChatTurnEvent {
   List<KitPart> get kitParts => [
@@ -48,6 +55,10 @@ extension ChatTurnKitParts on ChatTurnEvent {
       ...switch (card.kind) {
         'chart' => [KitChartRefPart(name: card.name, caption: card.caption)],
         'image' => [KitImageRefPart(name: card.name, caption: card.caption)],
+        'spreadsheet' => [
+          KitSheetRefPart(name: card.name, caption: card.caption),
+        ],
+        'graph' => [KitGraphRefPart(name: card.name, caption: card.caption)],
         _ => const <KitPart>[],
       },
   ];

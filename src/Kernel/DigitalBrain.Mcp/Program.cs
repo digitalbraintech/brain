@@ -5,13 +5,17 @@ using DigitalBrain.ServiceDefaults;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddDigitalBrainClient();
+builder.Services.AddHttpClient<ApplicationAuthoringHttpClient>(client =>
+    client.BaseAddress = new Uri("https+http://kernel"));
+builder.Services.AddSingleton<DigitalBrain.Abstractions.Scripting.IApplicationAuthoring>(services =>
+    services.GetRequiredService<ApplicationAuthoringHttpClient>());
 builder.Services
     .AddMcpServer()
     // URL-mode elicitation is negotiated at initialization. Preserve the peer's
     // capabilities in its MCP session; stateless SDK servers expose none here.
     .WithHttpTransport(options => options.Stateless = false)
     .WithTools<ChatTools>()
-    .WithTools<SmartPromptTools>();
+    .WithTools<GraphTools>();
 
 var app = builder.Build();
 app.MapDefaultEndpoints();

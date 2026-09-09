@@ -192,9 +192,12 @@ final class GraphPainter extends CustomPainter {
   void _paintNodes(Canvas canvas) {
     for (final projected in nodes) {
       final node = projected.node;
-      final color = node.kind == GraphNodeKind.hub
-          ? KitPalette.signal
-          : KitPalette.owner;
+      final color = switch (node.kind) {
+        GraphNodeKind.hub => KitPalette.signal,
+        GraphNodeKind.entity => KitPalette.success,
+        GraphNodeKind.module => KitPalette.signal,
+        GraphNodeKind.leaf => KitPalette.owner,
+      };
       final dimFactor = node.dimmed ? 0.45 : 1.0;
       final depthAlpha =
           ((0.5 + (projected.depth + 1) * 0.22).clamp(0.35, 1.0)) * dimFactor;
@@ -205,35 +208,56 @@ final class GraphPainter extends CustomPainter {
           ..color = color.withValues(alpha: 0.06 * depthAlpha)
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
       );
-      canvas.drawCircle(
-        projected.center,
-        projected.radius,
-        Paint()..color = color.withValues(alpha: depthAlpha),
-      );
-      canvas.drawCircle(
-        projected.center,
-        projected.radius,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1
-          ..color = KitPalette.textPrimary.withValues(alpha: 0.3),
-      );
+      _paintNodeBody(canvas, projected, color, depthAlpha);
 
-      if (node.kind == GraphNodeKind.hub || node.id == pulse?.toId) {
-        final text = TextPainter(
-          text: TextSpan(
-            text: node.label,
-            style: KitType.meta.copyWith(
-              color: KitPalette.textPrimary.withValues(alpha: depthAlpha),
-            ),
+      final text = TextPainter(
+        text: TextSpan(
+          text: node.label,
+          style: KitType.meta.copyWith(
+            color: KitPalette.textPrimary.withValues(alpha: depthAlpha),
           ),
-          textDirection: TextDirection.ltr,
-        )..layout(maxWidth: 120);
-        text.paint(
-          canvas,
-          projected.center + Offset(-text.width / 2, projected.radius + 7),
-        );
-      }
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout(maxWidth: 120);
+      text.paint(
+        canvas,
+        projected.center + Offset(-text.width / 2, projected.radius + 7),
+      );
+    }
+  }
+
+  static void _paintNodeBody(
+    Canvas canvas,
+    ProjectedGraphNode projected,
+    Color color,
+    double depthAlpha,
+  ) {
+    final fill = Paint()..color = color.withValues(alpha: depthAlpha);
+    final stroke = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1
+      ..color = KitPalette.textPrimary.withValues(alpha: 0.3);
+    final r = projected.radius;
+    final c = projected.center;
+
+    switch (projected.node.kind) {
+      case GraphNodeKind.entity:
+        final rect = Rect.fromCenter(center: c, width: r * 2, height: r * 2);
+        canvas.drawRRect(RRect.fromRectXY(rect, 3, 3), fill);
+        canvas.drawRRect(RRect.fromRectXY(rect, 3, 3), stroke);
+      case GraphNodeKind.module:
+        final diamond = Path()
+          ..moveTo(c.dx, c.dy - r)
+          ..lineTo(c.dx + r, c.dy)
+          ..lineTo(c.dx, c.dy + r)
+          ..lineTo(c.dx - r, c.dy)
+          ..close();
+        canvas.drawPath(diamond, fill);
+        canvas.drawPath(diamond, stroke);
+      case GraphNodeKind.hub:
+      case GraphNodeKind.leaf:
+        canvas.drawCircle(c, r, fill);
+        canvas.drawCircle(c, r, stroke);
     }
   }
 

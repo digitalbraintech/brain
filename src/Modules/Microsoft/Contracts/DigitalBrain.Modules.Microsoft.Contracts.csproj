@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <Description>Microsoft specialist-agent contracts.</Description>
+    <RootNamespace>DigitalBrain.Microsoft</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../AI/Contracts/DigitalBrain.Modules.AI.Contracts.csproj" />
+  </ItemGroup>
+</Project>

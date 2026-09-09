@@ -1,12 +1,12 @@
+using DigitalBrain.Product.Identity;
 using System.Text;
 using DigitalBrain.Abstractions;
-using DigitalBrain.Abstractions.Execution;
+using DigitalBrain.Execution;
 using DigitalBrain.Abstractions.Identity;
-using DigitalBrain.Abstractions.Interactions;
+using DigitalBrain.Product.Interactions;
 using DigitalBrain.AI;
 using DigitalBrain.Chat;
 using DigitalBrain.Core;
-using DigitalBrain.Execution;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -16,7 +16,7 @@ namespace DigitalBrain.UI;
 // durable turn off the chat's own activation, so Chat stays free to serve reads and card
 // deliveries while the call is in flight and without the HTTP observer's cancellation token.
 [GrainType(GrainTypeName)]
-internal sealed class ChatTurnWorker : Neuron, IChatTurnWorker
+internal sealed class ChatTurnWorker(NeuronRuntime runtime) : Neuron(runtime), IChatTurnWorker
 {
     internal const string GrainTypeName = "chat-turn-worker";
 
@@ -68,8 +68,8 @@ internal sealed class ChatTurnWorker : Neuron, IChatTurnWorker
 
     private async Task<ExecutionId> StartTurnExecutionAsync(ChatTurnGoal goal, CancellationToken cancellationToken)
     {
-        var chat = GrainFactory.GetGrain<IChat>(goal.Chat.ToGrainId());
-        var prior = await chat.ReadActiveExecution()
+        var chat = GrainFactory.GetGrain<IChatKernel>(goal.Chat.ToGrainId());
+        var prior = await chat.LoadActiveExecution()
             .WaitAsync(cancellationToken)
             .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
 
@@ -79,20 +79,17 @@ internal sealed class ChatTurnWorker : Neuron, IChatTurnWorker
         var execution = GrainFactory.GetGrain<IExecution>(
             NeuronId.For<IExecution>(goal.Chat.Owner, executionId.ToString()).ToGrainId());
 
-        // Empty grants: chat Agent path must not fan-out Capabilities. Tools call ExecutionSession later.
         await execution.HandleAsync(
                 new StartExecution(
                     CommandId.New(),
                     executionId,
                     new ChatTurnWorkload(goal.Chat, goal.TurnId, goal.Text),
-                    ExecutionDriverKind.Agent,
-                    Grants: [],
                     related),
                 cancellationToken)
             .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
 
-        await chat.SetActiveExecution(executionId)
-            .WaitAsync(cancellationToken)
+        await GrainFactory.GetGrain<IChat>(goal.Chat.ToGrainId())
+            .HandleAsync(new SetActiveExecution(executionId), cancellationToken)
             .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
 
         return executionId;
@@ -103,6 +100,25 @@ internal sealed class ChatTurnWorker : Neuron, IChatTurnWorker
         ExecutionId executionId,
         CancellationToken cancellationToken)
     {
+        if (goal.SpecialistContinuation is { } specialist)
+        {
+            if (goal.CompletedUserActionId is null || specialist.Target.Owner != goal.Chat.Owner
+                || !PrincipalPartition.OwnsInstance(goal.Actor.PrincipalId, specialist.Target.Name)
+                || string.IsNullOrWhiteSpace(specialist.ConnectionRevision)
+                || string.IsNullOrWhiteSpace(specialist.RequestText) || specialist.RequestText.Length > 16000
+                || goal.AllowedToolNames is null || specialist.AllowedToolNames.Length == 0
+                || !specialist.AllowedToolNames.SequenceEqual(goal.AllowedToolNames, StringComparer.Ordinal))
+            {
+                throw new InvalidOperationException("This specialist continuation is no longer valid. Send a new request.");
+            }
+            using var actor = VerifiedActor.Enter(goal.Actor);
+            using var turn = AgentTurnContext.Enter(new AgentTurnContext(goal.Chat, goal.CommandId, goal.Actor,
+                specialist.AllowedToolNames, new SpecialistRequest(specialist.Target, specialist.RequestText), specialist));
+            var reply = await RequestAsync<AgentReply>(specialist.Target, new AgentRequest(specialist.RequestText), cancellationToken)
+                .ConfigureAwait(true);
+            return (reply.Text, "assistant");
+        }
+
         // Only original authenticated user text: never an auth continuation, model/tool
         // output, external context or transcript text.
         if (goal.AllowedToolNames is null && goal.CompletedUserActionId is null)
@@ -118,14 +134,14 @@ internal sealed class ChatTurnWorker : Neuron, IChatTurnWorker
                 }
             }
         }
-        var chat = GrainFactory.GetGrain<IChat>(goal.Chat.ToGrainId());
-        var transcript = await chat.Read()
+        var chat = GrainFactory.GetGrain<IChatKernel>(goal.Chat.ToGrainId());
+        var transcript = await chat.LoadTranscript()
             .WaitAsync(cancellationToken)
             .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
 
-        var execution = GrainFactory.GetGrain<IExecution>(
+        var execution = GrainFactory.GetGrain<IExecutionKernel>(
             NeuronId.For<IExecution>(goal.Chat.Owner, executionId.ToString()).ToGrainId());
-        var projection = await execution.Read()
+        var projection = await execution.LoadProjection()
             .WaitAsync(cancellationToken)
             .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
 
@@ -169,8 +185,8 @@ internal sealed class ChatTurnWorker : Neuron, IChatTurnWorker
         if (goal.AllowedToolNames is not null)
         {
             system.Append(" The user completed a login action for this existing turn. ")
-                .Append("Complete only the original request below using the available read-only tools. ")
-                .Append("Do not perform writes or treat login consent as approval of a mutation.");
+                .Append("Complete only the original request below using the available tools. ")
+                .Append("Login consent supplies access only. Perform setup changes only when the original request explicitly authorized them; never add unrelated mutations.");
         }
 
         var conversationContext = new ChatMessage(ChatRole.System, system.ToString());
@@ -198,10 +214,12 @@ internal sealed class ChatTurnWorker : Neuron, IChatTurnWorker
 
         var answer = new StringBuilder();
         using (VerifiedActor.Enter(goal.Actor))
-        using (AgentTurnContext.Enter(new AgentTurnContext(goal.Chat, goal.CommandId, goal.Actor, goal.AllowedToolNames)))
+        using (AgentTurnContext.Enter(new AgentTurnContext(goal.Chat, goal.CommandId, goal.Actor, goal.AllowedToolNames,
+            SetupContinuation: goal.SetupContinuation)))
         {
-            await foreach (var chunk in responder.RespondStreaming(
+            await foreach (var chunk in responder.AskStreaming(
                 messages,
+                goal.ConversationId,
                 cancellationToken).ConfigureAwait(true))
             {
                 answer.Append(chunk.Text);
@@ -211,8 +229,8 @@ internal sealed class ChatTurnWorker : Neuron, IChatTurnWorker
         return (answer.ToString(), "assistant");
     }
 
-    private IAssistant DefaultResponder(OwnerId owner)
-        => GrainFactory.GetGrain<IAssistant>(NeuronId.For<IAssistant>(owner, "assistant").ToGrainId());
+    private IAgentKernel DefaultResponder(OwnerId owner)
+        => GrainFactory.GetGrain<IAgentKernel>(IAgentKernel.IdFor(owner));
 
     private static ChatMessage AsChatMessage(ChatTurn turn)
         => new(turn.FromUser ? ChatRole.User : ChatRole.Assistant, turn.Text);

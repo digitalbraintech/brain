@@ -28,6 +28,8 @@ public static class ServiceDefaultsExtensions
 
         ConfigureOpenTelemetry(builder);
         AddDefaultHealthChecks(builder);
+        builder.Services.AddServiceDiscovery();
+        builder.Services.ConfigureHttpClientDefaults(http => http.AddServiceDiscovery());
 
         return builder;
     }
@@ -73,6 +75,16 @@ public static class ServiceDefaultsExtensions
             logging.IncludeScopes = true;
         });
 
+        if (builder.Configuration.GetValue<bool?>("DigitalBrain:AI:Telemetry:EnableSensitiveData")
+            ?? builder.Configuration.GetValue<bool?>("OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT")
+            ?? false)
+        {
+            // MEAI's structured inference events use this category. Broad Microsoft
+            // Warning filters must not discard opted-in GenAI evidence. Tool payloads
+            // belong to execute_tool spans; avoid duplicate Trace-level logging.
+            builder.Logging.AddFilter("Microsoft.Extensions.AI.OpenTelemetryChatClient", LogLevel.Information);
+        }
+
         builder.Services.AddOpenTelemetry()
             .ConfigureResource(resource => resource.AddService(
                 serviceName: builder.Environment.ApplicationName,
@@ -84,6 +96,9 @@ public static class ServiceDefaultsExtensions
                 .AddMeter(TelemetryPrefix)
                 .AddMeter($"{TelemetryPrefix}.*")
                 .AddMeter("Experimental.Microsoft.Extensions.AI")
+                .AddMeter("Experimental.Microsoft.Extensions.AI.*")
+                .AddMeter("Microsoft.Extensions.AI")
+                .AddMeter("Microsoft.Extensions.AI.*")
                 .AddMeter("Microsoft.Orleans"))
             .WithTracing(tracing => tracing
                 .SetSampler(new ParentBasedSampler(rootSampler))
@@ -92,6 +107,9 @@ public static class ServiceDefaultsExtensions
                 .AddSource(TelemetryPrefix)
                 .AddSource($"{TelemetryPrefix}.*")
                 .AddSource("Experimental.Microsoft.Extensions.AI")
+                .AddSource("Experimental.Microsoft.Extensions.AI.*")
+                .AddSource("Microsoft.Extensions.AI")
+                .AddSource("Microsoft.Extensions.AI.*")
                 .AddSource("Microsoft.Orleans.Application")
                 .AddAspNetCoreInstrumentation(options =>
                     options.Filter = context =>

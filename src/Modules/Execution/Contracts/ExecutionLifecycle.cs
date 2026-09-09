@@ -1,5 +1,4 @@
-using DigitalBrain.Abstractions.Execution;
-using DigitalBrain.Abstractions.Messaging;
+using DigitalBrain.Abstractions.Signals;
 
 namespace DigitalBrain.Execution;
 
@@ -8,4 +7,4 @@ namespace DigitalBrain.Execution;
 public sealed record ExecutionLifecycle(
     [property: Id(0)] ExecutionId ExecutionId,
     [property: Id(1)] ExecutionStatus Status,
-    [property: Id(2)] string? Detail = null) : Synapse;
+    [property: Id(2)] string? Detail = null) : Signal;

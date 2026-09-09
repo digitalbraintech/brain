@@ -29,6 +29,7 @@ Widget buildShell({
   String? statusMessage,
 }) {
   return BrainChatApp(
+    client: edge,
     chatName: chat,
     statusMessage: statusMessage,
     turns: edge?.watchChatTurns(chatName: chat),
@@ -42,15 +43,6 @@ Widget buildShell({
             audioBytes: audioBytes,
             fileName: fileName,
           ),
-    onActivateButton: edge == null
-        ? null
-        : ({required offerCommandId, required buttonId, required action}) =>
-              edge.activateChatButton(
-                chatName: chat,
-                offerCommandId: offerCommandId,
-                buttonId: buttonId,
-                action: action,
-              ),
     onOpenSignIn: openExternalUrl,
     kernelBaseUri: edge?.baseUri,
     onCancelTurn: edge == null
@@ -62,13 +54,30 @@ Widget buildShell({
           ),
     onReadChart: edge?.readChart,
     onReadImageBytes: edge?.readImageBytes,
-    onLoadBehaviors: edge?.listBehaviors,
-    onLoadBehaviorSteps: edge?.listBehaviorSteps,
-    onSaveBehavior: edge?.saveBehavior,
-    onTestBehavior: edge?.testBehavior,
-    onActivateBehavior: edge?.activateBehavior,
-    onRunBehaviorFake: edge?.runBehaviorFake,
-    onGenerateBehavior: edge?.generateBehavior,
+    onReadSpreadsheet: edge?.readSpreadsheet,
+    onReadGraph: edge?.readGraph,
+    onReadSurface: edge?.readSurface,
+    surfaceEvents: edge?.watchShellEvents(shellName: 'desk'),
+    onWatchActivities: edge == null
+        ? null
+        : () => edge.watchActivities(surfaceName: 'desk'),
+    onReadBrain: edge == null ? null : () => edge.readBrain(chatName: chat),
+    onWatchBrain: edge == null ? null : () => edge.watchBrain(chatName: chat),
+    behaviorStudio: edge,
+    onSetBrainSubscription: edge == null
+        ? null
+        : ({
+            required sourceId,
+            required targetId,
+            required signalType,
+            required subscribed,
+          }) => edge.setBrainSubscription(
+            chatName: chat,
+            sourceId: sourceId,
+            targetId: targetId,
+            signalType: signalType,
+            subscribed: subscribed,
+          ),
   );
 }
 

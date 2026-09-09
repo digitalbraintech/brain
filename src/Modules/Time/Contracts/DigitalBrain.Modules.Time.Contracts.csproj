@@ -5,6 +5,7 @@
     <RootNamespace>DigitalBrain.Time</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../../../Kernel/DigitalBrain.Abstractions/DigitalBrain.Abstractions.csproj" />
+    <ProjectReference Include="../../../Product/DigitalBrain.Product.Contracts/DigitalBrain.Product.Contracts.csproj" />
+    <ProjectReference Include="../../../Kernel/DigitalBrain.Contracts/DigitalBrain.Contracts.csproj" />
   </ItemGroup>
 </Project>

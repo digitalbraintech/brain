@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <Description>Aspire AppHost integration for the DigitalBrain Google module.</Description>
+    <RootNamespace>DigitalBrain.Google.Aspire.Hosting</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Google/DigitalBrain.Modules.Google.csproj" />
+    <ProjectReference Include="../../../Aspire/DigitalBrain.Aspire.Hosting/DigitalBrain.Aspire.Hosting.csproj" />
+  </ItemGroup>
+</Project>

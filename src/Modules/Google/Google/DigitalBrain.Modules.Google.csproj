@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <Description>Google module: hosted Gmail MCP tools, browser sign-in and draft previews.</Description>
+    <RootNamespace>DigitalBrain.Google</RootNamespace>
+    <NoWarn>$(NoWarn);ORLEANSEXP005</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../../Product/DigitalBrain.Product.Contracts/DigitalBrain.Product.Contracts.csproj" />
+    <ProjectReference Include="../Contracts/DigitalBrain.Modules.Google.Contracts.csproj" />
+    <ProjectReference Include="../../AI/Contracts/DigitalBrain.Modules.AI.Contracts.csproj" />
+    <ProjectReference Include="../../AI/AI/DigitalBrain.Modules.AI.csproj" />
+    <ProjectReference Include="../../../Kernel/DigitalBrain/DigitalBrain.csproj" />
+    <ProjectReference Include="../../../Kernel/DigitalBrain.Sdk/DigitalBrain.Sdk.csproj" />
+  </ItemGroup>
+
+</Project>

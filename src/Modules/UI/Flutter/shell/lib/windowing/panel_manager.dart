@@ -241,4 +241,24 @@ final class PanelManager extends ChangeNotifier {
     _topZ = 0;
     seedDemoPanels();
   }
+
+  void loadScenes(
+    List<(String id, String title, WindowPanelKind kind)> scenes,
+  ) {
+    _panels.clear();
+    _topZ = 0;
+    for (var i = 0; i < scenes.length; i++) {
+      final (id, title, kind) = scenes[i];
+      _panels.add(
+        WindowPanel(
+          id: id,
+          title: title,
+          rect: _cascadeSlot(i),
+          z: ++_topZ,
+          kind: kind,
+        ),
+      );
+    }
+    notifyListeners();
+  }
 }

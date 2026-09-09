@@ -1,17 +1,25 @@
-# DigitalBrain — Ratified Architecture (2026-08-22)
+# DigitalBrain — Current Architecture (2026-09-05)
 
-Decisions ratified by the owner on 2026-08-22. Code is the source of truth; this
-records intent the code cannot show yet. Supersedes all PersonaPlex-era plans.
+**Authority now:** the neuron/synapse/signal graph plus per-input C# behavior programs
+(`CONTEXT.md`, `Get<T>()`, typed subscriptions and `SaveScriptAsync`). The older
+durable-runs, durable-scripting and admission designs are superseded.
+
+Code is the source of truth. The current implementation contract and verification
+record are in `programmable-behaviors-implementation.md` and
+`programmable-behaviors-validation.md`.
 
 ## Product
 
 Multiuser chat product. One kernel image, one Flutter codebase, entities all the
-way down. Core differentiator: **Smart Prompts** — user-authored plain-English
-automations with `@Module` bindings.
+way down. Core differentiator: **the neuron substrate itself** — a durable, weighted
+graph of neurons connected by synapses. Broadcast follows the source neuron's
+existing synapses; weight orders connections and prunes Learned ones. Saved C# handlers run out of process; they
+`Send` typed signals and write entities. No runtime-generated Orleans types and no
+second, English-language runtime.
 
 ## Core loop (chat + dynamic UI)
 
-1. Flutter → `IChat.Send` → durable turn → `ChatTurnWorker` (already built).
+1. Flutter → `Get<IChat>().RequestAsync(SendMessage)` → durable turn → `ChatTurnWorker`.
 2. Worker → `IAssistant` → a Microsoft.Extensions.AI `IChatClient` (the
    configured default model or an explicit marker) with an AI toolset.
 3. Every UI-kit component registers an AI tool (`render_chart`,
@@ -21,7 +29,7 @@ automations with `@Module` bindings.
 4. SSE pushes the card; Flutter mounts the matching kit widget, which reads the
    entity via its `[ClientEntryPoint]` contract. The same entity renders
    full-size on a Surface — one live state, two mounts.
-5. Interactive components (Button, Form, Todo) fire their command synapse back
+5. Interactive components (Button, Form, Todo) fire their command signal back
    through the same path a user message takes.
 6. Every component state record lands in `flutter-wire-contracts.golden.json`;
    a conformance test fails on C#↔Dart drift.
@@ -55,41 +63,55 @@ KitGalleryScreen) is the starting point for the widget side.
   before local).
 - **Local dev**: Ollama `IGemma4` + `IEmbeddingGemma` stay so dev and CI run
   offline. Production embeddings come from a cloud provider; embedding
-  dimensions are config-driven because Qdrant index dims lock to them.
-- **Agent layer**: `Agent` neurons over MEAI clients today; MAF orchestration
-  (Team/GroupChat/MafParticipantAdapter) restores from master's git history as
-  a later build-order step.
+  dimensions are config-driven because Qdrant index dims lock to them. Every semantic
+  index generation also pins provider/model identity, dimensions, preprocessing, and
+  document-format version; migrations build and validate a new generation before cutover.
+- **Agent layer**: `Agent` neurons over MEAI clients. Each turn prepares tools
+  through one asynchronous `IAgentToolSource` contract. Ino delegates to specialist
+  neurons through ordinary source-owned requests; no additional orchestration
+  runtime is required.
 - **Voice**: Whisper STT (Foundry Local) stays dev-only. PersonaPlex is deleted
   (see Trash record); future voice = provider realtime APIs.
 
-## Smart Prompts
+## Authored applications
 
-Canonical design: [docs/superpowers/specs/2026-08-23-smart-prompt-execution-architecture-design.md](superpowers/specs/2026-08-23-smart-prompt-execution-architecture-design.md).
+User- and assistant-authored C# runs through `DigitalBrain.Scripting`. The authoring service stores exact source revisions per owner and principal, validates them without business execution, and publishes content-addressed artifacts. Activation applies a verified revision. The hosted supervisor starts separate artifact worker processes and retains revisions still referenced by admitted work.
 
-Product surface: English + binding chips (logos), not generated C#. Under the hood each
-fire is `StartExecution(SmartPromptWorkload)` on the shared Execution Neuron with an
-`ExecutionContext` Entity. Façade modules (Gmail/Salesforce/Search) return `ContextDelta`
-via Fake transports today; real MCP swaps behind `I*Transport` later.
+An application declares commands, typed input handlers, state, durable delays, event waits, output ports, and apply-time composition with `brain.Application(key)`. The kernel durably records definitions, accepted operations, revision pins, checkpoints, effect intents, and waiting state. Workers use one-use bootstrap tickets and server-issued capabilities bound to owner, principal, application, and revision. Current capability authority is silo-local; multi-silo issuance and revocation remain a separate guarantee.
 
-- Chips bind Capability grants + Account EntityRefs (deterministic).
-- Chat turns also start Executions; `ActiveExecutionId` + related Context lineage
-  support follow-ups.
-- Triggers v1: manual Run now + schedule reminder; event-driven later.
-- Preferences / context providers / explainability seed Executions (IAW-inspired).
-
+Application Studio, assistant tools, and MCP use the same `IApplicationAuthoring` contract and persisted source store. The graph displays actual neuron subscriptions and journal activity; it does not provide a second scripting runtime. See [Getting started](GETTING_STARTED.md) for the current file format and workflow, the [design specification](superpowers/specs/2026-09-07-file-based-scripting-design.md) for intended semantics, and [recorded validation](programmable-behaviors-validation.md) for tested guarantees and remaining limits.
 ## Integration modules
 
-`Modules/Google` and `Modules/Salesforce`, each the standard triple
-(Contracts / implementation / Aspire.Hosting).
+Microsoft, Google, and Salesforce use the same Contracts / implementation /
+Aspire.Hosting boundaries. `IAspire`, `IGmail`, and `ISalesforce` inherit `IAgent`:
+one `AgentRequest`/`AgentReply` contract. Ino sees delegation tools; each specialist
+owns its native discovered MCP catalog, instructions, and provider policy.
 
-- Per-user OAuth: `AccountEntity` per user per provider holds the refresh
-  token; kernel HTTP serves the callback; every neuron call resolves the
-  caller's token. No shared credentials.
-- v1 surface: Gmail search/read/draft/send*, Calendar list/create*, Salesforce
-  SOQL/read/create*. `*` = a confirmation Button card in chat must be activated
-  before the mutation executes.
-- Both modules publish tool descriptions into the Smart Prompts capability
-  catalog.
+`Sdk/Mcp` owns isolated sessions, native catalog snapshots, STDIO/HTTP transports,
+binding revision checks, bounded results, and the single known-read 401 retry.
+It never automatically replays a write or an uncertain operation. The shared AI
+tool boundary handles screened/redacted evidence and safe failure categories.
+Provider modules retain account, query, consent, and confirmation policy without
+handwriting replacement MCP schemas.
+
+`Sdk/OAuth` owns the one-use `BrowserLogins` registry, callback surface and completion
+worker. Google and Salesforce tokens remain volatile and private to their
+principal-bound connection stores. GitHub persists nonsecret authorized repository
+bindings, uses installation credentials for unattended reads, and requires signed
+webhook reachability and known CI requirements before monitoring is ready. Its
+user OAuth token is used to establish the authorized repository intersection.
+
+Login completion resolves a stored exact specialist request, native read allowlist,
+and current connection revision. The existing chat worker resumes that target once;
+restricted continuation cannot delegate elsewhere or execute writes. Gmail draft
+creation and Salesforce create/update use exact published previews and a fresh
+authenticated user confirmation. Gmail send/delete and Salesforce delete remain
+outside the admitted catalog.
+
+Each module's hosting project retains its operator parameters (`WithGmail()`,
+`WithHostedMcp()`, `WithAspire()`). Static module-owned presentation descriptors
+provide labels and icon keys for observed neurons; they never create graph topology.
+`AgentActivity` is journal evidence, not an automatic broadcast to subscribers.
 
 ## Multiuser
 
@@ -104,7 +126,7 @@ via Fake transports today; real MCP swaps behind `I*Transport` later.
 ## Deployment
 
 - **Product = one Docker image** (kernel, built from
-  `src/Kernel/DigitalBrain.Kernel/Dockerfile`) published to Docker Hub. The
+  `src/Kernel/DigitalBrain.Silo/Dockerfile`) published to Docker Hub. The
   built Flutter web app is baked into this image and served by the kernel —
   same-origin cookies and SSE by construction.
 - **Runtime**: Azure Container Apps pulls the image. Scale = silo replicas.
@@ -135,7 +157,7 @@ via Fake transports today; real MCP swaps behind `I*Transport` later.
 1. AI providers (IAW port, no tiers) — shipped 2026-08-22.
 2. Auth (UserAccountEntity, cookie + token) — multiuser boundary.
 3. UI kit, all 13 components on the template. (template + Chart + Image shipped 2026-08-23)
-4. Smart Prompts (entity, catalog, runner, triggers).
-5. Google + Salesforce modules.
-6. MAF orchestration restore.
+4. Self-knowledge catalog — historical; not in the current product path.
+5. Durable authored applications with immutable file artifacts and supervised worker processes.
+6. Google + Salesforce specialist neurons through the inherited generic agent request contract.
 7. Image → Docker Hub, ACA + Key Vault deploy.

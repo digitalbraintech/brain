@@ -7,6 +7,9 @@ namespace DigitalBrain.AI.Aspire.Hosting;
 
 public static class AIHostingExtensions
 {
+    private const string TavilyApiKeyEnvironmentKey = "DigitalBrain__AI__Tavily__ApiKey";
+    private const string TavilyEnabledEnvironmentKey = "DigitalBrain__AI__Tavily__Enabled";
+    private const string TavilyApiKeyDescription = "API key for Tavily web search. Sign up at [Tavily](https://www.tavily.com/) and copy your API key from your account dashboard. Paste it here to enable web search for DigitalBrain agents.";
     private const string EnableSensitiveDataEnvironmentKey =
         "DigitalBrain__AI__Telemetry__EnableSensitiveData";
 
@@ -84,6 +87,14 @@ public static class AIHostingExtensions
         return module;
     }
 
+    public static DigitalBrainModuleBuilder<AIModule> WithTavilySearch(
+        this DigitalBrainModuleBuilder<AIModule> module)
+    {
+        ArgumentNullException.ThrowIfNull(module);
+        State(module).EnableTavilySearch();
+        return module;
+    }
+
     private static AIHostingState State(DigitalBrainModuleBuilder<AIModule> module)
     {
         ArgumentNullException.ThrowIfNull(module);
@@ -106,6 +117,7 @@ public static class AIHostingExtensions
         private IResourceBuilder<OllamaResource>? _ollama;
         private Type? _defaultLlmMarker;
         private Type? _defaultEmbeddingMarker;
+        private IResourceBuilder<ParameterResource>? _tavilyApiKey;
 
         internal bool EnableSensitiveData { get; set; }
 
@@ -145,7 +157,18 @@ public static class AIHostingExtensions
 
             builder.WithEnvironment(
                 EnableSensitiveDataEnvironmentKey,
-                EnableSensitiveData.ToString());
+                EnableSensitiveData ? "true" : "false")
+                // Keep standard SDK instrumentation and the module pipeline on one
+                // explicit host setting; an explicit false overrides ambient opt-ins.
+                .WithEnvironment("OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT",
+                    EnableSensitiveData ? "true" : "false");
+
+            if (_tavilyApiKey is not null)
+            {
+                builder
+                    .WithEnvironment(TavilyEnabledEnvironmentKey, "true")
+                    .WithEnvironment(TavilyApiKeyEnvironmentKey, _tavilyApiKey);
+            }
 
             foreach (var (marker, resource) in _ollamaModels)
             {
@@ -217,6 +240,13 @@ public static class AIHostingExtensions
             }
 
             _providerApiKeys[provider] = apiKey;
+        }
+
+        internal void EnableTavilySearch()
+        {
+            _tavilyApiKey ??= brain.ApplicationBuilder
+                .AddParameter("tavily-api-key", secret: true)
+                .WithDescription(TavilyApiKeyDescription, enableMarkdown: true);
         }
 
         private static string OllamaResourceName(string id)

@@ -4,35 +4,40 @@
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
   <ItemGroup>
+    <PackageVersion Include="Octokit" Version="14.0.0" />
+    <PackageVersion Include="Octokit.Webhooks" Version="4.2.0" />
     <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="2.2.0" />
     <PackageVersion Include="ModelContextProtocol.Core" Version="2.2.0" />
-    <PackageVersion Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="11.0.0-preview.7.26381.103" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="11.0.0-rc.1.26425.128" />
     <PackageVersion Include="xunit.v3.mtp-v2" Version="4.0.0" />
-    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="11.0.0-preview.7.26381.103" />
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="11.0.0-rc.1.26425.128" />
+    <PackageVersion Include="Microsoft.AspNetCore.TestHost" Version="11.0.0-rc.1.26425.128" />
     <PackageVersion Include="xunit.v3" Version="4.0.0" />
     <PackageVersion Include="xunit.v3.extensibility.core" Version="4.0.0" />
     <PackageVersion Include="xunit.v3.assert" Version="4.0.0" />
     <PackageVersion Include="Reqnroll" Version="3.3.4" />
+    <PackageVersion Include="Reqnroll.xunit.v3" Version="3.3.4" />
   </ItemGroup>
   <ItemGroup>
-    <PackageVersion Include="Aspire.Hosting" Version="13.5.2" />
-    <PackageVersion Include="Aspire.Hosting.Azure.Storage" Version="13.5.2" />
-    <PackageVersion Include="Aspire.Hosting.Orleans" Version="13.5.2" />
-    <PackageVersion Include="Aspire.Hosting.Qdrant" Version="13.5.2" />
-    <PackageVersion Include="Aspire.Hosting.Testing" Version="13.5.2" />
-    <PackageVersion Include="Aspire.Azure.Data.Tables" Version="13.5.2" />
-    <PackageVersion Include="Aspire.Azure.Storage.Blobs" Version="13.5.2" />
-    <PackageVersion Include="Azure.Storage.Blobs" Version="12.29.1" />
+    <PackageVersion Include="Aspire.Hosting" Version="13.5.3" />
+    <PackageVersion Include="Aspire.Hosting.Azure.Storage" Version="13.5.3" />
+    <PackageVersion Include="Aspire.Hosting.Orleans" Version="13.5.3" />
+    <PackageVersion Include="Aspire.Hosting.Qdrant" Version="13.5.3" />
+    <PackageVersion Include="Aspire.Hosting.Testing" Version="13.5.3" />
+    <PackageVersion Include="Aspire.Azure.Data.Tables" Version="13.5.3" />
+    <PackageVersion Include="Aspire.Azure.Storage.Blobs" Version="13.5.3" />
+    <PackageVersion Include="Azure.Storage.Blobs" Version="12.29.2" />
     <PackageVersion Include="Qdrant.Client" Version="1.19.0" />
-    <PackageVersion Include="CommunityToolkit.Aspire.Hosting.Ollama" Version="13.5.0-beta.730" />
-    <PackageVersion Include="Microsoft.Extensions.Configuration.Binder" Version="11.0.0-preview.7.26381.103" />
-    <PackageVersion Include="Microsoft.Extensions.Http" Version="11.0.0-preview.7.26381.103" />
+    <PackageVersion Include="CommunityToolkit.Aspire.Hosting.Ollama" Version="13.5.1-beta.748" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Binder" Version="11.0.0-rc.1.26425.128" />
+    <PackageVersion Include="Microsoft.Extensions.Http" Version="11.0.0-rc.1.26425.128" />
+    <PackageVersion Include="Microsoft.Extensions.ServiceDiscovery" Version="10.9.0" />
     <PackageVersion Include="Microsoft.Extensions.AI" Version="10.9.0" />
     <PackageVersion Include="Microsoft.Extensions.AI.Abstractions" Version="10.9.0" />
     <PackageVersion Include="Microsoft.Extensions.AI.OpenAI" Version="10.9.0" />
-    <PackageVersion Include="Anthropic" Version="12.42.0" />
+    <PackageVersion Include="Anthropic" Version="12.46.0" />
     <PackageVersion Include="OpenAI" Version="2.12.0" />
-    <PackageVersion Include="Microsoft.Agents.AI.Workflows" Version="1.19.0" />
+    <PackageVersion Include="Microsoft.Agents.AI.Workflows" Version="1.20.0" />
     <PackageVersion Include="OllamaSharp" Version="5.4.30" />
     <PackageVersion Include="OpenTelemetry.Api" Version="1.18.0" />
     <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.18.0" />
@@ -40,24 +45,24 @@
     <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.18.0" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.18.0" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.18.0" />
-    <PackageVersion Include="Microsoft.Orleans.BroadcastChannel" Version="10.2.2" />
-    <PackageVersion Include="Microsoft.Orleans.Client" Version="10.2.2" />
-    <PackageVersion Include="Microsoft.Orleans.Clustering.AzureStorage" Version="10.2.2" />
-    <PackageVersion Include="Microsoft.Orleans.Dashboard" Version="10.2.2" />
-    <PackageVersion Include="Microsoft.Orleans.Dashboard.Abstractions" Version="10.2.2" />
-    <PackageVersion Include="Microsoft.Orleans.Journaling" Version="10.2.2-rc.2.alpha.1" />
-    <PackageVersion Include="Microsoft.Orleans.Journaling.AzureStorage" Version="10.2.2-rc.2.alpha.1" />
-    <PackageVersion Include="Microsoft.Orleans.Persistence.AzureStorage" Version="10.2.2" />
-    <PackageVersion Include="Microsoft.Orleans.Reminders" Version="10.2.2" />
-    <PackageVersion Include="Microsoft.Orleans.Reminders.AzureStorage" Version="10.2.2" />
-    <PackageVersion Include="Microsoft.Orleans.Sdk" Version="10.2.2" />
-    <PackageVersion Include="Microsoft.Orleans.Server" Version="10.2.2" />
-    <PackageVersion Include="Microsoft.Orleans.Serialization.SystemTextJson" Version="10.2.2" />
-    <PackageVersion Include="Microsoft.Orleans.TestingHost" Version="10.2.2" />
-    <PackageVersion Include="Microsoft.AI.Foundry.Local" Version="1.2.4" />
+    <PackageVersion Include="Microsoft.Orleans.BroadcastChannel" Version="10.3.1" />
+    <PackageVersion Include="Microsoft.Orleans.Client" Version="10.3.1" />
+    <PackageVersion Include="Microsoft.Orleans.Clustering.AzureStorage" Version="10.3.1" />
+    <PackageVersion Include="Microsoft.Orleans.Dashboard" Version="10.3.1" />
+    <PackageVersion Include="Microsoft.Orleans.Dashboard.Abstractions" Version="10.3.1" />
+    <PackageVersion Include="Microsoft.Orleans.Journaling" Version="10.3.1-alpha.1" />
+    <PackageVersion Include="Microsoft.Orleans.Journaling.AzureStorage" Version="10.3.1-alpha.1" />
+    <PackageVersion Include="Microsoft.Orleans.Persistence.AzureStorage" Version="10.3.1" />
+    <PackageVersion Include="Microsoft.Orleans.Reminders" Version="10.3.1" />
+    <PackageVersion Include="Microsoft.Orleans.Reminders.AzureStorage" Version="10.3.1" />
+    <PackageVersion Include="Microsoft.Orleans.Sdk" Version="10.3.1" />
+    <PackageVersion Include="Microsoft.Orleans.Server" Version="10.3.1" />
+    <PackageVersion Include="Microsoft.Orleans.Serialization.SystemTextJson" Version="10.3.1" />
+    <PackageVersion Include="Microsoft.Orleans.TestingHost" Version="10.3.1" />
+    <PackageVersion Include="Microsoft.AI.Foundry.Local" Version="2.0.1" />
     <PackageVersion Include="Concentus" Version="2.2.2" />
     <PackageVersion Include="Concentus.Oggfile" Version="1.0.7" />
-    <PackageVersion Include="NAudio" Version="3.0.2-preview.1" />
+    <PackageVersion Include="NAudio" Version="3.1.0" />
     <PackageVersion Include="Microsoft.ML.OnnxRuntime.Gpu" Version="1.29.0" />
   </ItemGroup>
 </Project>

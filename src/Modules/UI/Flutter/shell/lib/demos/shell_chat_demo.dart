@@ -1,6 +1,6 @@
+import 'package:digitalbrain_ui_kit/digitalbrain_ui_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_chat_core/flutter_chat_core.dart';
-import 'package:flutter_chat_ui/flutter_chat_ui.dart';
 import 'package:flyer_chat_text_message/flyer_chat_text_message.dart';
 
 import '../brain_theme.dart';
@@ -33,8 +33,7 @@ final class _ShellChatDemoState extends State<ShellChatDemo> {
         id: 'kit-2',
         authorId: assistantUserId,
         createdAt: DateTime.utc(2026, 8, 1, 10, 0, 12),
-        text:
-            'p50 is 12ms across 186 synapses/min. Want a chart window opened on the desktop?',
+        text: 'p50 is 12ms across 186 synapses/min. Want a chart window opened on the desktop?',
       ),
       TextMessage(
         id: 'kit-3',
@@ -89,7 +88,7 @@ final class _ShellChatDemoState extends State<ShellChatDemo> {
         border: Border.all(color: BrainPalette.line),
       ),
       clipBehavior: Clip.antiAlias,
-      child: Chat(
+      child: KitChat(
         chatController: _controller,
         currentUserId: ownerUserId,
         resolveUser: (id) async => switch (id) {
@@ -97,7 +96,6 @@ final class _ShellChatDemoState extends State<ShellChatDemo> {
           assistantUserId => _assistant,
           _ => null,
         },
-        theme: BrainChatTheme.dark(),
         onMessageSend: _onSend,
         builders: Builders(
           textMessageBuilder:

@@ -50,6 +50,10 @@ public sealed class DigitalBrainBuilder
 
     internal IReadOnlyList<Type> Modules => _modules;
 
+    // Set by WithDigitalBrainFakes before projections apply, so a module's projection can skip
+    // the operator parameters its fake never reads.
+    public bool FakesEnabled { get; internal set; }
+
     internal void AddModule(Type module)
     {
         ArgumentNullException.ThrowIfNull(module);

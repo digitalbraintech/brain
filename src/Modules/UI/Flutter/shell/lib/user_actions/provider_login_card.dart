@@ -2,13 +2,14 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../brain_theme.dart';
 import '../chat/chat_contracts.dart';
 import 'chat_login_action.dart';
 import 'user_action_card.dart';
 
-typedef LoginAuthorizeButtonBuilder =
-    Widget Function(BuildContext context, VoidCallback? onPressed);
+typedef LoginAuthorizeButtonBuilder = Widget Function(
+  BuildContext context,
+  VoidCallback? onPressed,
+);
 
 /// Shared lifecycle card for the small, explicitly allowlisted set of OAuth
 /// providers that can be requested by a chat turn.
@@ -83,6 +84,7 @@ final class _ProviderLoginCardState extends State<ProviderLoginCard> {
     if (uri == null ||
         open == null ||
         !widget.login.waiting ||
+        widget.login.action.stage != 'login' ||
         _expired ||
         _opening ||
         _cancelling ||
@@ -150,7 +152,13 @@ final class _ProviderLoginCardState extends State<ProviderLoginCard> {
       return 'Cancelling request…';
     }
     if (_expired) {
+      if (widget.login.action.stage == 'readiness') {
+        return 'Verification timed out. Your saved behavior draft is retained.';
+      }
       return 'Sign-in expired. Send your request again to reconnect.';
+    }
+    if (widget.login.action.stage == 'readiness') {
+      return 'Waiting for verified webhook delivery. You can close the browser.';
     }
     if (!trusted) {
       return 'This sign-in link could not be verified.';
@@ -173,6 +181,7 @@ final class _ProviderLoginCardState extends State<ProviderLoginCard> {
     final active = login.waiting && !_cancelling && !_cancelRequested;
     final canAuthorize =
         active &&
+        login.action.stage == 'login' &&
         !_expired &&
         !_opening &&
         trusted &&
@@ -212,7 +221,11 @@ final class _ProviderLoginCardState extends State<ProviderLoginCard> {
           if (_failure != null && login.waiting)
             Padding(
               padding: const EdgeInsets.only(bottom: 10),
-              child: Text(_failure!, style: BrainType.bodyMuted),
+              child: Text(
+                _failure!,
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: Theme.of(context).colorScheme.error),
+              ),
             ),
         ],
       ),

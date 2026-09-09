@@ -6,7 +6,7 @@ public sealed class BrainE2EOptions
 
     // "flutter" mirrors ShellHostingExtensions.DefaultFlutterResourceName (the UI hosting
     // project is not referenced here, so the literal is duplicated rather than linked).
-    public string[] ExplicitStart { get; init; } = ["ollama", "flutter"];
+    public string[] ExplicitStart { get; init; } = ["flutter"];
 
     public string[] ExpectedHealthy { get; init; } = ["kernel", "mcp"];
 

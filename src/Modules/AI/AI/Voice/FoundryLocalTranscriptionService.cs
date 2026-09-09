@@ -1,4 +1,3 @@
-using System.Text;
 using Microsoft.AI.Foundry.Local;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
@@ -241,17 +240,21 @@ public sealed class FoundryLocalTranscriptionService :
     private async Task<string> RunTranscription(string filePath, CancellationToken ct)
     {
         _logger.LogDebug("Transcribing {Path}", filePath);
-        var client = _cpuFallbackVariant is not null
-            ? await _cpuFallbackVariant.GetAudioClientAsync().ConfigureAwait(false)
-            : await _model!.GetAudioClientAsync().ConfigureAwait(false);
-        var result = new StringBuilder();
+        var model = _cpuFallbackVariant ?? _model
+            ?? throw new InvalidOperationException("Whisper model is not loaded.");
 
-        await foreach (var chunk in client.TranscribeAudioStreamingAsync(filePath, ct).ConfigureAwait(false))
-        {
-            result.Append(chunk.Text);
-        }
+        using var session = new AudioSession(model);
+        using var request = new Microsoft.AI.Foundry.Local.Request();
+        request.AddItem(new AudioItem(filePath));
+        using var response = await session.ProcessRequestAsync(request, ct).ConfigureAwait(false);
 
-        var transcription = result.ToString().Trim();
+        var transcription = response
+            .OfType<SpeechResultItem>()
+            .Select(static item => item.Text)
+            .FirstOrDefault(static text => !string.IsNullOrWhiteSpace(text))
+            ?.Trim()
+            ?? string.Empty;
+
         _logger.LogInformation("Transcription complete: {Length} chars", transcription.Length);
         return transcription;
     }

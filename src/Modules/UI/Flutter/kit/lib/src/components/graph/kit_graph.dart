@@ -15,8 +15,7 @@ final class KitGraph extends StatefulWidget {
     this.highlightEdgeId,
     this.onNodeTap,
     this.onEdgeTap,
-    this.semanticsLabel =
-        'Interactive three-dimensional graph. Drag to rotate; tap a node or edge to inspect it.',
+    this.semanticsLabel = 'Interactive three-dimensional graph. Drag to rotate; tap a node or edge to inspect it.',
   });
 
   final List<GraphNode> nodes;

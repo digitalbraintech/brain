@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
+    <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
+    <NoWarn>$(NoWarn);CS0618</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="xunit.v3.mtp-v2" />
+    <PackageReference Include="Microsoft.Orleans.TestingHost" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Modules/AI/AI/DigitalBrain.Modules.AI.csproj" />
+    <ProjectReference Include="../../src/Modules/UI/DigitalBrain.Modules.UI/DigitalBrain.Modules.UI.csproj" />
+    <ProjectReference Include="../../src/Modules/AI/Aspire.Hosting/DigitalBrain.Modules.AI.Aspire.Hosting.csproj" />
+    <ProjectReference Include="../../src/Testing/DigitalBrain.Testing/DigitalBrain.Testing.csproj" />
+    <ProjectReference Include="../../src/Kernel/DigitalBrain.Scripting/DigitalBrain.Scripting.csproj" />
+  </ItemGroup>
+</Project>

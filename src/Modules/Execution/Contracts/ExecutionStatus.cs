@@ -4,11 +4,7 @@ namespace DigitalBrain.Execution;
 [Alias("db.execution.status")]
 public enum ExecutionStatus : byte
 {
-    Pending = 0,
-    Running = 1,
-    AwaitingApproval = 2,
-    Completed = 3,
-    Failed = 4,
-    Cancelled = 5,
-    Uncertain = 6,
+    Running = 0,
+    Completed = 1,
+    Failed = 2,
 }

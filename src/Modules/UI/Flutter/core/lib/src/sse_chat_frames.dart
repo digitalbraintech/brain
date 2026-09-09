@@ -43,23 +43,8 @@ final class SseChatTurnParser {
       return;
     }
 
-    final event = _decode(data);
-    if (event != null) {
-      yield event;
-    }
-  }
-
-  static ChatTurnEvent? _decode(String payload) {
-    try {
-      final decoded = jsonDecode(payload);
-      if (decoded is! Map) {
-        return null;
-      }
-      return ChatTurnEvent.fromJson(Map<String, Object?>.from(decoded));
-    } on FormatException {
-      return null;
-    } on TypeError {
-      return null;
-    }
+    // A malformed known event is a broken contract, not an ignorable event.
+    // Surface it instead of silently losing the entire conversation.
+    yield ChatTurnEvent.fromJson(jsonDecode(data) as Map<String, dynamic>);
   }
 }

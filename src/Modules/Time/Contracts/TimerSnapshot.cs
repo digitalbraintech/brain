@@ -1,4 +1,4 @@
-using DigitalBrain.Abstractions;
+using DigitalBrain.Abstractions.Signals;
 
 namespace DigitalBrain.Time;
 
@@ -10,5 +10,5 @@ public sealed record TimerSnapshot(
     [property: Id(2)] DateTimeOffset? ScheduledAt,
     [property: Id(3)] DateTimeOffset? DueAt,
     [property: Id(4)] TimeSpan? Duration,
-    [property: Id(5)] string? Note);
+    [property: Id(5)] string? Note) : Signal;
 

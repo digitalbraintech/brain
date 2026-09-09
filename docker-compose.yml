@@ -9,7 +9,7 @@
 #   docker compose build
 #
 # Secrets: never commit real values. Prefer env file or Key Vault-injected env
-# (see headers in src/Kernel/DigitalBrain.Kernel/Dockerfile).
+# (see headers in src/Kernel/DigitalBrain.Silo/Dockerfile).
 # Kernel HTTP serves chat streams + OAuth on 8080 (map host 5080 for stable OAuth if needed).
 
 services:
@@ -34,7 +34,7 @@ services:
     image: vhorbachov/digitalbrain-kernel:local
     build:
       context: .
-      dockerfile: src/Kernel/DigitalBrain.Kernel/Dockerfile
+      dockerfile: src/Kernel/DigitalBrain.Silo/Dockerfile
     ports:
       - "8080:8080"
       - "5080:8080"
@@ -42,11 +42,13 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       # --- Key Vault / secret injection surface (empty here on purpose) ---
-      # DigitalBrain__Google__Gmail__ClientId:
-      # DigitalBrain__Google__Gmail__ClientSecret:
-      # DigitalBrain__Google__Gmail__RedirectUri: http://localhost:5080/oauth/callback
-      # DigitalBrain__Salesforce__ClientId:
-      # DigitalBrain__Salesforce__RedirectUri: http://localhost:5080/oauth/callback
+      # DigitalBrain__Google__Gmail__OAuth__ClientId:
+      # DigitalBrain__Google__Gmail__OAuth__ClientSecret:
+      # DigitalBrain__Google__Gmail__OAuth__PublicOrigin: http://localhost:5080
+      # DigitalBrain__Salesforce__Mcp__Endpoint: https://api.salesforce.com/platform/mcp/v1/platform/sobject-all
+      # DigitalBrain__Salesforce__OAuth__ConsumerKey:
+      # DigitalBrain__Salesforce__OAuth__ConsumerSecret:
+      # DigitalBrain__Salesforce__OAuth__PublicOrigin: http://localhost:5080
       # DigitalBrain__AI__Ollama__Endpoint: http://host.docker.internal:11434
       # DigitalBrain__AI__OpenAI__ApiKey:
       # DigitalBrain__AI__OpenAI__Endpoint:

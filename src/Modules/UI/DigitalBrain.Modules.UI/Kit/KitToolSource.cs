@@ -15,7 +15,14 @@ internal sealed class KitToolSource(
     IImageGeneration? imageGeneration,
     IKitImageStore imageStore) : IAgentToolSource
 {
-    public IReadOnlyList<AIFunction> ToolsFor(OwnerId owner)
+    public ValueTask<IReadOnlyList<AITool>> GetToolsAsync(AgentToolContext context, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        context.RequireActive();
+        return ValueTask.FromResult<IReadOnlyList<AITool>>(CreateTools(context.Owner));
+    }
+
+    private IReadOnlyList<AIFunction> CreateTools(OwnerId owner)
     {
         // The model only ever echoes back a chatName it read from its own conversation
         // context, so the two local wrapper functions below close over the trusted `owner`
@@ -31,6 +38,15 @@ internal sealed class KitToolSource(
             CancellationToken cancellationToken)
             => RenderChartAsync(owner, chatName, title, chartKind, labels, values, cancellationToken);
 
+        Task<string> ShowGraph(
+            [Description("The current chat's name, exactly as stated in the conversation context")] string chatName,
+            [Description("Short graph title")] string title,
+            [Description("Node ids, one per node. The first id is the graph's centre")] string[] nodeIds,
+            [Description("Node labels, one per node id, in the same order")] string[] nodeLabels,
+            [Description("Edges as 'sourceId>targetId', one per edge")] string[] edges,
+            CancellationToken cancellationToken)
+            => ShowGraphAsync(owner, chatName, title, nodeIds, nodeLabels, edges, cancellationToken);
+
         var tools = new List<AIFunction>
         {
             AIFunctionFactory.Create(RenderChart, new AIFunctionFactoryOptions
@@ -38,6 +54,13 @@ internal sealed class KitToolSource(
                 Name = "render_chart",
                 Description = "Render a chart for the owner. It appears as a live card in the chat and can "
                     + "be shown on surfaces later. Use it whenever the owner asks to see data as a chart.",
+            }),
+            AIFunctionFactory.Create(ShowGraph, new AIFunctionFactoryOptions
+            {
+                Name = "show_graph",
+                Description = "Render a navigable graph for the owner. It appears as a live card in the "
+                    + "chat and can be shown on surfaces later. Use it whenever the owner asks to see how "
+                    + "things connect, relate, or depend on each other.",
             }),
         };
 
@@ -68,6 +91,80 @@ internal sealed class KitToolSource(
         return chatName.StartsWith(ownerPrefix, StringComparison.Ordinal)
             ? null
             : $"chatName must be a chat key of this owner (starting with '{ownerPrefix}').";
+    }
+
+    private async Task<string> ShowGraphAsync(
+        OwnerId owner,
+        string chatName,
+        string title,
+        string[] nodeIds,
+        string[] nodeLabels,
+        string[] edges,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (OwnerGuardError(owner, chatName) is { } ownerError)
+            {
+                return ownerError;
+            }
+
+            if (string.IsNullOrWhiteSpace(title))
+            {
+                return "title must not be blank.";
+            }
+
+            if (nodeIds.Length == 0)
+            {
+                return "nodeIds must contain at least one node.";
+            }
+
+            if (nodeIds.Length != nodeLabels.Length)
+            {
+                return "nodeIds and nodeLabels must have the same length.";
+            }
+
+            var known = nodeIds.Select(static id => id.Trim()).ToHashSet(StringComparer.Ordinal);
+
+            // The first id anchors the graph's centre; every other node sits on the shell.
+            var nodes = nodeIds
+                .Select((id, index) => new GraphNodeState(
+                    id.Trim(),
+                    nodeLabels[index].Trim(),
+                    index == 0 ? GraphNodeKinds.Hub : GraphNodeKinds.Leaf))
+                .ToArray();
+
+            var parsed = new List<GraphEdgeState>();
+            foreach (var edge in edges)
+            {
+                var parts = edge.Split('>', 2);
+                if (parts.Length != 2
+                    || !known.Contains(parts[0].Trim())
+                    || !known.Contains(parts[1].Trim()))
+                {
+                    return $"edge '{edge}' must be 'sourceId>targetId' using ids from nodeIds.";
+                }
+
+                var source = parts[0].Trim();
+                var target = parts[1].Trim();
+                parsed.Add(new GraphEdgeState($"{source}-{target}", source, target));
+            }
+
+            var trimmedTitle = title.Trim();
+            var name = $"graph-{Guid.NewGuid():N}"[..14];
+            var instance = KitInstanceNames.Sibling(chatName, name);
+
+            await grains.GetGrain<IGraph>(instance)
+                .Render(new GraphState(trimmedTitle, nodes, parsed));
+            await grains.GetGrain<IChat>(chatName)
+                .HandleAsync(new KitCardOffer(KitCardKinds.Graph, name, trimmedTitle), cancellationToken);
+
+            return $"Graph '{trimmedTitle}' is now showing in the chat as card '{name}'.";
+        }
+        catch (Exception ex)
+        {
+            return $"show_graph failed: {ex.GetType().Name}: {ex.Message}";
+        }
     }
 
     private async Task<string> RenderChartAsync(

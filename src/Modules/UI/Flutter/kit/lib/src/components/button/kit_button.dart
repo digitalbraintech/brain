@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:forui/forui.dart';
 
 import '../../models/kit_part.dart';
 import '../../theme/kit_theme.dart';
@@ -20,23 +21,14 @@ final class KitButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Align(
       alignment: Alignment.centerLeft,
-      child: FilledButton(
-        key: Key('kit_button_${part.buttonId}'),
-        style: FilledButton.styleFrom(
-          backgroundColor: KitPalette.signal,
-          foregroundColor: KitPalette.surface,
-          padding: EdgeInsets.symmetric(
-            horizontal: dense ? 14 : 18,
-            vertical: dense ? 10 : 12,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-        onPressed: onPressed == null ? null : () => onPressed!(part),
-        child: Text(
-          part.label,
-          style: KitType.metaStrong.copyWith(color: KitPalette.surface),
+      child: KitThemeScope(
+        brightness: Theme.of(context).brightness,
+        child: FButton(
+          key: Key('kit_button_${part.buttonId}'),
+          size: dense ? FButtonSizeVariant.sm : FButtonSizeVariant.md,
+          mainAxisSize: MainAxisSize.min,
+          onPress: onPressed == null ? null : () => onPressed!(part),
+          child: Text(part.label),
         ),
       ),
     );

@@ -1,4 +1,3 @@
-using DigitalBrain.Abstractions.Identity;
 using Microsoft.Extensions.AI;
 
 namespace DigitalBrain.AI;
@@ -7,5 +6,6 @@ namespace DigitalBrain.AI;
 // the allowed direction; this seam inverts tool ownership).
 public interface IAgentToolSource
 {
-    IReadOnlyList<AIFunction> ToolsFor(OwnerId owner);
+    ValueTask<IReadOnlyList<AITool>> GetToolsAsync(
+        AgentToolContext context, CancellationToken cancellationToken);
 }

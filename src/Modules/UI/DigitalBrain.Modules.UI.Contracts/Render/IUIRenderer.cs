@@ -1,6 +1,7 @@
 using DigitalBrain.Abstractions;
 
 using DigitalBrain.Abstractions.Neurons;
+using DigitalBrain.Abstractions.Signals;
 namespace DigitalBrain.UI;
 
 // The one write path into UI entities. A renderer instance shares its name with the entity it
@@ -10,7 +11,8 @@ namespace DigitalBrain.UI;
 public partial interface IUIRenderer :
     INeuron,
     IHandle<OpenSurface>,
-    IHandle<ControlActivated>
+    IHandle<ControlActivated>,
+    IHandle<ActivityChanged>
 {
     const string DefaultInstanceName = "default";
 }

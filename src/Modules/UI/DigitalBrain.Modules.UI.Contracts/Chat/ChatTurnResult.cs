@@ -1,4 +1,4 @@
-using DigitalBrain.Abstractions.Interactions;
+using DigitalBrain.Product.Interactions;
 
 namespace DigitalBrain.Chat;
 

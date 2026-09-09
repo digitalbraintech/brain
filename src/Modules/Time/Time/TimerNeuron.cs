@@ -1,3 +1,4 @@
+using DigitalBrain.Product.Identity;
 using System.Globalization;
 using DigitalBrain.Abstractions;
 using DigitalBrain.Abstractions.Identity;
@@ -19,30 +20,38 @@ public sealed class TimerNeuron : Neuron, ITimer, IRemindable
     private readonly IDurableValue<byte[]> _state;
     private readonly Serializer<TimerState> _states;
 
-    public TimerNeuron()
+    public TimerNeuron(NeuronRuntime runtime)
+        : base(runtime)
     {
         _state = ServiceProvider.GetRequiredKeyedService<IDurableValue<byte[]>>(StateName);
         _states = ServiceProvider.GetRequiredService<Serializer<TimerState>>();
     }
 
-    public Task<TimerSnapshot> Read()
-        => Task.FromResult(
-            LoadRecorded() is { } data
-                ? new TimerSnapshot(data.Status, data.Generation, data.ScheduledAt, data.DueAt, data.Duration, data.Note)
-                : new TimerSnapshot(TimerStatus.Unscheduled, Generation: 0, null, null, null, null));
+    private TimerSnapshot Snapshot()
+        => LoadRecorded() is { } data
+            ? new TimerSnapshot(data.Status, data.Generation, data.ScheduledAt, data.DueAt, data.Duration, data.Note)
+            : new TimerSnapshot(TimerStatus.Unscheduled, Generation: 0, null, null, null, null);
 
-    public async Task HandleAsync(StartTimer synapse, CancellationToken cancellationToken)
+    public async Task HandleAsync(ReadTimer signal, CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(synapse);
+        ArgumentNullException.ThrowIfNull(signal);
         cancellationToken.ThrowIfCancellationRequested();
-        RequireCommand(synapse.CommandId);
+        await ReplyAsync(Snapshot())
+            .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
+    }
 
-        if (synapse.DurationSeconds <= 0)
+    public async Task HandleAsync(StartTimer signal, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(signal);
+        cancellationToken.ThrowIfCancellationRequested();
+        RequireCommand(signal.CommandId);
+
+        if (signal.DurationSeconds <= 0)
         {
             throw new NeuronAuthorizationException($"Timer '{Id}' refuses a non-positive duration.");
         }
 
-        if (string.IsNullOrWhiteSpace(synapse.Note))
+        if (string.IsNullOrWhiteSpace(signal.Note))
         {
             throw new NeuronAuthorizationException($"Timer '{Id}' refuses to arm without a note to deliver.");
         }
@@ -56,7 +65,7 @@ public sealed class TimerNeuron : Neuron, ITimer, IRemindable
 
         var generation = (current?.Generation ?? 0) + 1;
         var scheduledAt = TimeProvider.GetUtcNow();
-        var duration = TimeSpan.FromSeconds(synapse.DurationSeconds);
+        var duration = TimeSpan.FromSeconds(signal.DurationSeconds);
         var dueAt = scheduledAt + duration;
         var reminderName = ReminderName(generation);
 
@@ -66,23 +75,21 @@ public sealed class TimerNeuron : Neuron, ITimer, IRemindable
             scheduledAt,
             dueAt,
             duration,
-            synapse.Note,
+            signal.Note,
             reminderName));
 
         await RegisterReminderAsync(reminderName, duration).ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
+        cancellationToken.ThrowIfCancellationRequested();
         await ReplyAsync(
-            new TimerScheduled(synapse.CommandId, Id, generation, scheduledAt, dueAt, duration, synapse.Note),
-            cancellationToken).ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
-        await EmitAsync(
-            new TimerScheduled(synapse.CommandId, Id, generation, scheduledAt, dueAt, duration, synapse.Note))
+            new TimerScheduled(signal.CommandId, Id, generation, scheduledAt, dueAt, duration, signal.Note))
             .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
     }
 
-    public async Task HandleAsync(CancelTimer synapse, CancellationToken cancellationToken)
+    public async Task HandleAsync(CancelTimer signal, CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(synapse);
+        ArgumentNullException.ThrowIfNull(signal);
         cancellationToken.ThrowIfCancellationRequested();
-        RequireCommand(synapse.CommandId);
+        RequireCommand(signal.CommandId);
 
         var current = LoadRecorded();
         if (current is not { Status: TimerStatus.Scheduled })
@@ -92,10 +99,9 @@ public sealed class TimerNeuron : Neuron, ITimer, IRemindable
 
         Stage(current with { Status = TimerStatus.Cancelled, ActiveReminderName = null });
 
+        cancellationToken.ThrowIfCancellationRequested();
         await ReplyAsync(
-            new TimerCancelled(synapse.CommandId, Id, current.Generation),
-            cancellationToken).ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
-        await EmitAsync(new TimerCancelled(synapse.CommandId, Id, current.Generation))
+            new TimerCancelled(signal.CommandId, Id, current.Generation))
             .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
         await RetireReminderAsync(current.ActiveReminderName).ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext);
     }
@@ -139,7 +145,7 @@ public sealed class TimerNeuron : Neuron, ITimer, IRemindable
 
         try
         {
-            await EmitAsync(new TimerElapsed(
+            await RecordOutgoingAsync(new TimerElapsed(
                 Id,
                 generation,
                 data.ScheduledAt,

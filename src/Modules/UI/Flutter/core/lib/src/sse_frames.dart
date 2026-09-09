@@ -39,7 +39,7 @@ final class SseSceneOpenedParser {
     if (data == null) {
       return;
     }
-    if (name != 'scene-opened') {
+    if (name != 'surface-opened' && name != 'scene-opened') {
       return;
     }
 

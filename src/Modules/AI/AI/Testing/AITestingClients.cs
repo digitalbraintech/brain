@@ -1,4 +1,5 @@
 using Microsoft.Extensions.AI;
+using DigitalBrain.Product.Interactions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -32,12 +33,23 @@ internal static class AITestingClients
         services.TryAddSingleton<IChatClient>(chatClient);
         services.TryAddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(embeddingGenerator);
         services.TryAddSingleton<IImageGeneration, TestImageGeneration>();
+        services.TryAddSingleton<IUntrustedContentScreen, TestContentScreen>();
 
         // Voice too, and for the same reason: testing mode must not reach a real
         // provider. Registered here rather than through VoiceToTextHosting so no
         // pinned marker can route a suite at a billed endpoint.
         services.TryAddSingleton<IAudioConverter, OggOpusToWavConverter>();
         services.TryAddSingleton<IAudioTranscriptionService, TestTranscriptionService>();
+    }
+
+    // Testing mode composes offline provider fixtures and must never create a live classifier.
+    private sealed class TestContentScreen : IUntrustedContentScreen
+    {
+        public Task ScreenAsync(string content, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class TestEmbeddingGenerator : IEmbeddingGenerator<string, Embedding<float>>

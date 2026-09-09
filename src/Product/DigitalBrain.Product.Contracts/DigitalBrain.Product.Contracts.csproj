@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <Description>Product-level contracts for commands, agent turns, and trusted user interactions.</Description>
+    <RootNamespace>DigitalBrain.Product</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Orleans.Sdk" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../Kernel/DigitalBrain.Contracts/DigitalBrain.Contracts.csproj" />
+  </ItemGroup>
+</Project>

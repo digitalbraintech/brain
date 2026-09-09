@@ -1,7 +1,8 @@
+using DigitalBrain.Product.Identity;
 using DigitalBrain.Abstractions;
 
 using DigitalBrain.Abstractions.Identity;
-using DigitalBrain.Abstractions.Messaging;
+using DigitalBrain.Abstractions.Signals;
 namespace DigitalBrain.Time;
 
 [GenerateSerializer]
@@ -9,5 +10,5 @@ namespace DigitalBrain.Time;
 public sealed record StartTimer(
     [property: Id(0)] CommandId CommandId,
     [property: Id(1)] int DurationSeconds,
-    [property: Id(2)] string Note) : RequestSynapse<TimerScheduled>;
+    [property: Id(2)] string Note) : Signal<TimerScheduled>;
 

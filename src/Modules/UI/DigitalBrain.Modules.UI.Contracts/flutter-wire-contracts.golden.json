@@ -87,6 +87,48 @@
       "methods": []
     },
     {
+      "name": "IGraph",
+      "kind": "interface",
+      "alias": "ui.graph",
+      "properties": [],
+      "methods": []
+    },
+    {
+      "name": "GraphState",
+      "kind": "record",
+      "alias": "ui.graph-state",
+      "properties": [
+        { "name": "Title", "type": "String" },
+        { "name": "Nodes", "type": "IReadOnlyList<GraphNodeState>" },
+        { "name": "Edges", "type": "IReadOnlyList<GraphEdgeState>" }
+      ],
+      "methods": []
+    },
+    {
+      "name": "GraphNodeState",
+      "kind": "record",
+      "alias": "ui.graph-node",
+      "properties": [
+        { "name": "Id", "type": "String" },
+        { "name": "Label", "type": "String" },
+        { "name": "Kind", "type": "String" },
+        { "name": "Cluster", "type": "String" }
+      ],
+      "methods": []
+    },
+    {
+      "name": "GraphEdgeState",
+      "kind": "record",
+      "alias": "ui.graph-edge",
+      "properties": [
+        { "name": "Id", "type": "String" },
+        { "name": "SourceId", "type": "String" },
+        { "name": "TargetId", "type": "String" },
+        { "name": "Dotted", "type": "Boolean" }
+      ],
+      "methods": []
+    },
+    {
       "name": "ImageState",
       "kind": "record",
       "alias": "ui.image-state",
@@ -95,6 +137,27 @@
         { "name": "Model", "type": "String" },
         { "name": "MediaType", "type": "String" },
         { "name": "BlobName", "type": "String" }
+      ],
+      "methods": []
+    },
+    {
+      "name": "ExcelState",
+      "kind": "record",
+      "alias": "excel.workbook-state",
+      "properties": [
+        { "name": "Title", "type": "String" },
+        { "name": "SheetName", "type": "String" },
+        { "name": "Columns", "type": "IReadOnlyList<String>" },
+        { "name": "Rows", "type": "IReadOnlyList<ExcelRow>" }
+      ],
+      "methods": []
+    },
+    {
+      "name": "ExcelRow",
+      "kind": "record",
+      "alias": "excel.row",
+      "properties": [
+        { "name": "Cells", "type": "IReadOnlyList<String>" }
       ],
       "methods": []
     }

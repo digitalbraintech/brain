@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <Description>Reusable module infrastructure on DigitalBrain: hosted MCP tool client and the kernel HTTP surface seam.</Description>
+    <RootNamespace>DigitalBrain.Sdk</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="ModelContextProtocol.Core" />
+    <PackageReference Include="Microsoft.Orleans.Client" />
+    <PackageReference Include="Microsoft.Orleans.Clustering.AzureStorage" />
+    <PackageReference Include="Aspire.Azure.Data.Tables" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../Product/DigitalBrain.Product.Contracts/DigitalBrain.Product.Contracts.csproj" />
+    <ProjectReference Include="../DigitalBrain.Contracts/DigitalBrain.Contracts.csproj" />
+    <ProjectReference Include="../DigitalBrain/DigitalBrain.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="DigitalBrain.Simulation.Tests" />
+    <InternalsVisibleTo Include="DigitalBrain.AI.Tests" />
+    <InternalsVisibleTo Include="DigitalBrain.Scripting" />
+    <InternalsVisibleTo Include="DigitalBrain.Testing" />
+    <InternalsVisibleTo Include="DigitalBrain.Modules.AI" />
+    <InternalsVisibleTo Include="DigitalBrain.Modules.AI.Sdk" />
+  </ItemGroup>
+</Project>

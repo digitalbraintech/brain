@@ -1,10 +1,9 @@
 import 'package:digitalbrain_flutter/digitalbrain_flutter.dart';
+import 'package:digitalbrain_ui_kit/digitalbrain_ui_kit.dart';
 import 'package:flutter/material.dart';
 
-import '../brain_theme.dart';
 import '../user_actions/user_action_card.dart';
 import 'brain_workspace.dart';
-import '../behaviors/behavior_workspace.dart';
 import 'chat_contracts.dart';
 
 export 'chat_contracts.dart';
@@ -21,16 +20,19 @@ final class BrainChatApp extends StatelessWidget {
     this.onOpenSignIn,
     this.kernelBaseUri,
     this.onCancelTurn,
-    this.onActivateButton,
     this.onReadChart,
     this.onReadImageBytes,
-    this.onLoadBehaviors,
-    this.onLoadBehaviorSteps,
-    this.onSaveBehavior,
-    this.onTestBehavior,
-    this.onActivateBehavior,
-    this.onRunBehaviorFake,
-    this.onGenerateBehavior,
+    this.onReadSpreadsheet,
+    this.onReadGraph,
+    this.onReadSurface,
+    this.onReadBrain,
+    this.onWatchBrain,
+    this.onWatchActivities,
+    this.surfaceEvents,
+    this.client,
+    this.behaviorStudio,
+    this.onSetBrainSubscription,
+    this.graphSceneFactory,
     this.userActions = const [],
     this.statusMessage,
   });
@@ -44,16 +46,19 @@ final class BrainChatApp extends StatelessWidget {
   final OpenUrl? onOpenSignIn;
   final Uri? kernelBaseUri;
   final CancelChatTurn? onCancelTurn;
-  final ActivateChatButton? onActivateButton;
   final ReadChart? onReadChart;
   final ReadImageBytes? onReadImageBytes;
-  final LoadBehaviors? onLoadBehaviors;
-  final LoadBehaviorSteps? onLoadBehaviorSteps;
-  final SaveBehavior? onSaveBehavior;
-  final TestBehavior? onTestBehavior;
-  final ActivateBehavior? onActivateBehavior;
-  final RunBehaviorFake? onRunBehaviorFake;
-  final GenerateBehavior? onGenerateBehavior;
+  final ReadSpreadsheet? onReadSpreadsheet;
+  final ReadGraph? onReadGraph;
+  final ReadSurface? onReadSurface;
+  final ReadBrain? onReadBrain;
+  final WatchBrain? onWatchBrain;
+  final WatchExecutionActivities? onWatchActivities;
+  final Stream<SceneOpenedEvent>? surfaceEvents;
+  final DigitalBrainUiClient? client;
+  final ApplicationStudioApi? behaviorStudio;
+  final SetBrainSubscription? onSetBrainSubscription;
+  final GraphSceneFactory? graphSceneFactory;
   final List<UserActionCardModel> userActions;
   final String? statusMessage;
 
@@ -62,7 +67,8 @@ final class BrainChatApp extends StatelessWidget {
     return MaterialApp(
       title: 'DigitalBrain',
       debugShowCheckedModeBanner: false,
-      theme: BrainTheme.dark(),
+      theme: KitTheme.light(),
+      builder: (context, child) => KitThemeScope(child: child!),
       home: BrainWorkspace(
         chatName: chatName,
         turns: turns,
@@ -73,16 +79,19 @@ final class BrainChatApp extends StatelessWidget {
         onOpenSignIn: onOpenSignIn,
         kernelBaseUri: kernelBaseUri,
         onCancelTurn: onCancelTurn,
-        onActivateButton: onActivateButton,
         onReadChart: onReadChart,
         onReadImageBytes: onReadImageBytes,
-        onLoadBehaviors: onLoadBehaviors,
-        onLoadBehaviorSteps: onLoadBehaviorSteps,
-        onSaveBehavior: onSaveBehavior,
-        onTestBehavior: onTestBehavior,
-        onActivateBehavior: onActivateBehavior,
-        onRunBehaviorFake: onRunBehaviorFake,
-        onGenerateBehavior: onGenerateBehavior,
+        onReadSpreadsheet: onReadSpreadsheet,
+        onReadGraph: onReadGraph,
+        onReadSurface: onReadSurface,
+        onReadBrain: onReadBrain,
+        onWatchBrain: onWatchBrain,
+        onWatchActivities: onWatchActivities,
+        surfaceEvents: surfaceEvents,
+        client: client,
+        behaviorStudio: behaviorStudio,
+        onSetBrainSubscription: onSetBrainSubscription,
+        graphSceneFactory: graphSceneFactory,
         userActions: userActions,
         statusMessage: statusMessage,
       ),

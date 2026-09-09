@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../models/kit_part.dart';
 import '../../theme/kit_theme.dart';
+import '../sheet/kit_sheet.dart';
 
 /// Renders a kind-bound interactive surface. Calculator is the built-in kind.
 final class KitView extends StatelessWidget {
@@ -21,6 +23,18 @@ final class KitView extends StatelessWidget {
   Widget build(BuildContext context) {
     if (kind.toLowerCase() == 'calculator') {
       return _CalculatorPad(display: display, phase: phase, onKey: onKey);
+    }
+
+    if (kind.toLowerCase() == 'spreadsheet') {
+      return const KitSheet(
+        part: KitSheetPart(
+          title: 'Sheet',
+          columns: ['A', 'B'],
+          rows: [
+            ['', ''],
+          ],
+        ),
+      );
     }
 
     return Card(

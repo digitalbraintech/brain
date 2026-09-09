@@ -71,6 +71,7 @@ public static class DigitalBrainHostingExtensions
         }
 
         state.Enable();
+        brain.FakesEnabled = true;
         return brain;
     }
 

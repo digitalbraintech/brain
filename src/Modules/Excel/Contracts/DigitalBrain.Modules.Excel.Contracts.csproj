@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <Description>Excel module contracts: spreadsheet entity state and load/edit entry points.</Description>
+    <RootNamespace>DigitalBrain.Excel</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../../Kernel/DigitalBrain.Contracts/DigitalBrain.Contracts.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_chat_core/flutter_chat_core.dart';
+import 'package:forui/forui.dart';
+import 'package:material_ui/material_ui.dart' as material;
+
+import '../lumen/lumen_palette.dart';
 
 /// Product color tokens. Shell and kit both consume these — do not re-declare
 /// palettes in the shell package.
@@ -106,6 +110,62 @@ abstract final class KitType {
 }
 
 abstract final class KitTheme {
+  // Forui + Lumen were selected for the product redesign. Keep the third-party
+  // theme behind this bridge while legacy dark components migrate explicitly.
+  static final _lumenForui = FThemeData(
+    debugLabel: 'DigitalBrain Lumen',
+    touch: true,
+    colors: FColors.neutralLight.copyWith(
+      background: LumenPalette.background,
+      foreground: LumenPalette.ink,
+      primary: LumenPalette.accent,
+      primaryForeground: LumenPalette.surface,
+      secondary: LumenPalette.accentSoft,
+      secondaryForeground: LumenPalette.accent,
+      muted: LumenPalette.surfaceMuted,
+      mutedForeground: LumenPalette.muted,
+      card: LumenPalette.surface,
+      border: LumenPalette.line,
+      destructive: LumenPalette.error,
+      error: LumenPalette.error,
+    ),
+  );
+
+  static ThemeData light() => ThemeData(
+    useMaterial3: true,
+    brightness: Brightness.light,
+    fontFamily: KitType.bodyFamily,
+    fontFamilyFallback: KitType.bodyFallback,
+    colorScheme: const ColorScheme.light(
+      primary: LumenPalette.accent,
+      onPrimary: LumenPalette.surface,
+      secondary: LumenPalette.accentSoft,
+      onSecondary: LumenPalette.ink,
+      surface: LumenPalette.surface,
+      onSurface: LumenPalette.ink,
+      error: LumenPalette.error,
+      outline: LumenPalette.lineStrong,
+      outlineVariant: LumenPalette.line,
+    ),
+    scaffoldBackgroundColor: LumenPalette.background,
+    dividerColor: LumenPalette.line,
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: LumenPalette.surface,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: LumenPalette.line),
+      ),
+    ),
+    tooltipTheme: TooltipThemeData(
+      decoration: BoxDecoration(
+        color: LumenPalette.ink,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      textStyle: const TextStyle(color: LumenPalette.surface, fontSize: 12),
+    ),
+  );
+
   static ThemeData dark() {
     final scheme = ColorScheme.fromSeed(
       seedColor: KitPalette.signal,
@@ -156,7 +216,58 @@ abstract final class KitTheme {
   }
 }
 
+/// Installs the approved product control foundation below MaterialApp.
+///
+/// Localization stays in this bridge so surfaces never need to import Forui.
+final class KitThemeScope extends StatelessWidget {
+  const KitThemeScope({
+    super.key,
+    required this.child,
+    this.brightness = Brightness.light,
+  });
+
+  final Widget child;
+  final Brightness brightness;
+
+  @override
+  Widget build(BuildContext context) {
+    final data = brightness == Brightness.light
+        ? KitTheme._lumenForui
+        : FTheme.neutral.dark.touch;
+    return Localizations.override(
+      context: context,
+      delegates: FLocalizations.localizationsDelegates,
+      child: material.Theme(
+        data: data.toApproximateMaterialTheme(),
+        child: material.Material(
+          type: material.MaterialType.transparency,
+          child: FTheme(data: data, child: child),
+        ),
+      ),
+    );
+  }
+}
+
 abstract final class KitChatTheme {
+  static ChatTheme light() => ChatTheme(
+    colors: const ChatColors(
+      primary: LumenPalette.accent,
+      onPrimary: LumenPalette.surface,
+      surface: LumenPalette.background,
+      onSurface: LumenPalette.ink,
+      surfaceContainer: LumenPalette.surface,
+      surfaceContainerLow: LumenPalette.surfaceMuted,
+      surfaceContainerHigh: LumenPalette.accentSoft,
+    ),
+    typography: ChatTypography.standard(fontFamily: KitType.bodyFamily)
+        .copyWith(
+          bodyMedium: KitType.body.copyWith(color: LumenPalette.ink),
+          bodySmall: KitType.bodyMuted.copyWith(color: LumenPalette.muted),
+          labelSmall: KitType.meta.copyWith(color: LumenPalette.muted),
+        ),
+    shape: BorderRadius.circular(16),
+  );
+
   static ChatTheme dark() {
     final base = ChatTypography.standard(fontFamily: KitType.bodyFamily);
     return ChatTheme(

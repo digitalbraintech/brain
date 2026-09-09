@@ -15,7 +15,7 @@ final class ActivateControlRequest {
 
   Map<String, Object?> toJson() => {
     'intent': intent,
-    if (sceneKey != null) 'sceneKey': sceneKey,
+    if (sceneKey != null) 'surfaceKey': sceneKey,
   };
 }
 
@@ -37,10 +37,10 @@ final class SceneOpenedEvent {
   factory SceneOpenedEvent.fromJson(Map<String, Object?> json) {
     return SceneOpenedEvent(
       sequence: (json['sequence'] as num).toInt(),
-      sceneKey: json['sceneKey'] as String,
+      sceneKey: (json['surfaceKey'] ?? json['sceneKey']) as String,
       title: json['title'] as String,
       commandId: json['commandId'] as String,
-      shell: json['shell'] as String,
+      shell: (json['surface'] ?? json['shell']) as String,
     );
   }
 }

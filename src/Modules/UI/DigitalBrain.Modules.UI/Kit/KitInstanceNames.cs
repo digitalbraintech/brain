@@ -3,7 +3,7 @@ namespace DigitalBrain.UI;
 // Kit entities (chart, image) must live under the same principal partition as the chat
 // that created them, so the kernel's /kit endpoints can resolve a card back to a grain
 // from the caller's principal + local name alone. Mirrors PrincipalPartition's
-// "{principal:N}.{local}" scheme (see PrincipalScoped.InstanceName in DigitalBrain.Kernel).
+// "{principal:N}.{local}" scheme (see PrincipalScoped.InstanceName in DigitalBrain.Silo).
 internal static class KitInstanceNames
 {
     public static string Sibling(string chatInstance, string localName)

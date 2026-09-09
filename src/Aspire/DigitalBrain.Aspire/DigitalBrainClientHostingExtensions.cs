@@ -1,5 +1,4 @@
 using DigitalBrain.Abstractions;
-using DigitalBrain.Client;
 using DigitalBrain.ServiceDefaults;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

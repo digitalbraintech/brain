@@ -39,27 +39,25 @@ final class SseChatDeltaParser {
     if (data == null) {
       return;
     }
+    if (name == 'chat-accepted') {
+      final payload = jsonDecode(data) as Map<String, dynamic>;
+      yield ChatDelta.accepted(
+        commandId: payload['commandId'] as String,
+        turnId: payload['turnId'] as String,
+      );
+      return;
+    }
+    if (name == 'chat-error') {
+      final payload = jsonDecode(data) as Map<String, dynamic>;
+      throw StateError(
+        payload['message'] as String? ??
+            'The assistant could not complete this turn.',
+      );
+    }
     if (name != 'chat-delta') {
       return;
     }
 
-    final event = _decode(data);
-    if (event != null) {
-      yield event;
-    }
-  }
-
-  static ChatDelta? _decode(String payload) {
-    try {
-      final decoded = jsonDecode(payload);
-      if (decoded is! Map) {
-        return null;
-      }
-      return ChatDelta.fromJson(Map<String, Object?>.from(decoded));
-    } on FormatException {
-      return null;
-    } on TypeError {
-      return null;
-    }
+    yield ChatDelta.fromJson(jsonDecode(data) as Map<String, dynamic>);
   }
 }

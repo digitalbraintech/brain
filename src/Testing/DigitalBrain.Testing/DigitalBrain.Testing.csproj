@@ -8,7 +8,7 @@
     <PackageReference Include="Microsoft.Orleans.TestingHost" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="../../Kernel/DigitalBrain.Core/DigitalBrain.Core.csproj" />
-    <ProjectReference Include="../../Kernel/DigitalBrain.Client/DigitalBrain.Client.csproj" />
+    <ProjectReference Include="../../Kernel/DigitalBrain/DigitalBrain.csproj" />
+    <ProjectReference Include="../../Kernel/DigitalBrain.Sdk/DigitalBrain.Sdk.csproj" />
   </ItemGroup>
 </Project>

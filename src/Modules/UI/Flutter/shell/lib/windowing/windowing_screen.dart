@@ -1,20 +1,55 @@
+import 'dart:async';
+
 import 'package:digitalbrain_ui_kit/digitalbrain_ui_kit.dart';
 import 'package:flutter/material.dart';
 
 import '../brain_theme.dart';
+import '../chat/chat_contracts.dart';
 import '../demos/shell_chart_demo.dart';
 import 'panel_manager.dart';
 
-/// Offline windowing playground — drag, resize, minimize, tidy. No C# / edge.
+/// Desk windows from ISurface scenes (`GET /kit/surfaces/desk`). Demo panels if empty.
 final class WindowingScreen extends StatefulWidget {
-  const WindowingScreen({super.key});
+  const WindowingScreen({super.key, this.onReadSurface});
+
+  final ReadSurface? onReadSurface;
 
   @override
   State<WindowingScreen> createState() => _WindowingScreenState();
 }
 
 final class _WindowingScreenState extends State<WindowingScreen> {
-  late final PanelManager _manager = PanelManager()..seedDemoPanels();
+  late final PanelManager _manager = PanelManager();
+
+  @override
+  void initState() {
+    super.initState();
+    _manager.seedDemoPanels();
+    unawaited(_loadDesk());
+  }
+
+  Future<void> _loadDesk() async {
+    final read = widget.onReadSurface;
+    if (read == null) {
+      return;
+    }
+    try {
+      final surface = await read('desk');
+      if (!mounted || surface == null || surface.scenes.isEmpty) {
+        return;
+      }
+      _manager.loadScenes([
+        for (final scene in surface.scenes)
+          (
+            scene.surfaceKey,
+            scene.title,
+            scene.surfaceKey.startsWith('chart:')
+                ? WindowPanelKind.chart
+                : WindowPanelKind.notes,
+          ),
+      ]);
+    } catch (_) {}
+  }
 
   @override
   void dispose() {

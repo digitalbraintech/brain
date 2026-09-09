@@ -4,12 +4,18 @@
     <NoWarn>$(NoWarn);CA2007;CA1812</NoWarn>
   </PropertyGroup>
   <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>DigitalBrain.Authoring.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="ModelContextProtocol.AspNetCore" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="../../Product/DigitalBrain.Product.Contracts/DigitalBrain.Product.Contracts.csproj" />
     <ProjectReference Include="../../Modules/UI/DigitalBrain.Modules.UI.Contracts/DigitalBrain.Modules.UI.Contracts.csproj" />
-    <ProjectReference Include="../../Modules/SmartPrompt/Contracts/DigitalBrain.Modules.SmartPrompt.Contracts.csproj" />
+    <ProjectReference Include="../../Modules/UI/DigitalBrain.Modules.UI/DigitalBrain.Modules.UI.csproj" />
+    <ProjectReference Include="../../Modules/AI/Contracts/DigitalBrain.Modules.AI.Contracts.csproj" />
     <ProjectReference Include="../../Aspire/DigitalBrain.Aspire/DigitalBrain.Aspire.csproj" />
-    <ProjectReference Include="../DigitalBrain.Client/DigitalBrain.Client.csproj" />
   </ItemGroup>
 </Project>

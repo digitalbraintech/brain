@@ -1,8 +1,11 @@
 using DigitalBrain.Abstractions;
 using DigitalBrain.Core;
 using DigitalBrain.ServiceDefaults;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Orleans.Configuration;
 using Orleans.Dashboard;
+using Orleans.Storage;
 
 namespace DigitalBrain.Aspire;
 
@@ -28,6 +31,12 @@ public static class DigitalBrainRuntimeHostingExtensions
         builder.AddKeyedAzureBlobServiceClient(DigitalBrainNames.GrainState);
         builder.UseOrleans(silo =>
         {
+            silo.Services.AddKeyedSingleton<IGrainStorageSerializer>(
+                DigitalBrainNames.DefaultGrainStorage,
+                static (services, _) => new OrleansGrainStorageSerializer(
+                    services.GetRequiredService<Orleans.Serialization.Serializer>()));
+            silo.Services.AddOptions<AzureBlobStorageOptions>(DigitalBrainNames.DefaultGrainStorage)
+                .Configure(static options => options.ContainerName = "digitalbrain-v2-state");
             silo.AddAzureBlobJournal(builder.Configuration);
             DigitalBrainRuntime.Add(silo, modules);
             silo.AddDashboard(options =>

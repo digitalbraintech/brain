@@ -20,7 +20,10 @@ internal static class AzureOrleansJournalHosting
                 $"Missing connection string '{DigitalBrainNames.JournalConnection}'. "
                 + "Neuron journals require Azure Blob storage in this host.");
 
-        return builder.AddAzureBlobJournalStorage(
-            options => options.ConfigureBlobServiceClient(connectionString));
+        return builder.AddAzureBlobJournalStorage(options =>
+        {
+            options.ContainerName = "digitalbrain-v2-journal";
+            options.ConfigureBlobServiceClient(connectionString);
+        });
     }
 }

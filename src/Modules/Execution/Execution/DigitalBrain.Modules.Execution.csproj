@@ -1,13 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <IsPackable>true</IsPackable>
-    <Description>Execution module: ExecutionNeuron, ExecutionContext entity, EffectBroker Sdk.</Description>
+    <Description>Execution module: chat-turn ExecutionNeuron and ExecutionContext entity.</Description>
     <RootNamespace>DigitalBrain.Execution</RootNamespace>
     <NoWarn>$(NoWarn);ORLEANSEXP005</NoWarn>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="../../../Product/DigitalBrain.Product.Contracts/DigitalBrain.Product.Contracts.csproj" />
     <ProjectReference Include="../Contracts/DigitalBrain.Modules.Execution.Contracts.csproj" />
     <ProjectReference Include="../../UI/DigitalBrain.Modules.UI.Contracts/DigitalBrain.Modules.UI.Contracts.csproj" />
-    <ProjectReference Include="../../../Kernel/DigitalBrain.Core/DigitalBrain.Core.csproj" />
+    <ProjectReference Include="../../../Kernel/DigitalBrain/DigitalBrain.csproj" />
   </ItemGroup>
+
 </Project>
