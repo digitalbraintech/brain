@@ -110,28 +110,6 @@ jobs:
           fi
           echo "waiting on revision ${revision}"
 
-          dump_revision_logs() {
-            echo "----- revision ${revision} details -----"
-            az containerapp revision show \
-              --name "${{ vars.AZURE_CONTAINERAPP_NAME }}" \
-              --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
-              --revision "$revision" \
-              --query "{state:properties.runningState,health:properties.healthState,replicas:properties.replicas,image:properties.template.containers[0].image}" \
-              -o json || true
-            echo "----- console logs (app) -----"
-            az containerapp logs show \
-              --name "${{ vars.AZURE_CONTAINERAPP_NAME }}" \
-              --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
-              --type console \
-              --tail 120 || true
-            echo "----- system logs -----"
-            az containerapp logs show \
-              --name "${{ vars.AZURE_CONTAINERAPP_NAME }}" \
-              --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
-              --type system \
-              --tail 80 || true
-          }
-
           for attempt in $(seq 1 40); do
             state=$(az containerapp revision show \
               --name "${{ vars.AZURE_CONTAINERAPP_NAME }}" \
@@ -150,7 +128,10 @@ jobs:
                 ;;
               Failed|Degraded)
                 echo "revision ${revision} reported ${state}"
-                dump_revision_logs
+                az containerapp logs show \
+                  --name "${{ vars.AZURE_CONTAINERAPP_NAME }}" \
+                  --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+                  --revision "$revision" --type system --tail 40
                 exit 1
                 ;;
               *)
@@ -160,7 +141,6 @@ jobs:
             sleep 15
           done
           echo "revision ${revision} did not take traffic within 10 minutes"
-          dump_revision_logs
           exit 1
 
   deploy-flutter-web:
