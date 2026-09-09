@@ -23,7 +23,9 @@ internal sealed class ActivitiesNeuron : Neuron, IActivities
     {
         ActivityFacts.RequireOwner(signal, Id.Owner, CurrentDelivery?.Principal);
         var key = $"{signal.Principal?.ToString() ?? "system"}/{signal.CorrelationId}";
-        var state = _activities.TryGetValue(key, out var existing) ? _serializer.Deserialize(existing) : new ActivityState();
+        var state = _activities.TryGetValue(key, out var existing)
+            ? RequireActivityState(_serializer.Deserialize(existing))
+            : new ActivityState();
         if (state.Apply(signal))
         {
             _activities[key] = _serializer.SerializeToArray(state);
@@ -37,11 +39,14 @@ internal sealed class ActivitiesNeuron : Neuron, IActivities
     public Task HandleAsync(ReadActivities signal, CancellationToken cancellationToken)
     {
         var principal = VerifiedActor.Current?.PrincipalId;
-        var views = _activities.Select(pair => _serializer.Deserialize(pair.Value).View())
+        var views = _activities.Select(pair => RequireActivityState(_serializer.Deserialize(pair.Value)).View())
             .Where(view => view.Principal is null || view.Principal == principal)
             .OrderByDescending(view => view.UpdatedAt).Take(Math.Clamp(signal.Limit, 1, 500)).ToArray();
         return ReplyAsync(new ActivitiesSnapshot(TimeProvider.GetUtcNow(), views));
     }
+
+    private static ActivityState RequireActivityState(ActivityState? state)
+        => state ?? throw new InvalidOperationException("Activity state deserialize returned null.");
 }
 
 internal static class ActivityFacts

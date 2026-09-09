@@ -12,6 +12,8 @@ public sealed class FileApplicationCompiler
         <Project>
           <PropertyGroup Condition="'$(FileBasedProgram)' == 'true'">
             <_GlobalPropertiesToRemoveFromProjectReferences>$(_GlobalPropertiesToRemoveFromProjectReferences);CustomAfterMicrosoftCommonTargets</_GlobalPropertiesToRemoveFromProjectReferences>
+            <!-- Match Silo/MCP: file apps are not library code; CA2007 is noise under AnalysisLevel preview. -->
+            <NoWarn>$(NoWarn);CA2007</NoWarn>
           </PropertyGroup>
           <Target Name="DigitalBrainRemoveFileApplicationOrleansGenerator" BeforeTargets="CoreCompile"
                   Condition="'$(FileBasedProgram)' == 'true'">

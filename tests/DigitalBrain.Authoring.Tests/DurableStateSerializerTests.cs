@@ -44,6 +44,7 @@ public sealed class DurableStateSerializerTests
 
         var stored = serializer.Serialize(expected);
         var recovered = serializer.Deserialize<WorkspaceIndexState>(stored);
+        Assert.NotNull(recovered);
 
         var workspace = Assert.Single(recovered.Workspaces);
         Assert.Equal("main", workspace.Name);

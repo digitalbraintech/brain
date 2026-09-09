@@ -58,7 +58,8 @@ internal sealed class ActivitySourceNeuron : Neuron, IActivitySource
         foreach (var pending in _pending.OrderBy(pair => pair.Key).Take(32).ToArray())
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var delivery = _serializer.Deserialize(pending.Value);
+            var delivery = _serializer.Deserialize(pending.Value)
+                ?? throw new InvalidOperationException($"Activity delivery {pending.Key} deserialize returned null.");
             using var actor = VerifiedActor.Enter(delivery.Principal is { } principal
                 ? new ActorContext(principal, "_activity") : null);
             try

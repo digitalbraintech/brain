@@ -279,7 +279,9 @@ internal sealed class Repository : WebhookNeuron, IRepository, IRepositoryProjec
 
         facts.Add(new(eventId, new PullRequestChanged(snapshot, change, eventId)));
     }
-    private RepositoryState Load() => _loaded ??= _state.Value is { Length: > 0 } bytes ? _serializer.Deserialize(bytes) : new();
+    private RepositoryState Load() => _loaded ??= _state.Value is { Length: > 0 } bytes
+        ? _serializer.Deserialize(bytes) ?? new()
+        : new();
     private void Stage(RepositoryState next)
     {
         _loaded = next;

@@ -416,7 +416,7 @@ internal sealed class Chat : Neuron, IChat, IChatKernel
         }
 
         var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(signal.Text)));
-        var existing = _publicationLog.Select(_publications.Deserialize).FirstOrDefault(entry => entry.Id == signal.PublicationId);
+        var existing = _publicationLog.Select(RequirePublication).FirstOrDefault(entry => entry.Id == signal.PublicationId);
         if (existing is not null)
         {
             if (!string.Equals(existing.ContentHash, hash, StringComparison.Ordinal))
@@ -454,7 +454,7 @@ internal sealed class Chat : Neuron, IChat, IChatKernel
 
         var publicationId = CurrentDelivery?.SignalId.Value ?? Guid.NewGuid();
         var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(signal.Text)));
-        var existing = _publicationLog.Select(_publications.Deserialize).FirstOrDefault(entry => entry.Id == publicationId);
+        var existing = _publicationLog.Select(RequirePublication).FirstOrDefault(entry => entry.Id == publicationId);
         if (existing is not null)
         {
             if (existing.ContentHash != hash)
@@ -842,7 +842,7 @@ internal sealed class Chat : Neuron, IChat, IChatKernel
             ? transcript
             : new ChatTranscript([.. transcript.Turns.Skip(transcript.Turns.Count - cap)]);
 
-    private IReadOnlyList<ChatTurn> Turns() => [.. _transcript.Select(_turns.Deserialize)];
+    private IReadOnlyList<ChatTurn> Turns() => [.. _transcript.Select(RequireTurn)];
 
     private bool IsUnseenCommand(SendMessage message)
     {
@@ -855,7 +855,7 @@ internal sealed class Chat : Neuron, IChat, IChatKernel
 
         for (var remembered = _commandLog.Count - 1; remembered >= 0; remembered--)
         {
-            var command = _commands.Deserialize(_commandLog[remembered]);
+            var command = RequireOwnerCommand(_commands.Deserialize(_commandLog[remembered]));
             if (command.CommandId != message.CommandId.Value)
             {
                 continue;
@@ -889,7 +889,7 @@ internal sealed class Chat : Neuron, IChat, IChatKernel
         => Append(_transcript, _turns.SerializeToArray(turn), RetainedTurns);
 
     private List<DurableTurnRecord> LoadTurns()
-        => [.. _turnLog.Select(_turnRecords.Deserialize)];
+        => [.. _turnLog.Select(RequireTurnRecord)];
 
     private void SaveTurns(List<DurableTurnRecord> turns)
     {
@@ -919,7 +919,7 @@ internal sealed class Chat : Neuron, IChat, IChatKernel
             return new TurnQueueState([], null);
         }
 
-        return _queues.Deserialize(bytes);
+        return RequireQueue(_queues.Deserialize(bytes));
     }
 
     private void SaveQueue(TurnQueueState queue)
@@ -932,7 +932,7 @@ internal sealed class Chat : Neuron, IChat, IChatKernel
             return new ChatExecutionFocus(null, []);
         }
 
-        return _focusStates.Deserialize(bytes);
+        return RequireFocus(_focusStates.Deserialize(bytes));
     }
 
     private void SaveFocus(ChatExecutionFocus focus)
@@ -977,4 +977,26 @@ internal sealed class Chat : Neuron, IChat, IChatKernel
             entries.RemoveAt(0);
         }
     }
+
+    // Orleans 10.3 marks Serializer<T>.Deserialize as [MaybeNull]; durable bytes here must decode.
+    private ChatPublication RequirePublication(byte[] bytes)
+        => _publications.Deserialize(bytes)
+            ?? throw new InvalidOperationException("ChatPublication deserialize returned null.");
+
+    private ChatTurn RequireTurn(byte[] bytes)
+        => _turns.Deserialize(bytes)
+            ?? throw new InvalidOperationException("ChatTurn deserialize returned null.");
+
+    private static OwnerCommand RequireOwnerCommand(OwnerCommand? command)
+        => command ?? throw new InvalidOperationException("OwnerCommand deserialize returned null.");
+
+    private DurableTurnRecord RequireTurnRecord(byte[] bytes)
+        => _turnRecords.Deserialize(bytes)
+            ?? throw new InvalidOperationException("DurableTurnRecord deserialize returned null.");
+
+    private static TurnQueueState RequireQueue(TurnQueueState? queue)
+        => queue ?? throw new InvalidOperationException("TurnQueueState deserialize returned null.");
+
+    private static ChatExecutionFocus RequireFocus(ChatExecutionFocus? focus)
+        => focus ?? throw new InvalidOperationException("ChatExecutionFocus deserialize returned null.");
 }

@@ -67,7 +67,9 @@ internal sealed class JournalWindow
             var reader = Reader.Create(encoded, session);
             try
             {
-                deliveries.Add(_entries.Deserialize(ref reader).Delivery);
+                var entry = _entries.Deserialize(ref reader)
+                    ?? throw new InvalidOperationException("Journal entry deserialize returned null.");
+                deliveries.Add(entry.Delivery);
             }
             catch (FieldTypeMissingException) when (HasUnresolvedTypeAt(encoded, reader.Position))
             {

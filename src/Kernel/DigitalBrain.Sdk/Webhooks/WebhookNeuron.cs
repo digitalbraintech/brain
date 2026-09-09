@@ -537,7 +537,9 @@ public abstract class WebhookNeuron : Neuron, IWebhook, IAuthenticatedWebhookIng
         }
     }
 
-    private WebhookState State => _loaded ??= _value.Value is { Length: > 0 } bytes ? _serializer.Deserialize(bytes) : new();
+    private WebhookState State => _loaded ??= _value.Value is { Length: > 0 } bytes
+        ? _serializer.Deserialize(bytes) ?? new()
+        : new();
 
     private void Stage(WebhookState next)
     {
