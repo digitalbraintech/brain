@@ -111,13 +111,25 @@ jobs:
           echo "waiting on revision ${revision}"
 
           dump_revision_logs() {
-            echo "----- revision ${revision} console logs -----"
-            az containerapp logs show \
+            echo "----- revision ${revision} details -----"
+            az containerapp revision show \
               --name "${{ vars.AZURE_CONTAINERAPP_NAME }}" \
               --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
               --revision "$revision" \
+              --query "{state:properties.runningState,health:properties.healthState,replicas:properties.replicas,image:properties.template.containers[0].image}" \
+              -o json || true
+            echo "----- console logs (app) -----"
+            az containerapp logs show \
+              --name "${{ vars.AZURE_CONTAINERAPP_NAME }}" \
+              --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
               --type console \
               --tail 120 || true
+            echo "----- system logs -----"
+            az containerapp logs show \
+              --name "${{ vars.AZURE_CONTAINERAPP_NAME }}" \
+              --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+              --type system \
+              --tail 80 || true
           }
 
           for attempt in $(seq 1 40); do
