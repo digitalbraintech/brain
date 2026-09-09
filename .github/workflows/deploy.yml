@@ -110,6 +110,16 @@ jobs:
           fi
           echo "waiting on revision ${revision}"
 
+          dump_revision_logs() {
+            echo "----- revision ${revision} console logs -----"
+            az containerapp logs show \
+              --name "${{ vars.AZURE_CONTAINERAPP_NAME }}" \
+              --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+              --revision "$revision" \
+              --type console \
+              --tail 120 || true
+          }
+
           for attempt in $(seq 1 40); do
             state=$(az containerapp revision show \
               --name "${{ vars.AZURE_CONTAINERAPP_NAME }}" \
@@ -128,6 +138,7 @@ jobs:
                 ;;
               Failed|Degraded)
                 echo "revision ${revision} reported ${state}"
+                dump_revision_logs
                 exit 1
                 ;;
               *)
@@ -137,6 +148,7 @@ jobs:
             sleep 15
           done
           echo "revision ${revision} did not take traffic within 10 minutes"
+          dump_revision_logs
           exit 1
 
   deploy-flutter-web:
