@@ -6,6 +6,7 @@ using System.Text.Json;
 using DigitalBrain.Sdk;
 
 namespace DigitalBrain.Microsoft.GitHub;
+
 internal interface IGitHubRepositorySource
 {
     Task<PullRequestSnapshot> GetPullRequestAsync(GitHubRepositoryBinding binding, int number, CancellationToken cancellationToken);
@@ -161,8 +162,8 @@ internal sealed class GitHubRepositorySource : IGitHubRepositorySource, IDisposa
 
                     foreach (var check in rule.GetProperty("parameters").GetProperty("required_status_checks").EnumerateArray())
                     {
-                        var producer = check.TryGetProperty("integration_id", out var integration) && integration.ValueKind == JsonValueKind.Number ? integration.GetInt64() : (long? )null;
-                        requirements.Add(new(BoundedString(check, "context", 512), producer is> 0 ? producer : null, "any"));
+                        var producer = check.TryGetProperty("integration_id", out var integration) && integration.ValueKind == JsonValueKind.Number ? integration.GetInt64() : (long?)null;
+                        requirements.Add(new(BoundedString(check, "context", 512), producer is > 0 ? producer : null, "any"));
                     }
                 }
             }
@@ -176,8 +177,8 @@ internal sealed class GitHubRepositorySource : IGitHubRepositorySource, IDisposa
                     {
                         foreach (var check in checks.EnumerateArray())
                         {
-                            var producer = check.TryGetProperty("app_id", out var app) && app.ValueKind == JsonValueKind.Number ? app.GetInt64() : (long? )null;
-                            requirements.Add(new(BoundedString(check, "context", 512), producer is> 0 ? producer : null, "any"));
+                            var producer = check.TryGetProperty("app_id", out var app) && app.ValueKind == JsonValueKind.Number ? app.GetInt64() : (long?)null;
+                            requirements.Add(new(BoundedString(check, "context", 512), producer is > 0 ? producer : null, "any"));
                         }
                     }
                     else if (protection.Body.TryGetProperty("contexts", out var contexts))
@@ -192,11 +193,11 @@ internal sealed class GitHubRepositorySource : IGitHubRepositorySource, IDisposa
             }
 
             var found = requirements.Distinct().ToArray();
-            complete &= found.Length is> 0 and <= 64;
+            complete &= found.Length is > 0 and <= 64;
             binding.Authorize(binding.Owner, binding.Principal);
             return new(found, complete, complete ? null : "Required CI policy is empty, incomplete or inaccessible. Select explicit required checks; unknown requirements never count as green.");
         }
-        catch (Exception error)when (error is Octokit.ApiException or McpOperationException or JsonException or InvalidOperationException)
+        catch (Exception error) when (error is Octokit.ApiException or McpOperationException or JsonException or InvalidOperationException)
         {
             return new([], false, "Required CI configuration could not be read. Verify branch/ruleset access or select an explicit nonempty required-check set.");
         }
@@ -234,7 +235,7 @@ internal sealed class GitHubRepositorySource : IGitHubRepositorySource, IDisposa
                 var additions = file.GetProperty("additions").GetInt32();
                 var deletions = file.GetProperty("deletions").GetInt32();
                 var sha = Sha(file.GetProperty("sha"));
-                if (!seenFiles.Add(path) || patch is null && additions + deletions > 0 || patch is null && OptionalString(file, "status")is not "renamed" and not "unchanged")
+                if (!seenFiles.Add(path) || patch is null && additions + deletions > 0 || patch is null && OptionalString(file, "status") is not "renamed" and not "unchanged")
                 {
                     complete = false;
                     break;
@@ -384,7 +385,7 @@ internal sealed class GitHubRepositorySource : IGitHubRepositorySource, IDisposa
                 {
                     response = await connection.Get<JsonElement>(new Uri(path, UriKind.Relative), new Dictionary<string, string>(), "application/vnd.github+json", token).ConfigureAwait(false);
                 }
-                catch (Octokit.AuthorizationException)when (attempt == 0)
+                catch (Octokit.AuthorizationException) when (attempt == 0)
                 {
                     continue;
                 }
@@ -399,7 +400,7 @@ internal sealed class GitHubRepositorySource : IGitHubRepositorySource, IDisposa
         {
             throw new McpOperationException("GitHub repository evidence is unavailable. Verify repository access or retry after rate limiting clears.", error.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden or HttpStatusCode.NotFound ? McpFailureKind.AccessDenied : McpFailureKind.Unavailable);
         }
-        catch (Exception error)when (error is HttpRequestException or JsonException)
+        catch (Exception error) when (error is HttpRequestException or JsonException)
         {
             throw new McpOperationException("GitHub repository evidence could not be read.", McpFailureKind.Unavailable);
         }
@@ -418,7 +419,7 @@ internal sealed class GitHubRepositorySource : IGitHubRepositorySource, IDisposa
     }
 
     internal static bool IsSha(string value) => value.Length == 40 && value.All(char.IsAsciiHexDigit);
-    private static string Sha(JsonElement value) => value.GetString()is { } text && IsSha(text) ? text : throw InvalidEvidence();
+    private static string Sha(JsonElement value) => value.GetString() is { } text && IsSha(text) ? text : throw InvalidEvidence();
     internal static string Hash(string text) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(text)));
     private static McpOperationException InvalidEvidence() => new("GitHub returned incomplete or incompatible repository evidence.", McpFailureKind.ContentRejected);
     public void Dispose() => _http.Dispose();

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 
 namespace DigitalBrain.Sdk.Webhooks;
+
 public static class WebhookTrace
 {
     public static readonly ActivitySource Source = new("DigitalBrain.Webhooks");

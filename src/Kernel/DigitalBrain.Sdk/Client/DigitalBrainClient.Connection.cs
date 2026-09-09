@@ -57,7 +57,8 @@ public sealed partial class DigitalBrainClient
             await host.StartAsync(cancellationToken).ConfigureAwait(false);
             var owner = builder.Configuration[DigitalBrainNames.Owner] ?? DigitalBrainNames.DefaultOwner;
             var brain = new DigitalBrainClient(new DigitalBrainClientTransport(
-                host.Services.GetRequiredService<IGrainFactory>(), new OwnerId(owner), connectionActor)) { _host = host };
+                host.Services.GetRequiredService<IGrainFactory>(), new OwnerId(owner), connectionActor))
+            { _host = host };
             return brain;
         }
         catch

@@ -47,24 +47,24 @@ public sealed class ShippedStartupChatRoutingTests : IDisposable
         var serving = host.ServeAsync(artifact, brain, "start", stopping.Token);
         try
         {
-        var composer = brain.Get<IComposer>(IComposer.DefaultInstanceName);
-        var command = await new WorkspaceInject(brain, simulation.Grains).InjectUserMessage(
-            "main", "hello from startup", actor, ct);
-        using var responseDeadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        responseDeadline.CancelAfter(TimeSpan.FromSeconds(8));
-        var response = await WaitForResponseAsync(composer, command, responseDeadline.Token);
+            var composer = brain.Get<IComposer>(IComposer.DefaultInstanceName);
+            var command = await new WorkspaceInject(brain, simulation.Grains).InjectUserMessage(
+                "main", "hello from startup", actor, ct);
+            using var responseDeadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            responseDeadline.CancelAfter(TimeSpan.FromSeconds(8));
+            var response = await WaitForResponseAsync(composer, command, responseDeadline.Token);
 
-        Assert.Equal("Test assistant reply.", response.Text);
-        Assert.Equal(composer.Id, response.Chat);
-        var journal = await composer.ReadJournalAsync(JournalKind.Outgoing, 0, ct);
-        var input = Assert.Single(journal.Delta,
-            delivery => delivery.Signal is UserMessaged message && message.CommandId == command);
-        var output = Assert.Single(journal.Delta,
-            delivery => delivery.Signal is Responded replied && replied.CommandId == command);
-        Assert.Equal(input.CorrelationId, output.CorrelationId);
-        Assert.Equal(actor.PrincipalId, output.Principal);
-        Assert.DoesNotContain(journal.Delta, delivery => delivery.Signal is TurnLifecycle lifecycle
-            && lifecycle.CommandId == command && lifecycle.Status == ChatTurnStatus.Failed);
+            Assert.Equal("Test assistant reply.", response.Text);
+            Assert.Equal(composer.Id, response.Chat);
+            var journal = await composer.ReadJournalAsync(JournalKind.Outgoing, 0, ct);
+            var input = Assert.Single(journal.Delta,
+                delivery => delivery.Signal is UserMessaged message && message.CommandId == command);
+            var output = Assert.Single(journal.Delta,
+                delivery => delivery.Signal is Responded replied && replied.CommandId == command);
+            Assert.Equal(input.CorrelationId, output.CorrelationId);
+            Assert.Equal(actor.PrincipalId, output.Principal);
+            Assert.DoesNotContain(journal.Delta, delivery => delivery.Signal is TurnLifecycle lifecycle
+                && lifecycle.CommandId == command && lifecycle.Status == ChatTurnStatus.Failed);
         }
         finally
         {

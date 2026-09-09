@@ -15,7 +15,7 @@ internal sealed class GitHubWebhookProcessor(GitHubRepositoryBindings bindings, 
         var binding = bindings.TryFor(id, out var found) ? found : throw new UnauthorizedAccessException("The GitHub repository is not connected.");
         if (binding.Revision != receipt.Epoch)
         {
-            return[];
+            return [];
         }
 
         if (receipt.Input is RepositoryQuery query)
@@ -48,7 +48,7 @@ internal sealed class GitHubWebhookProcessor(GitHubRepositoryBindings bindings, 
                 throw new InvalidOperationException("Unsupported repository query.");
             }
 
-            return[new RepositoryQueryResult(query.Request, response)];
+            return [new RepositoryQueryResult(query.Request, response)];
         }
 
         if (receipt.Input is not RefreshRepository refresh)
@@ -58,17 +58,17 @@ internal sealed class GitHubWebhookProcessor(GitHubRepositoryBindings bindings, 
 
         if (refresh.Revoke || !binding.Enabled)
         {
-            return[new RepositoryObserved([], true)];
+            return [new RepositoryObserved([], true)];
         }
 
         if (refresh.Action == "ping")
         {
-            return[];
+            return [];
         }
 
         if (refresh.Number is { } number)
         {
-            return[new RepositoryObserved([await source.GetPullRequestAsync(binding, number, token)])];
+            return [new RepositoryObserved([await source.GetPullRequestAsync(binding, number, token)])];
         }
 
         var known = await grains.GetGrain<IRepositoryProjection>(id.ToGrainId()).ReadProjectionAsync().WaitAsync(token);
@@ -83,7 +83,7 @@ internal sealed class GitHubWebhookProcessor(GitHubRepositoryBindings bindings, 
                     snapshots.Add(await source.GetPullRequestAsync(binding, target.Number, token));
                 }
 
-                return[new RepositoryObserved([..snapshots])];
+                return [new RepositoryObserved([.. snapshots])];
             }
         }
 
@@ -94,6 +94,6 @@ internal sealed class GitHubWebhookProcessor(GitHubRepositoryBindings bindings, 
             all.Add(await source.GetPullRequestAsync(binding, old.Number, token));
         }
 
-        return[new RepositoryObserved([..all])];
+        return [new RepositoryObserved([.. all])];
     }
 }

@@ -62,12 +62,20 @@ internal sealed class GmailTools(GmailMcp gmail, GmailConnections connections,
                 var binding = _connections.Identity(context.Owner, identity.Principal);
                 GmailMcp.Authorize(identity, binding);
                 RequireContinuation(context, binding);
-                return JsonSerializer.Serialize(new { email = binding.Email, canCompose = binding.CanCompose,
-                    status = "cached_account", message = "Selected authorized account. Cached identity does not verify live Gmail reachability." });
+                return JsonSerializer.Serialize(new
+                {
+                    email = binding.Email,
+                    canCompose = binding.CanCompose,
+                    status = "cached_account",
+                    message = "Selected authorized account. Cached identity does not verify live Gmail reachability."
+                });
             }
             catch (McpAuthenticationRequiredException) { return Login(false, cancellationToken); }
-        }, new AIFunctionFactoryOptions { Name = "get_current_account",
-            Description = "Check the selected authorized Google account. If disconnected, creates the application's browser login action. Cached identity alone does not prove Gmail is reachable. Never asks for credentials in chat." });
+        }, new AIFunctionFactoryOptions
+        {
+            Name = "get_current_account",
+            Description = "Check the selected authorized Google account. If disconnected, creates the application's browser login action. Cached identity alone does not prove Gmail is reachable. Never asks for credentials in chat."
+        });
 
     internal static GmailAgentIdentity RequireIdentity(AgentToolContext context)
     {
@@ -101,8 +109,12 @@ internal sealed class GmailTools(GmailMcp gmail, GmailConnections connections,
         try
         {
             var action = logins.RequireLogin(compose, cancellationToken);
-            return JsonSerializer.Serialize(new { status = "authentication_required", actionId = action.Id,
-                message = "Use the application's Gmail login action. Do not request secrets, invent a URL or retry tools. Reads resume once; drafts require a fresh preview and explicit confirmation after login." });
+            return JsonSerializer.Serialize(new
+            {
+                status = "authentication_required",
+                actionId = action.Id,
+                message = "Use the application's Gmail login action. Do not request secrets, invent a URL or retry tools. Reads resume once; drafts require a fresh preview and explicit confirmation after login."
+            });
         }
         catch (McpOperationException error)
         {

@@ -27,7 +27,7 @@ internal sealed class GitHubSharedWebhookHandler(GitHubRepositoryBindings bindin
                 pingApp = appId.GetInt64();
             }
         }
-        catch (Exception error)when (error is JsonException or InvalidOperationException or FormatException)
+        catch (Exception error) when (error is JsonException or InvalidOperationException or FormatException)
         {
             return WebhookAcceptance.BadRequest;
         }

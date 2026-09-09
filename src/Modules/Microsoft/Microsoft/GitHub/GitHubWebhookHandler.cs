@@ -8,6 +8,7 @@ using DigitalBrain.Sdk.Webhooks;
 using Octokit.Webhooks;
 
 namespace DigitalBrain.Microsoft.GitHub;
+
 internal sealed class GitHubWebhookHandler(GitHubRepositoryBinding binding, IGrainFactory grains) : IWebhookHandler
 {
     public async Task<WebhookAcceptance> HandleAsync(WebhookRequest request, CancellationToken cancellationToken)
@@ -131,7 +132,7 @@ internal sealed class GitHubWebhookHandler(GitHubRepositoryBinding binding, IGra
             }
 
             var number = Number(payload, "number");
-            return number is> 0 and <= int.MaxValue ? ((int)number.Value, false, null) : (null, false, WebhookAcceptance.BadRequest);
+            return number is > 0 and <= int.MaxValue ? ((int)number.Value, false, null) : (null, false, WebhookAcceptance.BadRequest);
         }
 
         // Check payloads may have no PR association for forks. Reconcile authoritative open PRs.

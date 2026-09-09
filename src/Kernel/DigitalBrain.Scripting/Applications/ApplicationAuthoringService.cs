@@ -212,7 +212,7 @@ public sealed partial class ApplicationAuthoringService : IApplicationAuthoring
         await using var heldLock = await AcquireLockAsync(location, cancellationToken).ConfigureAwait(false);
         var metadata = await RequireRevisionAsync(location, expectedSourceRevision, cancellationToken).ConfigureAwait(false);
         return metadata.Validation is
-               { Succeeded: true, Description: { } description, SourceRevision: var validatedRevision }
+        { Succeeded: true, Description: { } description, SourceRevision: var validatedRevision }
                && StringComparer.Ordinal.Equals(validatedRevision, expectedSourceRevision)
             ? description
             : throw new InvalidOperationException(

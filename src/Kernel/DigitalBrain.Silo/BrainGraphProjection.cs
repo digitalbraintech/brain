@@ -321,21 +321,21 @@ internal sealed class BrainGraphProjection(IBrainGraphSource source, BrainGraphM
         {
             AgentActivity activity => ($"{activity.Kind}: {activity.Name} · {activity.State}", null),
             AgentRequest request => ("Agent request received", new Dictionary<string, string>
-                { ["characters"] = request.Text.Length.ToString(CultureInfo.InvariantCulture) }),
+            { ["characters"] = request.Text.Length.ToString(CultureInfo.InvariantCulture) }),
             AgentReply reply => ("Agent reply recorded", new Dictionary<string, string>
-                { ["characters"] = reply.Text.Length.ToString(CultureInfo.InvariantCulture) }),
+            { ["characters"] = reply.Text.Length.ToString(CultureInfo.InvariantCulture) }),
             TurnLifecycle turn => ($"Turn {turn.Status.ToString().ToLowerInvariant()}",
                 new Dictionary<string, string> { ["status"] = turn.Status.ToString(), ["turnId"] = turn.TurnId.ToString() }),
             UserMessaged message => ("Message received", new Dictionary<string, string>
-                { ["characters"] = message.Text.Length.ToString(CultureInfo.InvariantCulture) }),
+            { ["characters"] = message.Text.Length.ToString(CultureInfo.InvariantCulture) }),
             DigitalBrain.Memory.MemoryUpdated updated => ("Memory updated", new Dictionary<string, string>
-                { ["key"] = updated.Key }),
+            { ["key"] = updated.Key }),
             Responded response => ("Assistant response recorded", new Dictionary<string, string>
-                { ["characters"] = response.Text.Length.ToString(CultureInfo.InvariantCulture) }),
+            { ["characters"] = response.Text.Length.ToString(CultureInfo.InvariantCulture) }),
             Subscribe subscription => ("Subscription bound", new Dictionary<string, string>
-                { ["signalType"] = subscription.SignalType }),
+            { ["signalType"] = subscription.SignalType }),
             Unsubscribe subscription => ("Subscription removed", new Dictionary<string, string>
-                { ["signalType"] = subscription.SignalType }),
+            { ["signalType"] = subscription.SignalType }),
             DigitalBrainActivated => ("DigitalBrain activated", null),
             _ => ($"{signal.GetType().Name} observed · payload omitted", null),
         };

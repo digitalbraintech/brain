@@ -76,13 +76,13 @@ internal sealed class GraphTools(IDigitalBrain brain, IApplicationAuthoring auth
             truncated = read.ResetSnapshot is not null,
             deliveries = read.Delta.Where(delivery => delivery.Signal is not (ActivityChanged or ActivityExecutionChanged)
                 || delivery.Principal is null || delivery.Principal == OwnerActor.PrincipalId).Select(delivery => new
-            {
-                signalType = delivery.Signal.GetType().Name,
-                correlationId = delivery.CorrelationId.ToString(),
-                caller = delivery.Caller.ToString(),
-                sequence = delivery.Sequence,
-                summary = delivery.Signal.ToString(),
-            }),
+                {
+                    signalType = delivery.Signal.GetType().Name,
+                    correlationId = delivery.CorrelationId.ToString(),
+                    caller = delivery.Caller.ToString(),
+                    sequence = delivery.Sequence,
+                    summary = delivery.Signal.ToString(),
+                }),
         }, JsonSerializerOptions.Web);
     }
 

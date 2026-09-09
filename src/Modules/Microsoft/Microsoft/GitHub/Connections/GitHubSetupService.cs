@@ -6,6 +6,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace DigitalBrain.Microsoft.GitHub;
+
 internal sealed class GitHubSetupService(IConfiguration configuration, GitHubRepositoryBindings bindings, IGrainFactory grains, GitHubInstallationTokens tokens, IGitHubRepositorySource source) : IGitHubSetup
 {
     internal const string AppRoot = "DigitalBrain:Microsoft:GitHub:App";
@@ -155,7 +156,7 @@ internal sealed class GitHubConnectionRecovery(GitHubSetupService setup, GitHubR
                 using var actor = VerifiedActor.Enter(new(binding.Principal, "github-recovery"));
                 await grains.GetGrain<IRepositoryProjection>(NeuronId.For<IRepository>(binding.Owner, binding.InstanceName).ToGrainId()).ReadProjectionAsync().WaitAsync(stoppingToken);
             }
-            catch (Exception error)when (!stoppingToken.IsCancellationRequested)
+            catch (Exception error) when (!stoppingToken.IsCancellationRequested)
             {
                 logger.LogWarning("GitHub connection recovery deferred after {FailureType}.", error.GetType().Name);
             }

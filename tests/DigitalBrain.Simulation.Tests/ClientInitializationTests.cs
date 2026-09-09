@@ -17,7 +17,8 @@ public sealed class ClientInitializationTests
         {
             await using var simulation = await BrainSimulation.StartAsync(new()
             {
-                Modules = new([]), PersistenceDirectory = directory,
+                Modules = new([]),
+                PersistenceDirectory = directory,
             });
             await simulation.Brain.ActivateAsync(TestContext.Current.CancellationToken);
             var initial = await simulation.Brain.ReadJournalAsync(JournalKind.Outgoing,

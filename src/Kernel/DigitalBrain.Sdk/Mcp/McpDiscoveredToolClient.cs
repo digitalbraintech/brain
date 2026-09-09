@@ -38,7 +38,8 @@ public sealed class McpDiscoveredToolClient<TIdentity> : IAsyncDisposable where 
         Func<TIdentity, CancellationToken, Task<McpClient>>? connect)
         : this(connection?.Name ?? throw new ArgumentNullException(nameof(connection)), StdioOptions(connection), connection.AllowedToolNames,
             new McpStdioTransport<TIdentity>(connection with { Arguments = [.. connection.Arguments] }, connect),
-            new McpToolPolicy(static _ => false), configureSession) { }
+            new McpToolPolicy(static _ => false), configureSession)
+    { }
 
     /// <summary>
     /// Creates an authenticated HTTP connection using the same native catalog/session path as STDIO.
@@ -110,8 +111,10 @@ public sealed class McpDiscoveredToolClient<TIdentity> : IAsyncDisposable where 
         ArgumentException.ThrowIfNullOrWhiteSpace(connection.Command);
         return new()
         {
-            Capacity = connection.Capacity, ResponseBudgetBytes = connection.ResponseBudgetBytes,
-            Timeout = connection.OperationTimeout, IdleTimeout = connection.IdleTimeout,
+            Capacity = connection.Capacity,
+            ResponseBudgetBytes = connection.ResponseBudgetBytes,
+            Timeout = connection.OperationTimeout,
+            IdleTimeout = connection.IdleTimeout,
         };
     }
 

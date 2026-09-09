@@ -191,7 +191,9 @@ internal sealed partial class ApplicationKernel(
             }
             var claimed = WithInitialState(work) with
             {
-                Result = new("pending"), Lease = Guid.NewGuid(), LeaseUntil = now.AddSeconds(30),
+                Result = new("pending"),
+                Lease = Guid.NewGuid(),
+                LeaseUntil = now.AddSeconds(30),
                 Attempts = work.Attempts + 1,
             };
             await Save(claimed);
@@ -343,7 +345,9 @@ internal sealed partial class ApplicationKernel(
             {
                 await Save(work with
                 {
-                    Result = new("waiting"), Lease = Guid.Empty, LeaseUntil = DateTimeOffset.MinValue,
+                    Result = new("waiting"),
+                    Lease = Guid.Empty,
+                    LeaseUntil = DateTimeOffset.MinValue,
                     Attempts = 0,
                 });
                 return false;
@@ -362,8 +366,11 @@ internal sealed partial class ApplicationKernel(
         }
         await SaveCheckpoint(work with
         {
-            Effects = [.. work.Effects, effect], Result = new("waiting"),
-            Lease = Guid.Empty, LeaseUntil = DateTimeOffset.MinValue, Attempts = 0,
+            Effects = [.. work.Effects, effect],
+            Result = new("waiting"),
+            Lease = Guid.Empty,
+            LeaseUntil = DateTimeOffset.MinValue,
+            Attempts = 0,
         }, writes);
         return false;
     }
@@ -397,8 +404,12 @@ internal sealed partial class ApplicationKernel(
         };
         var effect = new ApplicationEffect(identity, Guid.NewGuid(), Revision: null)
         {
-            Writes = new(writes), WaitSourceKind = sourceKind, WaitSourceId = sourceId,
-            WaitBehaviorKey = behaviorKey, WaitOutputKey = outputKey, WaitContract = contract,
+            Writes = new(writes),
+            WaitSourceKind = sourceKind,
+            WaitSourceId = sourceId,
+            WaitBehaviorKey = behaviorKey,
+            WaitOutputKey = outputKey,
+            WaitContract = contract,
             WaitAfterSequence = cursor,
         };
         await SaveCheckpoint(work with { Effects = [.. work.Effects, effect] }, writes);
@@ -424,8 +435,11 @@ internal sealed partial class ApplicationKernel(
         }
         await Save(work with
         {
-            Result = new("waiting"), Lease = Guid.Empty, LeaseUntil = DateTimeOffset.MinValue,
-            Attempts = 0, WaitingEffectOrdinal = ordinal,
+            Result = new("waiting"),
+            Lease = Guid.Empty,
+            LeaseUntil = DateTimeOffset.MinValue,
+            Attempts = 0,
+            WaitingEffectOrdinal = ordinal,
         });
         return null;
     }

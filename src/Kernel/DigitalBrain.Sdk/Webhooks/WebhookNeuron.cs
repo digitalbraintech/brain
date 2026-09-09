@@ -7,6 +7,7 @@ using Orleans.Journaling;
 using Orleans.Serialization;
 
 namespace DigitalBrain.Sdk.Webhooks;
+
 public sealed record WebhookFact(string EventId, Signal Signal, SignalDelivery? ReplyTo = null);
 public sealed record WebhookApplication(IReadOnlyList<WebhookFact> Facts, Action? Rollback = null);
 /// <summary>
@@ -225,7 +226,7 @@ public abstract class WebhookNeuron : Neuron, IWebhook, IAuthenticatedWebhookIng
             var envelope = item.Delivery ?? CreateDelivery(item.Signal, item.ReplyTo, sourceEpoch: item.Generation);
             var next = state with
             {
-                Deliveries = [..state.Deliveries]
+                Deliveries = [.. state.Deliveries]
             };
             next.Deliveries[index] = item with
             {
@@ -447,7 +448,7 @@ public abstract class WebhookNeuron : Neuron, IWebhook, IAuthenticatedWebhookIng
             {
                 deliveries[index] = item with
                 {
-                    Recipients = [..recipients]
+                    Recipients = [.. recipients]
                 };
             }
 
@@ -482,7 +483,7 @@ public abstract class WebhookNeuron : Neuron, IWebhook, IAuthenticatedWebhookIng
             Epoch = SourceEpoch,
             Available = SourceAvailable,
             Generation = generation,
-            Fences = [..recipients.Select(recipient => new PendingWebhookFence(recipient, generation))]
+            Fences = [.. recipients.Select(recipient => new PendingWebhookFence(recipient, generation))]
         };
     }
 
@@ -531,7 +532,7 @@ public abstract class WebhookNeuron : Neuron, IWebhook, IAuthenticatedWebhookIng
         using var actor = VerifiedActor.Enter(SourceActor);
         await OnSourceRecoveryAsync(CancellationToken.None);
         Wake();
-        if (!HasPending && (await ReadSynapses()).Count == 0 && await this.GetReminder(ReminderName)is { } reminder)
+        if (!HasPending && (await ReadSynapses()).Count == 0 && await this.GetReminder(ReminderName) is { } reminder)
         {
             await this.UnregisterReminder(reminder);
         }

@@ -97,7 +97,7 @@ internal sealed class WebhookWorker(IGrainFactory grains, WebhookWakeups wakeups
                 }
             }
         }
-        catch (OperationCanceledException)when (token.IsCancellationRequested)
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
         }
         catch (Exception error)

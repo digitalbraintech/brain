@@ -26,7 +26,8 @@ public sealed class AssistantSelfMcpTests
         var store = Path.Combine(Path.GetTempPath(), "db-self-mcp", Guid.NewGuid().ToString("N"));
         await using var simulation = await BrainSimulation.StartAsync(new()
         {
-            Modules = new([]), UseExternalGateway = true,
+            Modules = new([]),
+            UseExternalGateway = true,
             ConfigureSilo = silo => silo.Services.AddApplicationAuthoring(store),
         });
         var actor = new ActorContext(new PrincipalId(Guid.Parse("0000dead-0000-0000-0000-000000000001")), "owner");
@@ -65,12 +66,16 @@ public sealed class AssistantSelfMcpTests
         var template = await Call("application_template", new() { ["key"] = "ping" });
         var saved = JsonSerializer.Deserialize<ApplicationSource>(await Call("save_application", new()
         {
-            ["key"] = "ping", ["source"] = template, ["expectedRevision"] = null,
+            ["key"] = "ping",
+            ["source"] = template,
+            ["expectedRevision"] = null,
         }), JsonSerializerOptions.Web)!;
         var expectation = """{"instruction":"Return pong.","examples":[{"name":"ping","operation":"reply","inputJson":"\"ping\"","expectedJson":"\"pong\""}]}""";
         await Call("set_application_expectations", new()
         {
-            ["key"] = "ping", ["documentJson"] = expectation, ["operationId"] = Guid.NewGuid(),
+            ["key"] = "ping",
+            ["documentJson"] = expectation,
+            ["operationId"] = Guid.NewGuid(),
             ["expectedExpectationRevision"] = null,
         });
         var revision = new AIFunctionArguments { ["key"] = "ping", ["expectedSourceRevision"] = saved.SourceRevision };
@@ -80,7 +85,10 @@ public sealed class AssistantSelfMcpTests
         await Call("activate_application", revision);
         var invoked = JsonDocument.Parse(await Call("invoke_application", new()
         {
-            ["key"] = "ping", ["operation"] = "reply", ["inputJson"] = "\"ping\"", ["operationId"] = Guid.NewGuid(),
+            ["key"] = "ping",
+            ["operation"] = "reply",
+            ["inputJson"] = "\"ping\"",
+            ["operationId"] = Guid.NewGuid(),
         }));
         Assert.Equal("\"pong\"", invoked.RootElement.GetProperty("value").GetString());
         using var stranger = new AgentToolContext(context.Agent, PrincipalId.New(), new NoopRequests());

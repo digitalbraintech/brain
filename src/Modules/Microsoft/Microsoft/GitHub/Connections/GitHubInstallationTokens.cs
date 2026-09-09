@@ -94,7 +94,9 @@ internal sealed class GitHubInstallationTokens : IDisposable
         var header = Base64Url(Encoding.UTF8.GetBytes("{\"alg\":\"RS256\",\"typ\":\"JWT\"}"));
         var payload = Base64Url(JsonSerializer.SerializeToUtf8Bytes(new
         {
-            iat = now.AddSeconds(-60).ToUnixTimeSeconds(), exp = now.AddMinutes(9).ToUnixTimeSeconds(), iss = binding.AppId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            iat = now.AddSeconds(-60).ToUnixTimeSeconds(),
+            exp = now.AddMinutes(9).ToUnixTimeSeconds(),
+            iss = binding.AppId.ToString(System.Globalization.CultureInfo.InvariantCulture),
         }));
         using var rsa = RSA.Create();
         rsa.ImportFromPem(binding.PrivateKeyPem);

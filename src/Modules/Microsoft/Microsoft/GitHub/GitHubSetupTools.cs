@@ -38,8 +38,13 @@ internal sealed class GitHubSetupTools(IGitHubSetup setup, GitHubLogins logins) 
             {
                 var action = logins.Require(["connect_github_repository"], state.RepositoryUrl, token,
                     new SetupContinuation("connect_github_repository", state.RepositoryUrl));
-                return JsonSerializer.Serialize(new { state.State, state.RepositoryUrl, ActionId = action.Id,
-                    Message = "Use the GitHub connection action. The saved request will resume after authorization." });
+                return JsonSerializer.Serialize(new
+                {
+                    state.State,
+                    state.RepositoryUrl,
+                    ActionId = action.Id,
+                    Message = "Use the GitHub connection action. The saved request will resume after authorization."
+                });
             }
             return JsonSerializer.Serialize(state);
         }

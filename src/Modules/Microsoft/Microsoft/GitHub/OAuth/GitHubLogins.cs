@@ -11,7 +11,7 @@ internal sealed class GitHubLogins(GitHubOAuthConfiguration configuration, IServ
     internal static readonly BrowserLoginDefinition LoginDefinition = new(
         "github", "GitHub", "GitHubIntegration", "/integrations/github/login", "/integrations/github/callback",
         "Connect the GitHub App to the requested repository. Credentials stay outside your scripts and conversation.")
-        { RecoverPendingAfterRestart = true };
+    { RecoverPendingAfterRestart = true };
     protected override Uri? PublicOrigin => configuration.IsConfigured ? configuration.PublicOrigin : null;
 
     protected override async Task<string?> WaitBeforeResumeAsync(AgentTurnContext context, string? scope, CancellationToken cancellationToken)

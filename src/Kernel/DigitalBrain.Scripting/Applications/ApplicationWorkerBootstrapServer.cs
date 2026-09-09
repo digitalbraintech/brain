@@ -51,7 +51,8 @@ internal sealed class ApplicationWorkerBootstrapServer : IAsyncDisposable
         listener.Prefixes.Add(endpoint.AbsoluteUri);
         listener.Start();
         return new ApplicationWorkerBootstrapServer(listener, gateway,
-            capabilities ?? new ApplicationWorkerCapabilityAuthority()) { Endpoint = endpoint };
+            capabilities ?? new ApplicationWorkerCapabilityAuthority())
+        { Endpoint = endpoint };
     }
 
     internal string Issue(FileApplicationArtifact artifact, OwnerId owner, ActorContext actor, string applicationKey)

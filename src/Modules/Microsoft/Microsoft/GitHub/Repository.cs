@@ -8,6 +8,7 @@ using Orleans.Journaling;
 using Orleans.Serialization;
 
 namespace DigitalBrain.Microsoft.GitHub;
+
 [GenerateSerializer, Alias("github.refresh-repository")]
 internal sealed record RefreshRepository([property: Id(0)] string BindingId, [property: Id(1)] string DeliveryId, [property: Id(2)] string BindingRevision, [property: Id(3)] int? Number = null, [property: Id(4)] bool Revoke = false, [property: Id(5)] string? Sha = null, [property: Id(6)] string? Action = null, [property: Id(7)] bool AuthenticatedCallback = false) : Signal;
 [GenerateSerializer, Alias("github.repository-state")]
